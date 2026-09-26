@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck,
+  LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2,
   PanelLeft, ChevronsUpDown, LogOut, Search, Bell, CircleHelp, Check,
 } from 'lucide-react';
 import { NAV, pad3 } from '../nav.js';
@@ -11,6 +11,7 @@ import { useAuth } from '../auth.jsx';
 import { Burst } from '../components/Loader.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import DataSources from '../pages/DataSources.jsx';
+import CodeAnalyzer from '../pages/CodeAnalyzer.jsx';
 import Catalogue from '../pages/Catalogue.jsx';
 import AssetDetail from '../pages/AssetDetail.jsx';
 import KnowledgeGraph from '../pages/KnowledgeGraph.jsx';
@@ -21,7 +22,7 @@ import DataProducts from '../pages/DataProducts.jsx';
 import Stewardship from '../pages/Stewardship.jsx';
 import Admin from '../pages/Admin.jsx';
 
-const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck };
+const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2 };
 
 function Sidebar({ onToggle }) {
   const { user, signOut } = useAuth();
@@ -122,6 +123,7 @@ export default function AppShell() {
         <main ref={main} className={`content ${pathname === '/app/sources' ? 'flush' : ''}`}>
           <Routes>
             <Route index element={<Dashboard />} />
+            <Route path="code-analyzer" element={<CodeAnalyzer />} />
             <Route path="sources" element={<DataSources />} />
             {/* The standalone Data estate page is retired; old links land on the dashboard. */}
             <Route path="data-estate" element={<Navigate to={`/app${search}`} replace />} />

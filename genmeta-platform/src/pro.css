@@ -312,6 +312,20 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 .admin-link.on { background: var(--white); color: var(--navy); font-weight: 600; box-shadow: var(--shadow-1); }
 .admin-link.on svg { color: var(--royal); }
 .admin-link.nested { padding-left: 20px; }
+.admin-nav-top { display: flex; align-items: center; gap: 8px; padding: 0 0 14px 10px; }
+.admin-nav-top .admin-nav-h { flex: 1; padding: 0; }
+.rail-toggle { flex: none; border-radius: var(--r-ctl); }
+.admin-link { position: relative; }
+/* collapsed rails: icons only, labels on hover */
+.admin-layout, .cat-grid { transition: grid-template-columns .25s var(--ease); }
+.admin-layout.rail-collapsed, .cat-grid.rail-collapsed { grid-template-columns: 52px minmax(0, 1fr); }
+.admin-layout.rail-collapsed { gap: 28px; }
+.admin-nav.collapsed { padding-right: 10px; }
+.admin-nav.collapsed .admin-nav-top { padding: 0 0 10px; justify-content: center; }
+.admin-nav.collapsed .admin-nav-h, .admin-nav.collapsed .admin-link span { display: none; }
+.admin-nav.collapsed .admin-nav-sec { height: 1px; padding: 0; margin: 8px 6px; background: var(--hair); overflow: hidden; color: transparent; }
+.admin-nav.collapsed .admin-nav-top + .admin-nav-sec, .admin-nav.collapsed .admin-nav-top + div > .admin-nav-sec:first-child { display: none; }
+.admin-nav.collapsed .admin-link { justify-content: center; width: 100%; padding: 9px 0; }
 .admin-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
 .admin-head h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -.015em; color: var(--navy); }
 .admin-head p { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
@@ -350,9 +364,10 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 
 @media (max-width: 1100px) { .admin-split { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
-  .admin-layout { grid-template-columns: 1fr; gap: 20px; }
+  .admin-layout, .admin-layout.rail-collapsed { grid-template-columns: 1fr; gap: 20px; }
+  .admin-layout .admin-nav-top { display: none; }
   .admin-nav { position: static; flex-direction: row; overflow-x: auto; min-height: 0; padding: 0 0 10px; border-right: 0; border-bottom: 1px solid var(--hair); }
-  .admin-nav-h { display: none; }
+  .admin-layout .admin-nav-h { display: none; }
   .admin-nav-sec { padding: 8px 4px 0 12px; white-space: nowrap; }
   .admin-link.nested { padding-left: 10px; }
   .set-row { grid-template-columns: 1fr; gap: 10px; }

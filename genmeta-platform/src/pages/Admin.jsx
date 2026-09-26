@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { ADMIN_NAV } from '../nav.js';
 import { BASE } from './admin/kit.jsx';
+import { useCollapsed, RailHead } from '../components/Rail.jsx';
 import Overview from './admin/Overview.jsx';
 import { UsersPage, GroupsPage } from './admin/Directory.jsx';
 import ApiAccess from './admin/ApiAccess.jsx';
@@ -14,15 +15,15 @@ import { QueryLogs, EventLogs } from './admin/Logs.jsx';
 
 const ICONS = { LayoutDashboard, Users, UsersRound, KeyRound, LockKeyhole, Fingerprint, Mail, Blocks, Webhook, Bell, FlaskConical, SquareTerminal, ScrollText };
 
-function AdminNav() {
+function AdminNav({ collapsed, onToggle }) {
   return (
-    <nav className="admin-nav" aria-label="Admin">
-      <div className="admin-nav-h">Admin</div>
+    <nav className={`admin-nav ${collapsed ? 'collapsed' : ''}`} aria-label="Admin">
+      <RailHead title="Admin" collapsed={collapsed} onToggle={onToggle} />
       {ADMIN_NAV.map((n) => {
         if (n.section) return <div key={n.section} className="admin-nav-sec">{n.section}</div>;
         const I = ICONS[n.icon];
         return (
-          <NavLink key={n.to} to={n.to ? `${BASE}/${n.to}` : BASE} end={!n.to}
+          <NavLink key={n.to} to={n.to ? `${BASE}/${n.to}` : BASE} end={!n.to} title={n.label}
             className={({ isActive }) => `admin-link ${isActive ? 'on' : ''} ${n.to.startsWith('logs/') ? 'nested' : ''}`}>
             <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
           </NavLink>
@@ -33,10 +34,11 @@ function AdminNav() {
 }
 
 export default function Admin() {
+  const [collapsed, setCollapsed] = useCollapsed('admin');
   return (
     <div className="page fade-in admin-page">
-      <div className="admin-layout">
-        <AdminNav />
+      <div className={`admin-layout ${collapsed ? 'rail-collapsed' : ''}`}>
+        <AdminNav collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         <div className="admin-body">
           <Routes>
             <Route index element={<Overview />} />

@@ -39,17 +39,7 @@
 
 /* ---------- filters on the left ---------- */
 .cat-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; align-items: start; }
-.cat-filters { position: sticky; top: 12px; max-height: calc(100vh - 110px); overflow: auto; padding: 4px 0 8px; }
-.cat-filters .filters-h { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 10px; border-bottom: 1px solid var(--line); position: sticky; top: -4px; background: var(--white); z-index: 1; }
-.cat-filters .filters-h b { font-size: 14px; color: var(--navy); }
-.cat-filters .filters-h button { font-size: 12.5px; font-weight: 500; color: var(--royal); }
-.fgroup { border-bottom: 1px solid var(--line); }
-.fgroup:last-child { border-bottom: 0; }
-.fgroup-h { width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; font-size: 13px; font-weight: 600; color: var(--navy); text-align: left; }
-.fgroup-h span { flex: 1; }
-.fgroup-h em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--white); background: var(--royal); border-radius: 99px; padding: 0 6px; }
-.fgroup-h svg { color: var(--faint); }
-.fgroup-b { padding: 0 10px 10px; }
+.fgroup-b { padding: 2px 0 8px 18px; }
 .fopt { display: flex; align-items: center; gap: 9px; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
 .fopt:hover { background: var(--tint2); }
 .fopt input { accent-color: var(--royal); width: 14px; height: 14px; margin: 0; flex: none; }
@@ -274,7 +264,8 @@
 }
 @media (max-width: 860px) {
   .cat-grid { grid-template-columns: 1fr; }
-  .cat-filters { position: static; max-height: 320px; }
+  .admin-nav.cat-rail { position: static; flex-direction: column; max-height: 360px; overflow: hidden auto; padding: 0 0 10px; border-right: 0; border-bottom: 1px solid var(--hair); }
+  .cat-grid.rail-collapsed { grid-template-columns: 1fr; }
   .arow { grid-template-columns: 1fr; }
   .arow-side { flex-direction: row; align-items: center; flex-wrap: wrap; }
   .asset-head { flex-wrap: wrap; }
@@ -286,8 +277,8 @@
 .showing { margin-left: auto; font-size: 13px; color: var(--muted); white-space: nowrap; }
 .showing b { color: var(--navy); }
 .results-h .sort { margin-left: 12px; }
-.fsource { padding: 4px 12px 12px; border-bottom: 1px solid var(--line); }
-.fsource-h { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; font-size: 13px; font-weight: 600; color: var(--navy); }
+.fsource { padding: 0 0 6px; }
+.fsource-h { width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left; }
 .fsource-h svg { color: var(--faint); }
 .fdrop { position: relative; display: flex; align-items: center; gap: 8px; height: 38px; margin-top: 6px; padding: 0 10px; border-radius: 8px;
   background: var(--tint2); border: 1px solid var(--line); color: var(--royal); cursor: pointer; transition: border-color .15s, background .15s; }
@@ -299,9 +290,12 @@
   font-size: 13px; font-weight: 500; color: var(--navy); cursor: pointer; text-overflow: ellipsis; padding-right: 4px; }
 .fdrop:not(.set) select { color: var(--muted); font-weight: 400; }
 .fdrop-c { color: var(--faint); pointer-events: none; }
-.fsec { padding: 14px 16px 4px; font-size: 12px; font-weight: 600; color: var(--faint); }
-.fgroup { border-bottom: 0; }
-.fgroup-h { padding: 8px 16px; font-weight: 500; color: var(--text); }
-.fgroup-h:hover { background: var(--tint2); }
-.fgroup-h[aria-expanded="true"] { color: var(--navy); font-weight: 600; }
-.cat-filters { padding-bottom: 12px; }
+/* filter rail: the Admin rail's look (see .admin-nav in pro.css) */
+.cat-rail { top: 12px; max-height: calc(100vh - 110px); min-height: 0; overflow: hidden auto; padding-bottom: 12px; }
+.cat-rail .fdrop { margin: 6px 0 0; }
+.fgroup-h { width: 100%; text-align: left; }
+.fgroup-h span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fgroup-h em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--white); background: var(--royal); border-radius: 99px; padding: 0 6px; }
+.fgroup-h > svg:last-child { color: var(--faint); }
+.rail-clear { margin: -4px 10px 4px; align-self: flex-start; font-size: 12.5px; font-weight: 500; color: var(--royal); }
+.rail-dot { position: absolute; top: 6px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--royal); }
