@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams, Navigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, BadgeCheck, Star, Sparkles, Search, KeyRound, Link2, Check, X, CircleDashed, Copy, MessagesSquare, ChevronRight,
 } from 'lucide-react';
 import {
   BY_ID, BY_KEY, KIND_ICON, kindLabel, srcMeta, enrichment, termsFor, columnLineage, upstreamOf, downstreamOf, fmtBytes, pct,
 } from '../catalogue/model.js';
-import LineageGraph from '../catalogue/LineageGraph.jsx';
+import LineageSection from '../catalogue/LineageSection.jsx';
 import { Sens } from './Catalogue.jsx';
 
 const TABS = ['overview', 'columns', 'lineage', 'contract', 'quality'];
@@ -169,14 +169,23 @@ function SidePanel({ a }) {
 export default function AssetDetail() {
   const { assetId } = useParams();
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const a = BY_ID[assetId];
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(() => (searchParams.get('lineage') ? 'lineage' : 'overview'));
   const [starred, setStarred] = useState(false);
   const [copied, setCopied] = useState(false);
   const I = useMemo(() => (a ? KIND_ICON[a.kind] || KIND_ICON.table : null), [a]);
+  // When the asset changes (e.g. picked from the lineage filter bar) honour the
+  // ?lineage= hint in the URL, otherwise start on the overview tab.
+  useEffect(() => { setTab(searchParams.get('lineage') ? 'lineage' : 'overview'); }, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!a) return <Navigate to="/app/catalogue" replace />;
   const verified = a.trust >= 0.8;
-  const go = (t) => setTab(t);
+  const go = (t) => {
+    setTab(t);
+    const sp = new URLSearchParams(searchParams);
+    if (t === 'lineage') { if (!sp.get('lineage')) sp.set('lineage', 'graph'); } else sp.delete('lineage');
+    setSearchParams(sp, { replace: true });
+  };
 
   return (
     <div className="page asset fade-in" key={a.id}>
@@ -205,14 +214,14 @@ export default function AssetDetail() {
 
       <nav className="asset-tabs" role="tablist">
         {TABS.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => go(t)}>
             {TAB_LABEL[t]}{t === 'columns' && <em>{a.cols}</em>}
           </button>
         ))}
       </nav>
 
       {tab === 'lineage' ? (
-        <LineageGraph focusKey={a.key} onOpenAsset={(x) => { nav(`/app/catalogue/${x.id}`); setTab('overview'); }} />
+        <LineageSection a={a} onOpenAsset={(x) => nav(`/app/catalogue/${x.id}`)} />
       ) : (
         <div className="asset-grid">
           <div className="asset-main">
