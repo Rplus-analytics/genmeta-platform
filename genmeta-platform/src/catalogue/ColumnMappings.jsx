@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { BY_KEY, kindLabel, upstreamOf, downstreamOf } from './model.js';
 import { hopMethod } from './EndToEnd.jsx';
+import CollapsibleCard from './CollapsibleCard.jsx';
 
 /* Column mappings for the graph's focused asset. Sits full-width below the
    Lineage graph + sidebar row and re-reads whenever the focused asset changes
@@ -95,14 +96,12 @@ export default function ColumnMappings({ assetKey, onFocus }) {
 
   return (
     <>
-      <section className="card cm-panel">
-        <div className="cm-head">
-          <div>
-            <b className="cm-cardtitle">Table Granularity</b>
-            <p className="cm-cardsub">Which tables feed this asset and which it feeds</p>
-          </div>
-        </div>
-
+      <CollapsibleCard
+        className="cm-panel"
+        title="Table Granularity"
+        subtitle="Which tables feed this asset and which it feeds"
+        storageKey="lineage.card.table"
+      >
         <div className="cm-assetline">
           <b className="cm-name">{a.key}</b>
           <p className="cm-meta">{kindLabel(a.kind)} · {a.cols} columns · double-click a node to re-centre</p>
@@ -120,22 +119,20 @@ export default function ColumnMappings({ assetKey, onFocus }) {
         </div>
 
         {note && <p className="cm-note">{note}</p>}
-      </section>
+      </CollapsibleCard>
 
-      <section className="card cm-panel">
-        <div className="cm-head">
-          <div>
-            <b className="cm-cardtitle">Column Granularity</b>
-            <p className="cm-cardsub">How each column maps from source to target</p>
-          </div>
-          {sections.length > 0 && (
-            <div className="cm-actions">
-              <button className="btn ghost sm" onClick={expandAll}>Expand all</button>
-              <button className="btn ghost sm" onClick={collapseAll}>Collapse all</button>
-            </div>
-          )}
-        </div>
-
+      <CollapsibleCard
+        className="cm-panel"
+        title="Column Granularity"
+        subtitle="How each column maps from source to target"
+        storageKey="lineage.card.column"
+        actions={sections.length > 0 ? (
+          <>
+            <button className="btn ghost sm" onClick={expandAll}>Expand all</button>
+            <button className="btn ghost sm" onClick={collapseAll}>Collapse all</button>
+          </>
+        ) : null}
+      >
         {sections.length ? (
           <div className="cm-secs">
             {sections.map((e) => <Section key={edgeId(e)} e={e} open={open.has(edgeId(e))} onToggle={() => toggle(edgeId(e))} />)}
@@ -143,7 +140,7 @@ export default function ColumnMappings({ assetKey, onFocus }) {
         ) : (
           <p className="cm-empty cm-empty-all">No lineage links recorded for this asset.</p>
         )}
-      </section>
+      </CollapsibleCard>
     </>
   );
 }

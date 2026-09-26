@@ -1,4 +1,5 @@
 import { BY_KEY } from './model.js';
+import CollapsibleCard from './CollapsibleCard.jsx';
 
 /* Attribute granularity for the graph's focused asset. Sits full-width below
    the Column mappings panel and re-reads on refocus. Uses the same column
@@ -12,12 +13,12 @@ export default function AttributeGranularity({ assetKey }) {
   const classified = cols.filter((c) => clsList(c).length > 0).length;
 
   return (
-    <section className="card attr-panel">
-      <div className="attr-head">
-        <b className="attr-title">Attribute Granularity</b>
-        <p className="attr-meta">{cols.length} attribute{cols.length === 1 ? '' : 's'} · {classified} classified</p>
-      </div>
-
+    <CollapsibleCard
+      className="attr-panel"
+      title="Attribute Granularity"
+      subtitle={`${cols.length} attribute${cols.length === 1 ? '' : 's'} · ${classified} classified`}
+      storageKey="lineage.card.attribute"
+    >
       {cols.length ? (
         <div className="attr-table-wrap">
           <table className="tbl attr-table">
@@ -46,6 +47,6 @@ export default function AttributeGranularity({ assetKey }) {
       ) : (
         <p className="attr-empty">No attribute metadata recorded for this asset.</p>
       )}
-    </section>
+    </CollapsibleCard>
   );
 }

@@ -428,3 +428,19 @@
 .cm-cardtitle { font-size: 15px; font-weight: 600; color: var(--navy); }
 .cm-cardsub { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
 .cm-assetline { margin-top: 14px; }
+
+/* ---------- Lineage: collapsible granularity card wrapper ---------- */
+.cc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; cursor: pointer; }
+.cc-titles { min-width: 0; }
+.cc-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+.cc-sub { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.cc-head-right { display: flex; align-items: center; gap: 8px; flex: none; }
+.cc-actions { display: flex; gap: 8px; }
+.cc-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--r-ctl); color: var(--muted); flex: none; }
+.cc-toggle:hover { background: var(--tint2); color: var(--navy); }
+.cc-toggle:focus-visible { outline: 2px solid var(--royal); outline-offset: 2px; }
+.cc-chev { transition: transform 150ms ease; }
+.cc-chev.closed { transform: rotate(-90deg); }
+.cc-body { margin-top: 14px; }
+.cc-body > :first-child { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .cc-chev { transition: none; } }
