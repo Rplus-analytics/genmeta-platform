@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, ChevronDown } from 'lucide-react';
 import { ASSETS, srcMeta } from './model.js';
 import LineageGraph from './LineageGraph.jsx';
+import ColumnMappings from './ColumnMappings.jsx';
 import EndToEnd from './EndToEnd.jsx';
 
 const SUBTABS = [['graph', 'Graph'], ['end-to-end', 'End to end']];
@@ -24,6 +25,12 @@ export default function LineageSection({ a, onOpenAsset }) {
 
   const [q, setQ] = useState('');
   const [platform, setPlatform] = useState('');
+
+  // Mirror the graph's focused asset so the Column mappings panel can follow it,
+  // and hold a handle to drive refocus when a chip in the panel is clicked.
+  const graphRef = useRef(null);
+  const [graphFocus, setGraphFocus] = useState(a.key);
+  useEffect(() => { setGraphFocus(a.key); }, [a.key]);
 
   const picker = useMemo(() => {
     const words = q.trim().toLowerCase();
@@ -70,9 +77,14 @@ export default function LineageSection({ a, onOpenAsset }) {
         ))}
       </nav>
 
-      {sub === 'graph'
-        ? <LineageGraph focusKey={a.key} onOpenAsset={onOpenAsset} />
-        : <EndToEnd assetKey={a.key} />}
+      {sub === 'graph' ? (
+        <>
+          <LineageGraph ref={graphRef} focusKey={a.key} onOpenAsset={onOpenAsset} onFocusChange={setGraphFocus} />
+          <ColumnMappings assetKey={graphFocus} onFocus={(k) => graphRef.current?.refocus(k)} />
+        </>
+      ) : (
+        <EndToEnd assetKey={a.key} />
+      )}
     </div>
   );
 }
