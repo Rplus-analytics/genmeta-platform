@@ -1,0 +1,1161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GenMeta Data Sources</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  /* GenMeta palette: navy + burst blues, same as src/styles.css + src/pro.css */
+  --bg:#F5F7FA; --panel:#ffffff; --panel-2:#F6F9FD; --line:#E3E8F0; --line-2:#EEF2F7;
+  --ink:#0B1A4A; --ink-2:#5F6B85; --ink-3:#8A95AB; --deep:#14307A;
+  --blue:#1F5FD6; --blue-2:#38C6F4; --blue-soft:#EAF2FE; --sel:#EAF2FE;
+  --warn:#1F5FD6; --bad:#0B1A4A;
+  --shadow:0 1px 2px rgba(11,26,74,.04),0 1px 1px rgba(11,26,74,.03);
+  --sans:"Hanken Grotesk",-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono","SF Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:6px}
+.app{min-height:100%}
+/* sidebar */
+.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:auto}
+.logo-row{display:flex;align-items:center;gap:10px;padding:20px 20px 14px}
+.logo-row .r{font-weight:700;font-size:22px;color:var(--ink);letter-spacing:-.04em}
+.logo-row .sep{width:1px;height:22px;background:var(--line)}
+.logo-row .gm{display:flex;align-items:center;gap:5px;font-size:15px;color:var(--ink-2)}
+.logo-row svg{width:20px;height:20px;color:var(--blue)}
+.product{padding:6px 20px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.product b{font-size:19px;font-weight:600}
+.product span{display:block;font-size:13.5px;color:var(--ink-2)}
+.navgroup{padding:14px 12px 0;display:flex;flex-direction:column;gap:2px}
+.navgroup h6{margin:4px 10px 6px;font-size:13px;font-weight:500;color:var(--ink-3)}
+.nav{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;border:0;background:none;text-align:left;width:100%;color:var(--ink)}
+.nav:hover{background:var(--panel-2)}
+.nav.on{background:var(--sel);font-weight:500}
+.nav svg{width:19px;height:19px;color:var(--ink-3);flex:none}
+.nav.on svg{color:var(--blue)}
+.nav .count{margin-left:auto;font-size:12px;background:var(--ink);color:var(--panel);border-radius:10px;padding:1px 8px}
+.env{margin-top:auto;border-top:1px solid var(--line);padding:16px 20px;display:flex;gap:10px;align-items:flex-start}
+.env .dot{width:8px;height:8px;border-radius:50%;background:var(--blue-2);margin-top:7px}
+.env b{display:block;font-weight:500}.env span{font-size:13.5px;color:var(--ink-2)}
+/* top bar */
+.top{display:flex;align-items:center;gap:16px;padding:14px 32px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+.crumb{font-size:14.5px;color:var(--ink-2);white-space:nowrap}
+.crumb b{color:var(--ink);font-weight:500}
+.crumb button{border:0;background:none;padding:0;color:var(--ink-2)}
+.gsearch{flex:1;max-width:660px;margin:0 auto;display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.gsearch input{border:0;outline:0;background:none;width:100%}
+.gsearch svg{width:17px;height:17px;color:var(--ink-3)}
+.kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--ink-3);background:var(--panel)}
+.ticons{display:flex;gap:14px;align-items:center}
+.ticons svg{width:20px;height:20px;color:var(--ink-2)}
+.ticons .bell{position:relative}.ticons .bell::after{content:"";position:absolute;top:0;right:0;width:7px;height:7px;border-radius:50%;background:var(--blue-2)}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue-2),var(--blue));color:#fff;display:grid;place-items:center;font-weight:600}
+.iconbtn{border:0;background:none;padding:4px;display:grid;place-items:center}
+/* main */
+.main{padding-block:22px 64px;padding-inline:32px;min-width:0}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.phead h1{margin:0;font-size:28px;font-weight:600;letter-spacing:-.01em}
+.phead p{margin:2px 0 0;color:var(--ink-2)}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 14px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.sm{padding:5px 11px;font-size:14px}
+.btn.ghost{border-color:transparent;background:none}
+.btn svg{width:16px;height:16px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.dd{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;min-width:280px;z-index:10}
+.menu button{display:flex;gap:12px;align-items:flex-start;width:100%;border:0;background:none;text-align:left;padding:10px;border-radius:8px}
+.menu button:hover{background:var(--panel-2)}
+.menu svg{width:18px;height:18px;color:var(--blue);flex:none;margin-top:2px}
+.menu b{display:block;font-weight:500}.menu span{font-size:13px;color:var(--ink-3)}
+.tabs{margin-top:18px;display:flex;gap:26px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 0;display:flex;gap:8px;align-items:center;color:var(--ink-2);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button svg{width:17px;height:17px}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--blue);font-weight:500}
+.tabs .badge{font-size:12px;background:var(--blue-soft);color:var(--blue);border-radius:10px;padding:0 7px}
+/* collection strip */
+.collect{margin-top:16px;display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;font-size:14px;color:var(--ink-2);padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.collect svg{width:18px;height:18px;color:var(--blue)}
+.collect .it{display:flex;align-items:center;gap:6px}
+.collect .it b{color:var(--ink);font-weight:500}
+.collect .last{flex-basis:100%;padding-left:28px;color:var(--ink-3)}
+.collect .rerun{margin-left:auto}
+/* KPIs */
+.kpis{margin-top:16px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.kpi{display:flex;gap:14px;padding:18px 20px;border:0;border-right:1px solid var(--line-2);background:none;text-align:left;align-items:flex-start}
+.kpi:last-child{border-right:0}
+button.kpi:hover{background:var(--panel-2)}
+.kpi.on{background:var(--blue-soft)}
+.kic{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;flex:none;color:var(--blue)}
+.kic svg{width:20px;height:20px}
+.kpi .n{font-size:30px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:15px}
+.kpi .s{font-size:13.5px;color:var(--ink-3)}
+/* attention */
+.attn{margin-top:14px;display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-left:3px solid var(--warn);background:var(--panel);border-radius:12px;padding:12px 16px;flex-wrap:wrap}
+.attn .grow{flex:1;min-width:240px}
+.attn b{font-weight:500}
+.ring{width:12px;height:12px;border-radius:50%;border:2px solid var(--warn);flex:none;display:inline-block}
+/* filters */
+.filters{margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.search{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px;flex:1;min-width:220px;max-width:360px}
+.search input{border:0;outline:0;background:none;width:100%}
+.search svg{width:17px;height:17px;color:var(--ink-3)}
+.sel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.legend{display:flex;gap:16px;margin-left:auto;align-items:center;font-size:14.5px;flex-wrap:wrap}
+.legend button{border:0;background:none;display:flex;gap:7px;align-items:center;padding:4px 2px;border-bottom:2px solid transparent}
+.legend button.on{border-bottom-color:var(--ink)}
+.mk{display:inline-block;flex:none}
+.mk.healthy{width:9px;height:9px;border-radius:50%;background:var(--blue-2)}
+.mk.warning{width:11px;height:11px;border-radius:50%;border:2px solid var(--warn)}
+.mk.failed{width:9px;height:9px;background:var(--bad)}
+.mk.scanning{width:9px;height:9px;border-radius:50%;background:var(--blue-2);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.view{display:flex;gap:4px}
+.view button{border:0;background:none;padding:6px;border-bottom:2px solid transparent;color:var(--ink-3)}
+.view button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.view svg{width:19px;height:19px}
+/* cards */
+.grid{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px 0;display:flex;flex-direction:column;box-shadow:var(--shadow);cursor:pointer}
+.card:hover{border-color:var(--blue-2)}
+.chead{display:flex;gap:14px;align-items:flex-start}
+.tile{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:500;flex:none;background:var(--panel)}
+.chead .nm{flex:1;min-width:0}
+.chead .nm .conn{font-size:13.5px}
+.chead b{display:block;font-size:19px;font-weight:500;line-height:1.25}
+.chead span{color:var(--ink-2);font-size:14.5px}
+.conn{display:flex;align-items:center;gap:6px;color:var(--blue);font-size:14.5px;white-space:nowrap;margin-top:4px}
+.conn .mk{background:var(--blue-2)}
+.conn.off{color:var(--ink-3)}
+.kebab{border:0;background:none;padding:4px;color:var(--ink-3);margin-top:0}
+.kebab svg{width:18px;height:18px}
+.desc{margin:14px 0 0;color:var(--ink)}
+.schemas{margin-top:10px}
+.schemas summary{color:var(--blue);cursor:pointer;list-style:none;display:inline-flex;gap:6px;align-items:center;font-size:15px}
+.schemas summary::-webkit-details-marker{display:none}
+.schemas summary::before{content:"";border:4px solid transparent;border-left:5px solid currentColor;margin-right:-2px;transition:transform .15s}
+.schemas[open] summary::before{transform:rotate(90deg) translateX(2px)}
+.schemas ul{list-style:none;margin:8px 0 0;padding:8px 10px;border:1px solid var(--line-2);border-radius:10px;background:var(--panel-2);font-size:13.5px;display:grid;gap:4px}
+.schemas li{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px}
+.schemas li span{font-family:var(--sans);color:var(--ink-3)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:14px;color:var(--ink-2);white-space:nowrap;background:var(--panel)}
+.chip svg{width:14px;height:14px}
+.chip.sens{border-color:var(--ink);color:var(--ink);font-weight:500;letter-spacing:.02em}
+.tagrow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px}
+.spark{display:flex;align-items:flex-end;gap:3px;height:38px;flex:none}
+.spark i{display:block;width:4px;border-radius:2px;background:var(--blue-2);opacity:.85}
+.spark i.w{background:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px;padding:16px 0;border-top:1px solid var(--line-2)}
+.stat{display:flex;gap:8px;align-items:flex-start}
+.stat svg{width:18px;height:18px;color:var(--ink-3);margin-top:3px;flex:none}
+.stat b{display:block;font-weight:500;font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.countrow{padding:0 0 12px}
+.stat span{font-size:13.5px;color:var(--ink-3)}
+.cfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0 16px;border-top:1px solid var(--line-2);flex-wrap:wrap}
+.owners{display:flex;align-items:center;gap:8px;font-size:14.5px}
+.av{width:28px;height:28px;border-radius:50%;background:var(--sel);color:var(--blue);font-size:11.5px;font-weight:600;display:grid;place-items:center;border:2px solid var(--panel)}
+.avs{display:flex}.avs .av+.av{margin-left:-8px}
+.counts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cnt{display:inline-flex;gap:4px;align-items:center;font-size:13px;color:var(--ink-2);border:1px solid var(--line);border-radius:7px;padding:1px 7px;font-variant-numeric:tabular-nums}
+.cnt svg{width:13px;height:13px}
+.health{display:inline-flex;gap:6px;align-items:center;font-size:14.5px;font-weight:500;white-space:nowrap}
+.cov{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13.5px;color:var(--ink-3)}
+.bar{flex:1;height:5px;border-radius:4px;background:var(--line-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--blue-2);border-radius:4px}
+/* list */
+.tablewrap{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:1100px}
+th{font-size:13px;font-weight:500;color:var(--ink-3);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:13px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle;font-size:14.5px}
+tbody tr{cursor:pointer}tbody tr:hover td{background:var(--panel-2)}
+tr:last-child td{border-bottom:0}
+.srccell{display:flex;gap:12px;align-items:center;min-width:220px}
+.srccell .tile{width:36px;height:36px;font-size:11px}
+.srccell b{display:block;font-weight:500}.srccell span{font-size:13px;color:var(--ink-3)}
+.sub{font-size:13px;color:var(--ink-3)}
+.num{font-variant-numeric:tabular-nums}
+/* detail */
+.dhead{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.dhead .chead{align-items:center}
+.dhead .tile{width:56px;height:56px;font-size:14px}
+.dhead h1{margin:0;font-size:26px;font-weight:600}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.banner{margin-top:18px;display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel)}
+.banner.healthy{border-left:3px solid var(--blue-2)}.banner.warning{border-left:3px solid var(--warn)}.banner.failed{border-left:3px solid var(--bad)}
+.banner .grow{flex:1}.banner b{display:block;font-weight:500}.banner p{margin:2px 0 0;color:var(--ink-2)}
+.hint{margin-top:8px;font-size:14px;background:var(--panel-2);border-radius:8px;padding:8px 10px}
+.dtabs{margin-top:18px}
+.cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px;margin-top:18px}
+.stack{display:flex;flex-direction:column;gap:18px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.box h3{margin:0;font-size:17px;font-weight:500}
+.box .cap{margin:2px 0 14px;color:var(--ink-3);font-size:13.5px}
+.dk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dk div{padding:14px 18px;border-right:1px solid var(--line-2)}.dk div:last-child{border-right:0}
+.dk b{display:block;font-size:24px;font-weight:500;font-variant-numeric:tabular-nums}.dk span{font-size:13.5px;color:var(--ink-3)}
+.chart{position:relative}.chart svg{width:100%;height:auto;display:block}
+.axis{fill:var(--ink-3);font-size:10px;font-family:var(--sans)}
+.gl{stroke:var(--line-2)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--panel);border-radius:8px;padding:8px 10px;font-size:12.5px;min-width:180px;transform:translate(-50%,-100%);box-shadow:var(--shadow)}
+.tip .st{display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums}
+.lg{display:flex;gap:16px;font-size:13px;color:var(--ink-3);margin-top:10px;flex-wrap:wrap}
+.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.covrow{display:grid;grid-template-columns:120px 1fr 44px;gap:10px;align-items:center;font-size:14px;margin:8px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;margin:0}
+.kv dt{color:var(--ink-3)}.kv dd{margin:0}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line-2);font-size:14px}
+.feed li:first-child{border-top:0}
+.op{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+.op.add{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 35%,transparent)}
+.op.del{color:var(--ink);border-color:var(--ink)}
+.op.chg{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.mono{font-family:var(--mono);font-size:13px}
+.stages{display:flex;gap:2px;height:8px;width:170px;border-radius:4px;overflow:hidden;margin-top:4px}
+.stages i{display:block;height:100%}
+.errbox{border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13.5px;background:var(--panel-2)}
+.tree{list-style:none;margin:0;padding:0}.tree ul{list-style:none;margin:0;padding-left:22px}
+.tree label{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14.5px;cursor:pointer}
+.tree .sub{margin-left:auto}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:13.5px;color:var(--ink-2);font-weight:500}
+.field input,.field select{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 10px;width:100%}
+.toggle{display:flex;align-items:center;gap:10px;font-size:14.5px;padding:6px 0;cursor:pointer}
+.sw{width:36px;height:21px;border-radius:12px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+input.swi{position:absolute;opacity:0;width:1px;height:1px}
+input.swi:checked+.sw{background:var(--blue)}
+input.swi:checked+.sw::after{left:17px}
+input.swi:focus-visible+.sw{outline:2px solid var(--blue);outline-offset:2px}
+.diff{margin-top:6px;font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff div{padding:3px 10px}.diff .m{background:var(--panel-2);color:var(--ink-3);text-decoration:line-through}.diff .p{background:var(--blue-soft);color:var(--blue)}
+/* connectors tab */
+.gal{display:grid;grid-template-columns:190px 1fr;gap:22px;margin-top:20px}
+.cats{display:flex;flex-direction:column;gap:2px}
+.cats button{border:0;background:none;text-align:left;padding:8px 12px;border-radius:9px;display:flex;justify-content:space-between;color:var(--ink-2)}
+.cats button.on{background:var(--sel);color:var(--ink);font-weight:500}
+.ctiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:14px}
+.ctile{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel);display:flex;flex-direction:column;gap:10px;text-align:left}
+.ctile:hover{border-color:var(--blue-2)}
+.ctile.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+.ctile .t{display:flex;gap:10px;align-items:center}
+.ctile b{font-weight:500}.ctile span{font-size:13px;color:var(--ink-3)}
+.drop{margin-top:20px;border:2px dashed var(--line);border-radius:16px;padding:40px 20px;text-align:center;background:var(--panel)}
+.drop.over{border-color:var(--blue);background:var(--blue-soft)}
+.drop svg{width:34px;height:34px;color:var(--blue)}
+.steps3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(10,18,30,.45);display:grid;place-items:center;padding:16px;z-index:20}
+.modal{background:var(--panel);border-radius:16px;width:min(880px,100%);max-height:calc(100% - 20px);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.mhead{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.mhead h3{margin:0;font-size:19px;font-weight:500}
+.wsteps{display:flex;gap:6px;padding:12px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.wst{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-3);padding:4px 12px 4px 4px;border-radius:999px}
+.wst b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;background:var(--line-2);color:var(--ink-2);font-weight:500}
+.wst.on{color:var(--ink);background:var(--sel)}.wst.on b{background:var(--blue);color:#fff}
+.wst.done b{background:var(--blue-soft);color:var(--blue)}
+.mbody{padding:18px 22px;overflow:auto;flex:1}
+.mfoot{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.checks{list-style:none;padding:0;margin:12px 0 0;border:1px solid var(--line);border-radius:12px}
+.checks li{display:flex;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid var(--line-2);font-size:14px}
+.checks li:first-child{border-top:0}
+.ci{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;flex:none;background:var(--line-2);color:var(--ink-3)}
+.ci.ok{background:var(--blue-soft);color:var(--blue)}
+.ci.run{border:2px solid var(--blue);border-right-color:transparent;background:none;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+.empty{padding:40px;text-align:center;color:var(--ink-3)}
+
+.pick{display:flex;align-items:center;padding-top:14px;margin-right:-4px}
+.pick input,td input[type=checkbox]{width:16px;height:16px;accent-color:var(--blue);cursor:pointer}
+.card.picked,tr.picked td{background:var(--blue-soft)}
+.card.picked{border-color:var(--blue)}
+.star{border:0;background:none;font-size:18px;color:var(--ink-3);padding:2px 4px;line-height:1}
+.star.on{color:var(--warn)}
+.sync{font-size:12.5px;color:var(--ink-3);margin-left:8px;border:1px solid var(--line);border-radius:6px;padding:0 6px}
+.sync.part{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.schemas li{display:grid!important;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center}
+.fresh{display:inline-block;font-size:11.5px;border-radius:6px;padding:0 6px;margin-left:4px;color:var(--blue);background:var(--blue-soft);white-space:nowrap}
+.fresh.late{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.lnk{border:0;background:none;padding:0;font:inherit;color:var(--blue);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--blue) 35%,transparent);text-underline-offset:3px}
+.subbar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.inl{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink-2)}
+.sel.sm{padding:5px 10px;font-size:14px}
+tr.grp td{background:var(--panel-2);font-weight:500;font-size:13.5px;cursor:default}
+.dmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:12px}
+.dcol{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.dcol header{display:flex;flex-direction:column;padding-bottom:8px;border-bottom:1px solid var(--line-2)}
+.dcol header b{font-weight:500;font-size:16px}
+.dnode{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel);text-align:left}
+.dnode:hover{border-color:var(--blue-2)}
+.dnode .grow{flex:1;min-width:0;display:flex;flex-direction:column}
+.dnode b{font-weight:500;font-size:14px}
+.bulk{position:sticky;bottom:calc(16px + env(safe-area-inset-bottom,0px));margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--ink);color:var(--panel);border-radius:12px;padding:10px 14px;box-shadow:var(--shadow);z-index:6}
+.bulk b{font-weight:500;margin-right:6px}
+.bulk .btn{background:transparent;color:var(--panel);border-color:color-mix(in srgb,var(--panel) 35%,transparent)}
+.attn-card{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.ftile{text-align:left;border:1px solid color-mix(in srgb,var(--blue) 30%,var(--line));background:linear-gradient(135deg,var(--blue-soft),var(--panel) 70%);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:6px}
+.ftile:hover{border-color:var(--blue)}
+.ftile b{font-size:18px;font-weight:500}
+.eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}
+.ctile.mt{cursor:pointer}
+.pub{font-size:12.5px;color:var(--ink-3);border:1px solid var(--line);border-radius:6px;padding:1px 7px;align-self:flex-start}
+.pub.own{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 35%,transparent)}
+.btn.inst{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 40%,transparent)}
+.btn.inst:hover{background:var(--blue-soft)}
+.mfoot2{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line-2)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:1180px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.cols{grid-template-columns:1fr}.legend{margin-left:0}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}.side{display:none}
+  .top{padding:12px 16px}.crumb{display:none}.ticons .hide-m{display:none}
+  .main{padding-inline:16px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dk{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gal,.two,.steps3{grid-template-columns:1fr}
+  .cats{flex-direction:row;overflow-x:auto}
+  .grid{grid-template-columns:1fr}
+}
+
+/* ===== v4 professional layer ===== */
+body{font-size:14.5px}
+.main{padding-block:24px 64px}
+.phead h1{font-size:26px}
+.btn{border-radius:8px;padding:7px 13px;font-size:14px}
+.btn.xs{padding:4px 10px;font-size:13px;border-radius:7px}
+.sel,.search{border-radius:8px}
+.sel{padding:7px 10px;font-size:14px}
+.search{padding:7px 10px}
+.tabs{gap:24px;margin-top:16px}
+.tabs button{font-size:14.5px}
+.grow{flex:1}
+.collect2{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:13.5px;color:var(--ink-2);flex-wrap:wrap}
+.collect2 svg{width:16px;height:16px;color:var(--blue);flex:none}
+.collect2 span{flex:1;min-width:260px}
+.collect2 b{color:var(--ink);font-weight:500}
+.summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.sm-cell{display:flex;flex-direction:column;gap:2px;padding:14px 18px;border:0;border-right:1px solid var(--line-2);background:none;text-align:left}
+.sm-cell:last-child{border-right:0}
+button.sm-cell:hover{background:var(--panel-2)}
+.sm-cell.on{background:var(--blue-soft);box-shadow:inset 0 -2px 0 var(--blue)}
+.sm-l{font-size:13px;color:var(--ink-2)}
+.sm-v{font-size:24px;font-weight:500;line-height:1.2;font-variant-numeric:tabular-nums}
+.sm-s{font-size:12.5px;color:var(--ink-3)}
+.alert{display:flex;gap:12px;align-items:flex-start;margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;background:var(--panel);font-size:14px}
+.alert.failed{border-left-color:var(--bad)}
+.alert .ai svg{width:18px;height:18px;color:var(--warn)}
+.alert b{font-weight:500}
+.alert .fix{margin-top:8px;padding:8px 10px;background:var(--panel-2);border-radius:6px}
+.bar2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:20px}
+.bar2 .search{max-width:300px}
+.seg2{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg2 button{border:0;background:none;padding:6px 9px;color:var(--ink-3);display:grid;place-items:center}
+.seg2 button svg{width:17px;height:17px}
+.seg2 button.on{background:var(--sel);color:var(--ink)}
+.seg2.txt button{font-size:13px;padding:5px 11px}
+.legend2{display:flex;gap:14px;align-items:center;margin-top:12px;font-size:13.5px}
+.legend2 button{border:0;background:none;display:flex;gap:6px;align-items:center;padding:2px 0;color:var(--ink-2);border-bottom:2px solid transparent}
+.legend2 button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.tbl{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow-x:auto}
+.tbl table{width:100%;border-collapse:collapse;min-width:1240px}
+.nw{white-space:nowrap}
+.tbl .tagline{flex-wrap:nowrap}
+.avs{white-space:nowrap}
+.tbl th{position:sticky;top:0;background:var(--panel-2);font-size:12.5px;font-weight:500;color:var(--ink-2);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line-2);font-size:14px;vertical-align:middle}
+.tbl tbody tr[data-open]{cursor:pointer}
+.tbl tbody tr[data-open]:hover td{background:var(--panel-2)}
+.tbl .r{text-align:right}
+.c-star{width:34px;padding-right:0!important}
+.c-act{width:40px}
+.nmcell{display:flex;gap:10px;align-items:center;min-width:210px}
+.nmcell .tile{width:32px;height:32px;font-size:10.5px}
+.nmcell b{display:block;font-weight:500}
+.nmcell span{font-size:12.5px;color:var(--ink-3)}
+.sub2{font-size:13px;color:var(--ink-2);line-height:1.35}
+.late-t{font-size:12.5px;color:var(--warn)}
+.tagline{display:flex;gap:5px;flex-wrap:wrap}
+.tg{font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:0 7px;color:var(--ink-2);white-space:nowrap}
+.tg.sens{border-color:var(--ink);color:var(--ink);font-weight:500;letter-spacing:.02em}
+.bdg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.bdg::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.bdg.healthy{background:var(--blue-soft);color:var(--blue)}
+.bdg.warning{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.bdg.failed{background:var(--ink);color:var(--panel)}
+.bdg.scanning{background:var(--blue-soft);color:var(--blue)}.bdg.scanning::before{animation:pulse 1s infinite}
+.bdg.paused{background:var(--line-2);color:var(--ink-2)}
+.spark{height:24px;gap:2px}.spark i{width:3px}
+tr.grp td{background:var(--bg);padding:0;border-bottom:1px solid var(--line)}
+.grpbtn{border:0;background:none;display:flex;gap:8px;align-items:center;padding:8px 12px;width:100%;text-align:left;font-size:13.5px}
+.grpbtn svg{width:14px;height:14px;transition:transform .15s}
+.grpbtn[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.grpbtn b{font-weight:500}.grpbtn span{color:var(--ink-3)}
+.star{font-size:16px}
+.av{width:26px;height:26px;font-size:10.5px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:10px}
+.ccard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;cursor:pointer;display:flex;flex-direction:column}
+.ccard:hover{border-color:var(--blue-2)}
+.cc-h{display:flex;gap:10px;align-items:center}
+.cc-h .tile{width:36px;height:36px;font-size:11px}
+.cc-h b{display:block;font-weight:500;font-size:16px}.cc-h span{font-size:13px;color:var(--ink-3)}
+.cc-d{margin:10px 0 0;font-size:14px;color:var(--ink-2)}
+.cc-t{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:10px}
+.cc-s{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line-2)}
+.cc-s dt{font-size:12.5px;color:var(--ink-3)}.cc-s dd{margin:0;font-weight:500;font-variant-numeric:tabular-nums}
+.cc-f{display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-2);flex-wrap:wrap}
+.schemas summary{font-size:14px}
+.schemas li{display:grid!important;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+/* detail */
+.dh{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.dh-l{display:flex;gap:14px;align-items:flex-start}
+.tile.lg{width:48px;height:48px;font-size:13px;display:grid;place-items:center;flex:none;padding:0}
+.dh-t{display:flex;gap:10px;align-items:center}
+.dh-t h1{margin:0;font-size:24px;font-weight:600}
+.dh-m{margin:4px 0 0;font-size:13.5px;color:var(--ink-2)}
+.dh-d{margin:2px 0 0;font-size:13.5px;color:var(--ink-3)}
+.kv4{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.kv4 div{padding:12px 16px;border-right:1px solid var(--line-2);display:flex;flex-direction:column;gap:2px}.kv4 div:last-child{border-right:0}
+.kv4 span{font-size:12.5px;color:var(--ink-3)}.kv4 b{font-weight:500}
+.panel{margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px 18px}
+.panel h3{margin:0;font-size:16px;font-weight:500}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cap{margin:4px 0 12px;font-size:13px;color:var(--ink-3)}
+.evt{width:100%;border-collapse:collapse;margin-top:10px}
+.evt th{font-size:12.5px;font-weight:500;color:var(--ink-3);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.evt td{padding:8px;border-bottom:1px solid var(--line-2);font-size:14px}
+.et{font-size:12px;border:1px solid var(--line);border-radius:5px;padding:0 7px;color:var(--ink-2)}
+.et.warning{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.et.sync{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 35%,transparent)}
+.policy{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;margin-top:18px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.policy b{font-weight:500}
+.swl{display:inline-flex;cursor:pointer}
+.logs{margin-top:10px;font-family:var(--mono);font-size:12.5px;background:var(--panel-2);border-radius:8px;padding:8px 0;max-height:420px;overflow:auto}
+.logl{display:grid;grid-template-columns:130px 56px 1fr;gap:10px;padding:4px 12px}
+.lv{color:var(--blue)}.lv.w{color:var(--warn)}
+@media (max-width:1100px){.summary,.kv4{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:860px){.summary,.kv4{grid-template-columns:repeat(2,minmax(0,1fr))}.bar2 .search{max-width:none}}
+
+.summary{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.alert.info{border-left-color:var(--blue)}.alert.info .ai svg{color:var(--blue)}
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tiles div{padding:12px 16px;border-right:1px solid var(--line-2);display:flex;flex-direction:column;gap:2px}.tiles div:last-child{border-right:0}
+.tiles span{font-size:12.5px;color:var(--ink-3)}.tiles b{font-size:22px;font-weight:500;font-variant-numeric:tabular-nums}
+.h4{margin:18px 0 0;font-size:14px;font-weight:500}
+.code{margin:8px 0 0;font-family:var(--mono);font-size:12.5px;line-height:1.55;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;white-space:pre}
+.code.ok{border-left:3px solid var(--blue)}.code.bad{border-left:3px solid var(--ink)}
+.bulkbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.plain{margin:6px 0 0;padding-left:18px;font-size:14px;line-height:1.7}
+.assetprev{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--panel-2);max-width:620px}
+.assetprev p{margin:4px 0 10px;color:var(--ink-2)}
+.tg.imp{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 35%,transparent);font-size:11.5px}
+.mkbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
+.pills{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.pill2{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:5px 11px;font-size:14px;color:var(--ink-2)}
+.pill2 svg{width:14px;height:14px}
+.pill2 span{font-size:12px;color:var(--ink-3)}
+.pill2.on{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}.pill2.on span{color:var(--blue)}
+.mks{max-width:320px;flex:0 1 320px}
+.pkgs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}
+.pkg{text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:128px}
+.pkg:hover{border-color:var(--blue-2);box-shadow:var(--shadow)}
+.pk-h{display:flex;gap:12px;align-items:flex-start}
+.pk-logo{position:relative;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:500;flex:none;color:var(--ink-2)}
+.pk-ok{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-style:normal;display:grid;place-items:center;border:2px solid var(--panel)}
+.pk-h b{display:block;color:var(--blue);font-weight:500;font-size:15px;line-height:1.3}
+.pk-h span{font-size:13px;color:var(--ink-2)}
+.pkg p{margin:0;font-size:13px;color:var(--ink-3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:1200px){.pkgs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:860px){.pkgs{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.cgrid2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:14px}
+.conncard{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.conncard:hover{border-color:var(--blue-2)}
+.conncard .pk-h b{color:var(--ink)}
+.conncard p{margin:0;font-size:13px;color:var(--ink-2);min-height:36px}
+.cmeta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0;padding-top:10px;border-top:1px solid var(--line-2)}
+.cmeta dt{font-size:12px;color:var(--ink-3)}
+.cfoot2{flex-wrap:nowrap}.cmeta dd{margin:0;font-size:13.5px;font-weight:500}
+.cfoot2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:auto;padding-top:10px;border-top:1px solid var(--line-2)}
+@media (max-width:1200px){.cgrid2{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:860px){.cgrid2{grid-template-columns:1fr}}
+
+/* ===== GenMeta platform layer: matches the app shell it is embedded in ===== */
+body{color:var(--ink);background:var(--bg)}
+.main{max-width:1400px;margin:0 auto;padding:36px 48px 64px}
+.crumb{display:flex;gap:8px;align-items:center;margin-bottom:14px;font-size:13.5px;color:var(--ink-3)}
+.crumb button{border:0;background:none;padding:0;color:var(--blue);font:inherit}
+.crumb button:hover{text-decoration:underline}
+.crumb b{color:var(--ink);font-weight:500}
+.pg-eyebrow{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
+.phead h1,.dh-t h1{font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.phead p{margin-top:8px;font-size:14px;color:var(--ink-2)}
+.btn.primary{background:var(--ink);border-color:var(--ink)}
+.btn.primary:hover{background:var(--deep);border-color:var(--deep);filter:none}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--blue)}
+.tabs .badge{background:var(--blue-soft);color:var(--blue)}
+.bar i,.covrow .bar i{background:linear-gradient(90deg,var(--blue),var(--blue-2))}
+/* status, as in the platform: healthy = sky dot, warning = royal ring, failed = navy square */
+.mk.warning{border-width:1.5px}
+.bdg.healthy{background:var(--blue-soft);color:var(--ink)}
+.bdg.healthy::before{background:var(--blue-2)}
+.bdg.warning{background:transparent;color:var(--blue);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--blue) 40%,transparent)}
+.bdg.warning::before{background:transparent;border:1.5px solid currentColor;width:5px;height:5px}
+.bdg.failed{background:var(--ink);color:#fff}
+.bdg.failed::before{border-radius:1px;background:#fff}
+.alert,.attn{border-left-color:var(--blue)}
+.alert.failed{border-left-color:var(--ink)}
+.alert .ai svg{color:var(--blue)}
+.spark i{background:var(--blue-2);opacity:1}
+.spark i.w{background:var(--blue)}
+.fresh.late,.late-t{color:var(--blue);font-weight:500}
+.fresh.late{background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--blue) 40%,transparent)}
+.star.on{color:var(--blue)}
+.avatar{background:var(--ink)}
+.av{background:var(--blue-soft);color:var(--ink)}
+.toast,.bulk,.tip{background:var(--ink)}
+@media (max-width:860px){.main{padding:24px 16px 48px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+
+<div style="min-width:0">
+  
+  <main class="main"><nav class="crumb" id="crumb" aria-label="Breadcrumb" hidden></nav><div id="view"></div></main>
+</div>
+</div>
+<div id="modalRoot"></div><div id="toastRoot"></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const I={
+ db:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3 3 7 3s7-1.3 7-3v-6"/></svg>',
+ plug:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></svg>',
+ hist:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4M12 8v4l3 2"/></svg>',
+ up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/></svg>',
+ sync:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16M20 20v-4h-4"/></svg>',
+ warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg>',
+ xc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg>',
+ table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+ clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+ cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 14v3l2 1"/></svg>',
+ search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+ caret:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>',
+ grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>',
+ list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+ kebab:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>',
+ agent:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 4v6a3 3 0 0 0 6 0V4M10 13v7M17 4v16M14 8h6"/></svg>',
+ cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-1 9z"/></svg>',
+ key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M16 7l3 3"/></svg>',
+ layers:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5"/></svg>',
+ lin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 12h4l6-6M11 12l6 6"/></svg>',
+ shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M12 8v5M12 16h.01"/></svg>',
+ play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 5v14l11-7z"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>',
+ edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+ spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>',
+ api:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></svg>'
+};
+const HL={healthy:"Healthy",warning:"Warning",failed:"Failed",scanning:"Scanning"};
+const mk=s=>`<span class="mk ${s}"></span>`;
+const health=s=>`<span class="health">${mk(s)}${HL[s]}</span>`;
+const pl=(n,w)=>`${n.toLocaleString("en-GB")} ${n===1?w.replace(/s$/,""):w}`;
+
+/* Example data built from the current screens (6 sources, 1,284 tables, 1 warning). */
+let sources=[
+ {id:"dwh",cols:5120,star:true,name:"Rplus_DWH",tech:"Snowflake",tile:"SF",desc:"Cloud data warehouse — tables, views and declared keys",deploy:["Agentless","Multi-cloud"],domains:["Orders","Customer"],sens:["FINANCIAL"],
+  schemaList:[["SRC",118],["INT",96],["STG",142],["MART",56]],tables:412,freq:"30 min",last:"17 min ago",next:"in 13 min",status:"healthy",conn:true,owners:["PK","Raghav"],keys:6,layers:2,lineage:119,sensitive:33,
+  coverage:{Owner:100,Description:88,Classification:81,"Glossary terms":25},sensDetail:{PII:14,FINANCIAL:17,SPECIAL_CATEGORY:2},spark:[3,5,2,6,4,7,3,5,8,4,6,5,7],
+  caps:{Metadata:1,Lineage:1,Profiling:1,Classification:1,Glossary:0},
+  drift:[["add","INT.CUSTOMER.SEGMENT","column added","2 days ago"],["chg","SRC.ORDERS.TOTAL_PRICE","number(12,2) → number(18,2)","5 days ago"],["add","STG.CUSTOMER_ORDER_LIVE_RPLUS","view added","1 week ago"]],
+  banner:{t:"Last scan completed 17 minutes ago",d:"412 tables checked incrementally · 3 changed · 0 errors"}},
+ {id:"lake",cols:3410,name:"Rplus Lakehouse",tech:"Databricks",tile:"DB",desc:"Lakehouse — Delta tables, notebooks and job lineage",deploy:["API","Cloud (Azure)"],domains:["Events","Customer"],sens:[],
+  schemaList:[["bronze",91],["silver",78],["gold",44],["ml_features",38],["sandbox",35]],tables:286,freq:"30 min",last:"17 min ago",next:"in 13 min",status:"healthy",conn:true,owners:["Rajesh"],keys:0,layers:3,lineage:204,sensitive:9,
+  coverage:{Owner:100,Description:62,Classification:70,"Glossary terms":18},sensDetail:{PII:9},spark:[6,4,7,5,8,6,4,7,5,6,8,7,6],
+  caps:{Metadata:1,Lineage:1,Profiling:1,Classification:1,Glossary:0},drift:[["add","gold.customer_360","table added","yesterday"]],
+  banner:{t:"Last scan completed 17 minutes ago",d:"286 tables checked · job lineage refreshed for 14 notebooks"}},
+ {id:"case",cols:2688,name:"Casework DB",tech:"SQL Server",tile:"MS",desc:"Operational casework database — normalised OLTP schema",deploy:["Agent","On-premises/hybrid"],domains:["Casework"],sens:["PERSONAL"],
+  schemaList:[["dbo",142],["case",61],["audit",21]],tables:224,freq:"30 min",last:"42 min ago",next:"in 13 min",status:"healthy",conn:true,owners:["Raghav"],keys:38,layers:1,lineage:57,sensitive:41,
+  coverage:{Owner:100,Description:54,Classification:92,"Glossary terms":40},sensDetail:{PII:31,SPECIAL_CATEGORY:10},spark:[2,3,2,4,3,2,5,3,2,4,3,3,2],
+  caps:{Metadata:1,Lineage:1,Profiling:0,Classification:1,Glossary:1},drift:[["del","dbo.CASE_NOTES_TMP","table removed","3 days ago"]],
+  banner:{t:"Last scan completed 42 minutes ago",d:"224 tables checked via on-premise agent · 0 errors"}},
+ {id:"s3",cols:2130,badSchema:2,name:"Rplus Amazon S3",tech:"Amazon S3",tile:"S3",desc:"Object storage data lake — manifest-backed pipeline stages",deploy:["API/manifest","Cloud (AWS)"],domains:["Customer","Orders"],sens:["FINANCIAL"],
+  schemaList:[["raw/",96],["cleansed/",82],["archive/",34]],tables:212,freq:"30 min",last:"7 min ago",next:"in 23 min",status:"warning",conn:true,owners:["Rajesh","PK"],keys:0,layers:3,lineage:29,sensitive:21,
+  coverage:{Owner:100,Description:41,Classification:67,"Glossary terms":0},sensDetail:{PII:12,FINANCIAL:9},spark:[4,5,4,6,5,4,5,6,4,5,2,2,2],warnFrom:10,
+  caps:{Metadata:1,Lineage:1,Profiling:0,Classification:1,Glossary:0},drift:[["add","cleansed/customers_v2.parquet","file added","yesterday"]],
+  banner:{t:"2 of 3 prefixes scanned",d:"archive/ was skipped for the last 3 scans: access denied on 212 objects. The other prefixes are up to date.",hint:"Grant s3:GetObject on arn:aws:s3:::rplus-lake/archive/* to the GenMeta role, then run Scan now."}},
+ {id:"stream",cols:412,name:"Rplus Streaming",tech:"Confluent",tile:"CC",desc:"Streaming platform — topic schemas from the Schema Registry",deploy:["API","Cloud (SaaS)"],domains:["Customer"],sens:["FINANCIAL"],
+  schemaList:[["orders.v1",1],["customers.v2",1],["payments.v1",1]],tables:38,freq:"30 min",last:"7 min ago",next:"in 23 min",status:"healthy",conn:true,owners:["Rajesh"],keys:0,layers:1,lineage:12,sensitive:4,
+  coverage:{Owner:100,Description:95,Classification:100,"Glossary terms":60},sensDetail:{FINANCIAL:4},spark:[1,1,2,1,1,1,3,1,1,2,1,1,1],
+  caps:{Metadata:1,Lineage:1,Profiling:0,Classification:1,Glossary:1},drift:[],
+  banner:{t:"Last scan completed 7 minutes ago",d:"38 topic schemas in sync with the Schema Registry"}},
+ {id:"pbi",cols:1142,name:"Exec Reporting",tech:"Power BI",tile:"BI",desc:"BI semantic models and reports — dataset-to-report lineage",deploy:["API","Third-party SaaS"],domains:["Orders"],sens:["FINANCIAL"],
+  schemaList:[["Executive workspace",64],["Finance workspace",48]],tables:112,freq:"30 min",last:"12 min ago",next:"in 18 min",status:"healthy",conn:true,owners:["PK"],keys:0,layers:1,lineage:88,sensitive:6,
+  coverage:{Owner:100,Description:70,Classification:50,"Glossary terms":45},sensDetail:{FINANCIAL:6},spark:[2,1,3,2,2,4,2,1,3,2,2,3,2],
+  caps:{Metadata:1,Lineage:1,Profiling:0,Classification:1,Glossary:1},drift:[],
+  banner:{t:"Last scan completed 12 minutes ago",d:"112 dataset tables · lineage to Rplus_DWH refreshed"}}
+];
+const COUNT_LABELS={keys:"Declared keys",layers:"Layers",lineage:"Lineage edges",sensitive:"Sensitive columns"};
+
+function rng(seed){let s=seed;return()=>{s=(s*9301+49297)%233280;return s/233280}}
+function runs(src){const r=rng(src.tables+src.name.length*31),out=[];for(let i=0;i<14;i++){let st="ok";if(src.status==="warning"&&i>=11)st="partial";else if(r()<.06)st="partial";const c=2+r()*3,e=15+r()*35,cl=6+r()*16,p=3+r()*6;out.push({i,st,c,e,cl,p,tot:c+e+cl+p,changed:Math.round(r()*6)})}return out}
+
+const state={tab:"sources",view:"list",filter:"all",q:"",type:"all",domain:"all",owner:"all",layout:"list",detail:null,dtab:"status",ccat:"All",sort:"attention",group:"status",collapsed:new Set(),evf:"all",range:"24h",saved:"all",sel:new Set(),rfilter:"all",mcat:"All",mq:"",cenv:"All",cst:"All",clay:"grid",vfrom:null,vto:null};
+try{const l=localStorage.getItem("gm-ds4-layout");if(l)state.layout=l}catch(e){}
+
+function crumb(){
+  const c=$("#crumb");c.hidden=state.view!=="detail";
+  c.innerHTML=state.view==="detail"?`<button id="cb">← Data sources</button><span>/</span><b>${esc(sources.find(s=>s.id===state.detail).name)}</b>`:"";
+  const cb=$("#cb");if(cb)cb.onclick=()=>{state.view="list";render()};
+}
+const SHORT={keys:"keys",layers:"layers",lineage:"lineage edges",sensitive:"sensitive cols"};
+function countsHtml(s,lab){return `<div class="counts">${["keys","layers","lineage","sensitive"].filter(k=>s[k]).map(k=>`<span class="cnt" title="${COUNT_LABELS[k]}">${I[{keys:"key",layers:"layers",lineage:"lin",sensitive:"shield"}[k]]}${s[k]}${lab?" "+(s[k]===1?SHORT[k].replace(/s$/,"").replace("edge","edge"):SHORT[k]):""}</span>`).join("")}</div>`}
+function covAvg(s){const v=Object.values(s.coverage);return Math.round(v.reduce((a,b)=>a+b,0)/v.length)}
+function avs(s){return `<span class="avs">${s.owners.map(o=>`<span class="av">${o.slice(0,2).toUpperCase()}</span>`).join("")}</span>`}
+
+/* ---------- page shell ---------- */
+function shell(inner){
+  const tabs=[["sources","Connected sources",I.db],["connectors","Connectors",I.plug],["market","Marketplace",I.grid],["changes","Metadata changes",I.hist],["bulk","Bulk import",I.up]];
+  return `<div class="phead"><div><span class="pg-eyebrow">Govern</span><h1>Data sources</h1><p>Connected systems and ingestion health across the metadata estate.</p></div>
+    <div class="dd"><button class="btn primary" id="addBtn" aria-haspopup="menu" aria-expanded="false">${I.plus}Add source${I.caret}</button>
+      <div class="menu" id="addMenu" role="menu" hidden>
+        <button role="menuitem" data-add="wizard">${I.plug}<div><b>Connect a source</b><span>Pick a connector and walk through setup</span></div></button>
+        <button role="menuitem" data-add="bulk">${I.file}<div><b>Bulk import</b><span>Update owners, stewards, terms and more from a CSV</span></div></button>
+        <button role="menuitem" data-add="api">${I.api}<div><b>Register via API</b><span>POST /api/v1/sources from your pipeline</span></div></button>
+      </div></div></div>
+  <div class="tabs" role="tablist">${tabs.map(([k,l,ic])=>`<button role="tab" data-ptab="${k}" class="${state.tab===k?"on":""}">${ic}${l}${k==="changes"?'<span class="badge">5</span>':""}${k==="market"&&MKT.some(m=>m.st==="update")?'<span class="badge">1 update</span>':""}</button>`).join("")}</div>${inner}`;
+}
+function wireShell(){
+  $$("[data-ptab]").forEach(b=>b.onclick=()=>{state.tab=b.dataset.ptab;render()});
+  const ab=$("#addBtn"),m=$("#addMenu");
+  ab.onclick=e=>{e.stopPropagation();m.hidden=!m.hidden;ab.setAttribute("aria-expanded",!m.hidden)};
+  $$("[data-add]").forEach(b=>b.onclick=()=>{m.hidden=true;const a=b.dataset.add;if(a==="wizard")openWizard();else if(a==="bulk"){state.tab="bulk";render()}else toast("API: POST /api/v1/sources with a connector type and credential ID. Docs are in Settings → API.")});
+}
+document.addEventListener("click",()=>{const m=$("#addMenu");if(m)m.hidden=true});
+
+/* ---------- connected sources ---------- */
+const VIEWS={all:"All sources",mine:"My sources",sensitive:"Holds sensitive data",onprem:"On-premise systems",starred:"Starred"};
+const RANK={failed:0,warning:1,scanning:2,healthy:3};
+const mins=t=>{const m=String(t).match(/(\d+)\s*min/);return m?+m[1]:String(t).includes("just")?0:9999};
+const freqMin=f=>parseInt(f)||30;
+function fresh(s){if(s.status==="scanning")return "";const late=mins(s.last)>freqMin(s.freq)*1.25;return late?`<span class="fresh late" title="Last scan is later than the ${s.freq} schedule">Delayed</span>`:`<span class="fresh" title="Scanned within the ${s.freq} schedule">On schedule</span>`}
+function schemaOk(s,i){return !(s.status==="warning"&&s.badSchema===i)}
+function viewOk(s){const v=state.saved;return v==="all"||(v==="mine"&&s.owners.includes("Rajesh"))||(v==="sensitive"&&s.sens.length)||(v==="onprem"&&s.deploy.includes("On-premise"))||(v==="starred"&&s.star)}
+function filtered(){
+  const q=state.q.toLowerCase();
+  const l=sources.filter(s=>(state.filter==="all"||s.status===state.filter)&&(state.type==="all"||s.tech===state.type)&&(state.domain==="all"||s.domains.includes(state.domain))&&(state.owner==="all"||s.owners.includes(state.owner))&&viewOk(s)&&`${s.name} ${s.tech} ${s.desc} ${s.domains.join(" ")} ${s.sens.join(" ")}`.toLowerCase().includes(q));
+  const by={attention:(a,b)=>RANK[a.status]-RANK[b.status]||mins(b.last)-mins(a.last),name:(a,b)=>a.name.localeCompare(b.name),recent:(a,b)=>mins(a.last)-mins(b.last),tables:(a,b)=>b.tables-a.tables}[state.sort];
+  return l.sort(by);
+}
+function schemaLabel(s){return s.tech==="Confluent"?"topics":s.tech==="Power BI"?"workspaces":s.tech==="Amazon S3"?"prefixes":"schemas"}
+function card(s){
+  const ok=s.schemaList.filter((_,i)=>schemaOk(s,i)).length,order=s.schemaList.map((x,i)=>[x,i]).sort((a,b)=>schemaOk(s,a[1])-schemaOk(s,b[1]));
+  return `<article class="card ${state.sel.has(s.id)?"picked":""} ${s.status==="warning"?"attn-card":""}" data-open="${s.id}" tabindex="0">
+    <div class="chead"><label class="pick" data-stop title="Select"><input type="checkbox" data-sel="${s.id}" ${state.sel.has(s.id)?"checked":""} aria-label="Select ${esc(s.name)}"></label><span class="tile">${s.tile}</span>
+      <div class="nm"><b title="${esc(s.name)}">${esc(s.name)}</b><span>${s.tech}</span> <span class="conn" style="display:inline-flex;margin-left:8px">${mk("healthy")}Connected</span></div>
+      <button class="star ${s.star?"on":""}" data-star="${s.id}" aria-label="${s.star?"Unstar":"Star"} ${esc(s.name)}" aria-pressed="${!!s.star}">${s.star?"★":"☆"}</button><button class="kebab" aria-label="More actions" data-kebab="${s.id}">${I.kebab}</button></div>
+    <p class="desc">${esc(s.desc)}</p>
+    <details class="schemas" data-stop ${s.status==="warning"?"open":""}><summary>${pl(s.schemaList.length,schemaLabel(s))} inside this system</summary><span class="sync ${ok<s.schemaList.length?"part":""}">${ok}/${s.schemaList.length} scanned</span>
+      <ul>${order.map(([[n,c],i])=>`<li>${mk(schemaOk(s,i)?"healthy":"warning")}<span class="mono">${esc(n)}</span><span class="sub">${pl(c,"tables")}</span>${schemaOk(s,i)?"":`<button class="btn sm" data-rescan="${s.id}">Rescan</button>`}</li>`).join("")}</ul></details>
+    <div class="chips">${s.deploy.map((d,i)=>`<span class="chip">${i===0?I.agent:I.cloud}${d}</span>`).join("")}</div>
+    <div class="tagrow"><div class="chips" style="margin-top:0">${s.domains.map(d=>`<span class="chip">${d}</span>`).join("")}${s.sens.map(d=>`<span class="chip sens">${d}</span>`).join("")}</div>${spark(s)}</div>
+    <div class="cov" title="Share of assets with owner, description, classification and glossary terms"><span>Governance coverage</span><div class="bar"><i style="width:${covAvg(s)}%"></i></div><span class="num">${covAvg(s)}%</span></div>
+    <div class="stats"><div class="stat">${I.table}<div><b><button class="lnk" data-cat="${s.id}" title="Open these tables in Data catalogue">${s.tables.toLocaleString("en-GB")}</button></b><span>Tables</span></div></div><div class="stat">${I.cal}<div><b>${s.freq}</b><span>Scan frequency</span></div></div><div class="stat" title="Next scan ${s.next}">${I.clock}<div><b>${s.last}</b><span>Last scan ${fresh(s)}</span></div></div></div>
+    <div class="countrow">${countsHtml(s,true)}</div>
+    <div class="cfoot"><span class="owners">${avs(s)}${s.owners.join(", ")}</span>${health(s.status)}${s.status==="warning"?'<span class="sub">Partial scan</span>':""}</div>
+  </article>`;
+}
+function spark(s){const m=Math.max(...s.spark);return `<div class="spark" role="img" aria-label="Objects changed in the last ${s.spark.length} scans">${s.spark.map((v,i)=>`<i class="${s.warnFrom!=null&&i>=s.warnFrom?"w":""}" style="height:${Math.max(4,v/m*38)}px" title="${s.spark.length-i===1?"Latest scan":(s.spark.length-i-1)*freqMin(s.freq)+" min earlier"}: ${v} objects changed${s.warnFrom!=null&&i>=s.warnFrom?" · partial":""}"></i>`).join("")}</div>`}
+function row(s){return `<tr data-open="${s.id}" tabindex="0" class="${state.sel.has(s.id)?"picked":""}"><td data-stop><input type="checkbox" data-sel="${s.id}" ${state.sel.has(s.id)?"checked":""} aria-label="Select ${esc(s.name)}"></td><td><div class="srccell"><span class="tile">${s.tile}</span><div><b>${s.star?'<span class="star on" style="padding:0;margin-right:4px">★</span>':""}${esc(s.name)}</b><span>${s.tech} · ${pl(s.schemaList.length,schemaLabel(s))}</span></div></div></td>
+  <td>${health(s.status)}${s.status==="warning"?'<div class="sub">2/3 prefixes</div>':""}</td><td><span class="conn">${mk("healthy")}Connected</span></td><td class="sub">${s.deploy.join(" · ")}</td>
+  <td><div class="chips" style="margin:0">${s.domains.map(d=>`<span class="chip">${d}</span>`).join("")}${s.sens.map(d=>`<span class="chip sens">${d}</span>`).join("")}</div></td>
+  <td class="num">${s.tables.toLocaleString("en-GB")}</td><td>${s.last} ${fresh(s)}<div class="sub">every ${s.freq} · next ${s.next}</div></td>
+  <td><div class="cov" style="margin:0;min-width:110px"><div class="bar"><i style="width:${covAvg(s)}%"></i></div><span class="num">${covAvg(s)}%</span></div></td>
+  <td>${countsHtml(s)}</td><td><span class="owners">${avs(s)}</span></td><td><button class="btn sm" data-scan="${s.id}">${I.play}Scan now</button></td></tr>`}
+/* ===== v4: Fivetran-style list + status page ===== */
+const BADGE={healthy:"Healthy",warning:"Warning",failed:"Failed",scanning:"Scanning",paused:"Paused"};
+const badge=s=>`<span class="bdg ${s}">${BADGE[s]}</span>`;
+function renderSources(){
+  const n=sources.length,warn=sources.filter(s=>s.status==="warning").length,fail=sources.filter(s=>s.status==="failed").length,tables=sources.reduce((a,s)=>a+s.tables,0);
+  const types=[...new Set(sources.map(s=>s.tech))],domains=[...new Set(sources.flatMap(s=>s.domains))],owners=[...new Set(sources.flatMap(s=>s.owners))];
+  const list=filtered();
+  const sum=(k,l,v,sub,btn)=>`<${btn?`button data-filter="${k}"`:"div"} class="sm-cell ${btn&&state.filter===k?"on":""}"><span class="sm-l">${l}</span><span class="sm-v">${v}</span><span class="sm-s">${sub}</span></${btn?"button":"div"}>`;
+  const groups=state.group==="none"?[["",list]]:state.group==="status"?[["Needs attention",list.filter(s=>s.status!=="healthy"&&s.status!=="scanning")],["Healthy",list.filter(s=>s.status==="healthy"||s.status==="scanning")]].filter(g=>g[1].length):[...new Set(list.map(s=>state.group==="domain"?s.domains[0]:s.tech))].map(g=>[g,list.filter(s=>(state.group==="domain"?s.domains[0]:s.tech)===g)]);
+  const trow=s=>`<tr data-open="${s.id}" tabindex="0">
+    <td class="c-star" data-stop><button class="star ${s.star?"on":""}" data-star="${s.id}" aria-label="${s.star?"Unstar":"Star"} ${esc(s.name)}">${s.star?"★":"☆"}</button></td>
+    <td><div class="nmcell"><span class="tile">${s.tile}</span><div><b>${esc(s.name)}</b><span>${s.tech} · ${pl(s.schemaList.length,schemaLabel(s))}</span></div></div></td>
+    <td>${badge(s.status)}${s.status==="warning"?'<div class="sub" style="margin-top:3px">2 of 3 prefixes</div>':""}</td>
+    <td><div class="tagline">${s.domains.map(d=>`<span class="tg">${d}</span>`).join("")}${s.sens.map(d=>`<span class="tg sens">${d}</span>`).join("")}</div></td>
+    <td class="sub2 nw">${s.deploy[0]} · ${s.deploy[1]}</td>
+    <td class="num r">${s.tables.toLocaleString("en-GB")}</td>
+    <td class="num r">${s.sensitive}</td>
+    <td class="nw">${s.last}${mins(s.last)>freqMin(s.freq)*1.25&&s.status!=="scanning"?'<div class="late-t">Delayed · scheduled</div>':`<div class="sub">Scheduled · every ${s.freq}</div>`}</td>
+    <td class="nw">${s.next}</td>
+    <td>${spark(s)}</td>
+    <td><span class="avs">${s.owners.map(o=>`<span class="av" title="${o}">${o.slice(0,2).toUpperCase()}</span>`).join("")}</span></td>
+    <td class="c-act" data-stop><button class="kebab" data-kebab="${s.id}" aria-label="Actions for ${esc(s.name)}">${I.kebab}</button></td></tr>`;
+  const table=`<div class="tbl"><table><thead><tr><th class="c-star"></th><th>Source</th><th>Status</th><th>Domains</th><th>Extraction · Environment</th><th class="r">Tables</th><th class="r">Sensitive cols</th><th>Last scan</th><th>Next scan</th><th>Activity</th><th>Owners</th><th></th></tr></thead>
+    ${groups.map(([g,rows])=>`<tbody>${g?`<tr class="grp" data-grp="${esc(g)}"><td colspan="12"><button class="grpbtn" aria-expanded="${!state.collapsed.has(g)}">${I.caret}<b>${esc(g)}</b><span>${rows.length}</span></button></td></tr>`:""}${state.collapsed.has(g)?"":rows.map(trow).join("")}</tbody>`).join("")}</table></div>`;
+  const cards=`<div class="cgrid">${list.map(s=>`<article class="ccard" data-open="${s.id}" tabindex="0">
+    <div class="cc-h"><span class="tile">${s.tile}</span><div class="grow"><b>${esc(s.name)}</b><span>${s.tech}</span></div>${badge(s.status)}<button class="kebab" data-kebab="${s.id}" aria-label="Actions">${I.kebab}</button></div>
+    <p class="cc-d">${esc(s.desc)}</p>
+    <details class="schemas" data-stop><summary>${pl(s.schemaList.length,schemaLabel(s))} inside this system</summary><ul>${s.schemaList.map(([nm,c],i)=>`<li>${mk(schemaOk(s,i)?"healthy":"warning")}<span class="mono">${esc(nm)}</span><span class="sub">${pl(c,"tables")}</span></li>`).join("")}</ul></details>
+    <div class="tagline" style="margin-top:10px"><span class="tg" title="Extraction method">${s.deploy[0]}</span><span class="tg" title="Environment">${s.deploy[1]}</span></div>
+    <div class="cc-t"><div class="tagline">${s.domains.map(d=>`<span class="tg">${d}</span>`).join("")}${s.sens.map(d=>`<span class="tg sens">${d}</span>`).join("")}</div>${spark(s)}</div>
+    <dl class="cc-s"><div><dt>Tables</dt><dd>${s.tables.toLocaleString("en-GB")}</dd></div><div><dt>Scan frequency</dt><dd>${s.freq}</dd></div><div><dt>Last scan</dt><dd>${s.last}</dd></div></dl>
+    <div class="cc-f"><span class="avs">${s.owners.map(o=>`<span class="av">${o.slice(0,2).toUpperCase()}</span>`).join("")}</span><span class="sub">${s.owners.join(", ")}</span><span class="grow"></span><span class="sub" title="Declared keys · layers · lineage edges · sensitive columns">${[s.keys&&s.keys+" keys",s.layers+" layers",s.lineage+" lineage",s.sensitive+" sensitive"].filter(Boolean).join(" · ")}</span></div>
+  </article>`).join("")}</div>`;
+  const inner=`
+  <div class="collect2">${I.sync}<span>Collection: <b>Scheduled</b> every 30 min · <b>Event-driven</b> trigger ready · <b>Incremental</b> harvest. Last harvest (${HARVESTS[0][0]}, ${HARVESTS[0][1].toLowerCase()}) re-read ${HARVESTS[0][2].join(" and ")||"no sources"} and reused ${HARVESTS[0][3].length===sources.length?"all sources":HARVESTS[0][3].join(", ")} (signature unchanged).</span><button class="btn xs" id="evtbtn">${I.api}Event trigger API</button><button class="btn xs" id="harvest">Run harvest now</button></div>
+  <div class="summary">${sum("all","Connected sources",n,`of ${n} total`,true)}${sum("warning","Warning",warn,Math.round(warn/n*100)+"% of sources",true)}${sum("failed","Failed",fail,Math.round(fail/n*100)+"% of sources",true)}${sum("","Total tables",tables.toLocaleString("en-GB"),"harvested by connectors")}${sum("","Total columns",sources.reduce((a,s)=>a+(s.cols||0),0).toLocaleString("en-GB"),"no manual upload")}${sum("","Last harvest",HARVESTS[0][0],"trigger: "+HARVESTS[0][1])}${sum("","Next scheduled scan","in 13 min","48 scans in the next 24 hours")}</div>
+  ${sources.filter(s=>s.status==="warning"||s.status==="failed").map(w=>`<div class="alert ${w.status}"><span class="ai">${I.warn}</span><div class="grow"><b>${esc(w.name)}</b> ${esc(w.banner.t.toLowerCase())}. ${esc(w.banner.d)}</div><button class="btn xs" data-open="${w.id}">View details</button></div>`).join("")}
+  <div class="bar2">
+    <label class="search">${I.search}<input id="q" placeholder="Search data sources…" value="${esc(state.q)}" aria-label="Search data sources"></label>
+    <select class="sel" id="fType" aria-label="Source type"><option value="all">All source types</option>${types.map(t=>`<option ${state.type===t?"selected":""}>${t}</option>`).join("")}</select>
+    <select class="sel" id="fStatus" aria-label="Status"><option value="all">All statuses</option>${["healthy","warning","failed"].map(t=>`<option value="${t}" ${state.filter===t?"selected":""}>${HL[t]}</option>`).join("")}</select>
+    <select class="sel" id="fDomain" aria-label="Domain"><option value="all">All domains</option>${domains.map(t=>`<option ${state.domain===t?"selected":""}>${t}</option>`).join("")}</select>
+    <select class="sel" id="fOwner" aria-label="Owner"><option value="all">All owners</option>${owners.map(t=>`<option ${state.owner===t?"selected":""}>${t}</option>`).join("")}</select>
+    <span class="grow"></span>
+    ${state.layout==="list"?`<select class="sel" id="group" aria-label="Group by">${[["status","Group by status"],["domain","Group by domain"],["type","Group by source type"],["none","No grouping"]].map(([k,v])=>`<option value="${k}" ${state.group===k?"selected":""}>${v}</option>`).join("")}</select>`:""}
+    <div class="seg2" role="group" aria-label="Layout"><button data-layout="list" class="${state.layout==="list"?"on":""}" aria-label="List view">${I.list}</button><button data-layout="cards" class="${state.layout==="cards"?"on":""}" aria-label="Card view">${I.grid}</button></div>
+  </div>
+  <div class="legend2">${["healthy","warning","failed"].map(k=>`<button data-filter="${k}" class="${state.filter===k?"on":""}">${mk(k)}${HL[k]}</button>`).join("")}<span class="grow"></span><span class="sub">Showing ${list.length} of ${n}</span></div>
+  ${list.length?(state.layout==="list"?table:cards):`<div class="empty">No sources match these filters. <button class="btn xs" id="clearF">Clear filters</button></div>`}${ingestionPanel()}`;
+  $("#view").innerHTML=shell(inner);wireShell();
+  $$("[data-filter]").forEach(b=>b.onclick=()=>{const f=b.dataset.filter;state.filter=state.filter===f&&f!=="all"?"all":f;render()});
+  $$("[data-layout]").forEach(b=>b.onclick=()=>{state.layout=b.dataset.layout;try{localStorage.setItem("gm-ds4-layout",state.layout)}catch(e){}render()});
+  $$("[data-open]").forEach(el=>{el.onclick=e=>{if(e.target.closest("[data-stop],[data-kebab],[data-star]"))return;openDetail(el.dataset.open)};el.onkeydown=e=>{if(e.key==="Enter"&&e.target===el)openDetail(el.dataset.open)}});
+  $$("[data-star]").forEach(b=>b.onclick=e=>{e.stopPropagation();const s=sources.find(x=>x.id===b.dataset.star);s.star=!s.star;render()});
+  $$("[data-kebab]").forEach(b=>b.onclick=e=>{e.stopPropagation();toast("Scan now · Test connection · Edit · Pause scans · Copy source ID · Remove")});
+  $$("[data-grp]").forEach(r=>r.onclick=()=>{const g=r.dataset.grp;state.collapsed.has(g)?state.collapsed.delete(g):state.collapsed.add(g);render()});
+  const q=$("#q");q.oninput=()=>{state.q=q.value;const p=q.selectionStart;render();const nq=$("#q");nq.focus();nq.setSelectionRange(p,p)};
+  $("#fType").onchange=e=>{state.type=e.target.value;render()};$("#fStatus").onchange=e=>{state.filter=e.target.value;render()};
+  $("#fDomain").onchange=e=>{state.domain=e.target.value;render()};$("#fOwner").onchange=e=>{state.owner=e.target.value;render()};
+  const g=$("#group");if(g)g.onchange=e=>{state.group=e.target.value;render()};
+  $("#harvest").onclick=()=>{addHarvest("Manual",[],"No change");render();toast("Harvest finished. No signatures changed, so every source was reused.")};
+  $("#evtbtn").onclick=openTrigger;
+  const cf=$("#clearF");if(cf)cf.onclick=()=>{Object.assign(state,{filter:"all",q:"",type:"all",domain:"all",owner:"all"});render()};
+}
+function scan(id){const s=sources.find(x=>x.id===id),prev=s.status;s.status="scanning";render();toast(`Scan started for ${s.name}`);
+  setTimeout(()=>{s.status=prev==="warning"?"warning":"healthy";s.last="just now";render();toast(s.status==="warning"?`${s.name}: 2 of 3 prefixes scanned. archive/ still denied.`:`${s.name} is up to date`)},2400)}
+
+/* ---------- detail ---------- */
+function openDetail(id){state.view="detail";state.detail=id;state.dtab="status";render();window.scrollTo(0,0)}
+function events(s,R){const ev=[];[...R].reverse().slice(0,8).forEach((r,k)=>{const t=k===0?s.last:(k*freqMin(s.freq)+mins(s.last))+" min ago";
+  if(r.st!=="ok"&&s.status==="warning")ev.push(["warning",t,"Scan completed with warnings: archive/ skipped (AccessDenied 403 on 212 objects)"]);
+  else ev.push(["sync",t,`Scan completed in ${Math.round(r.tot)}s · ${pl(r.changed,"objects")} changed`]);
+  if(k===2&&s.drift[0])ev.push(["schema",t,`Schema change detected: ${s.drift[0][1]} (${s.drift[0][2]})`]);});
+  ev.push(["action","3 days ago",`${s.owners[0]} changed scan frequency from Hourly to Every ${s.freq}`]);return ev}
+function renderDetail(){
+  const s=sources.find(x=>x.id===state.detail),R=runs(s);
+  const tabs=[["status","Status"],["schemas","Schemas"],["coverage","Coverage"],["settings","Settings"],["logs","Logs"]];
+  if(!tabs.some(t=>t[0]===state.dtab))state.dtab="status";
+  $("#view").innerHTML=`
+  <div class="dh"><div class="dh-l"><span class="tile lg">${s.tile}</span><div><div class="dh-t"><h1>${esc(s.name)}</h1>${badge(s.status)}</div><p class="dh-m">${s.tech} · ${s.deploy.join(" · ")} · Owners: ${s.owners.join(", ")} · Steward: Priya</p><p class="dh-d">${esc(s.desc)}</p></div></div>
+    <div class="actions"><button class="btn" id="testC">Test connection</button><button class="btn" id="pauseS">Pause</button><button class="btn primary" id="scanNow">${I.play}Scan now</button></div></div>
+  ${s.status==="warning"?`<div class="alert warning" style="margin-top:16px"><span class="ai">${I.warn}</span><div class="grow"><b>${esc(s.banner.t)}.</b> ${esc(s.banner.d)}<div class="fix"><b>How to fix:</b> ${esc(s.banner.hint)}</div><div class="sub" style="margin-top:4px">Scans pause automatically after 5 failures in a row (2 more).</div></div><button class="btn xs" id="explain">${I.spark}Explain logs</button></div>`:""}
+  <nav class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" data-dtab="${k}" class="${state.dtab===k?"on":""}">${l}</button>`).join("")}</nav>
+  ${pane(s,R)}`;
+  $$("[data-dtab]").forEach(b=>b.onclick=()=>{state.dtab=b.dataset.dtab;render()});
+  $("#scanNow").onclick=()=>scan(s.id);
+  $("#pauseS").onclick=()=>toast(`${s.name} paused. Resume from this page at any time.`);
+  $("#testC").onclick=()=>toast(s.status==="warning"?"3 of 4 checks passed. Read access failed on archive/.":"All 4 connection checks passed");
+  const ex=$("#explain");if(ex)ex.onclick=()=>toast("Log summary: the last 3 scans hit AccessDenied (403) on archive/ only. raw/ and cleansed/ scanned normally.");
+  wireChart(R);
+  $$("[data-evf]").forEach(b=>b.onclick=()=>{state.evf=b.dataset.evf;render()});
+  $$("[data-range]").forEach(b=>b.onclick=()=>{state.range=b.dataset.range;render()});
+}
+function pane(s,R){
+  if(state.dtab==="status"){const ev=events(s,R).filter(e=>state.evf==="all"||e[0]===state.evf);
+    return `<div class="kv4"><div><span>Last scan</span><b>${s.last}</b></div><div><span>Next scan</span><b>${s.next}</b></div><div><span>Scan frequency</span><b>Every ${s.freq}</b></div><div><span>Tables</span><b>${s.tables.toLocaleString("en-GB")}</b></div><div><span>Collection</span><b>Event-driven · incremental</b></div></div>
+    <section class="panel"><div class="ph"><h3>Scan history</h3><div class="seg2 txt">${[["24h","24 hours"],["7d","7 days"]].map(([k,l])=>`<button data-range="${k}" class="${state.range===k?"on":""}">${l}</button>`).join("")}</div></div>
+      <p class="cap">${state.range==="24h"?"Last 14 scans":"Daily scan outcomes, last 7 days"}. Hover a bar for the Connect, Extract, Classify and Publish breakdown.</p>${chartSvg(R)}
+      <div class="lg"><span><i style="background:var(--blue-2)"></i>Succeeded</span><span><i style="background:var(--warn)"></i>Completed with warnings</span><span><i style="background:var(--bad)"></i>Failed</span></div></section>
+    <section class="panel"><div class="ph"><h3>Events</h3><div class="seg2 txt">${[["all","All"],["sync","Scans"],["warning","Warnings"],["schema","Schema"],["action","Changes"]].map(([k,l])=>`<button data-evf="${k}" class="${state.evf===k?"on":""}">${l}</button>`).join("")}</div></div>
+      <table class="evt"><thead><tr><th style="width:150px">Time</th><th style="width:120px">Type</th><th>Event</th></tr></thead><tbody>${ev.map(e=>`<tr><td class="sub2">${e[1]}</td><td><span class="et ${e[0]}">${{sync:"Scan",warning:"Warning",schema:"Schema",action:"Change"}[e[0]]}</span></td><td>${esc(e[2])}</td></tr>`).join("")||'<tr><td colspan="3" class="sub">No events of this type.</td></tr>'}</tbody></table></section>`}
+  if(state.dtab==="schemas")return `<div class="policy"><div><b>Schema change policy</b><p class="sub" style="margin:2px 0 0">What happens when new tables or columns appear at this source.</p></div><select class="sel" id="pol" aria-label="Schema change policy"><option>Add them automatically</option><option>Hold for review before publishing</option><option>Ignore until scope is updated</option></select></div>
+    <div class="tbl"><table><thead><tr><th style="width:60px">Include</th><th>${schemaLabel(s).replace(/^./,c=>c.toUpperCase()).replace(/s$/,"")}</th><th class="r">Tables</th><th>Status</th><th>Last scanned</th></tr></thead><tbody>${s.schemaList.map(([nm,c],i)=>`<tr><td><label class="swl"><input type="checkbox" class="swi" id="inc-${i}" checked><span class="sw"></span></label></td><td class="mono">${esc(nm)}</td><td class="num r">${c}</td><td>${schemaOk(s,i)?badge("healthy"):badge("warning")}</td><td>${schemaOk(s,i)?s.last:"3 scans ago"}</td></tr>`).join("")}</tbody></table></div>
+    <label class="toggle" style="margin-top:12px"><input type="checkbox" class="swi" id="autoInc" checked><span class="sw"></span>Include new ${schemaLabel(s)} automatically</label>`;
+  if(state.dtab==="coverage")return `<div class="two" style="margin-top:18px"><section class="panel" style="margin:0"><h3>Governance coverage</h3><p class="cap">Share of this source's assets with each field recorded.</p>${Object.entries(s.coverage).map(([l,v])=>`<div class="covrow"><span>${l}</span><div class="bar"><i style="width:${v}%;${v<50?"background:var(--warn)":""}"></i></div><span class="num">${v}%</span></div>`).join("")}</section>
+    <section class="panel" style="margin:0"><h3>What this source contributes</h3><p class="cap">Counts from the latest scan.</p><dl class="kv"><dt>Declared keys</dt><dd>${s.keys}</dd><dt>Layers</dt><dd>${s.layers}</dd><dt>Lineage edges</dt><dd>${s.lineage}</dd><dt>Sensitive columns</dt><dd>${s.sensitive} (${Object.entries(s.sensDetail).map(([k,v])=>`${k} ${v}`).join(", ")})</dd><dt>Domains</dt><dd>${s.domains.join(", ")}</dd></dl></section></div>`;
+  if(state.dtab==="settings")return `<div class="two" style="margin-top:18px"><section class="panel" style="margin:0"><h3>Connection</h3><div class="field"><label for="sm">Method</label><input id="sm" value="${s.deploy[0]}"></div><div class="field"><label for="sh">Hosting</label><input id="sh" value="${s.deploy[1]}"></div><div class="field"><label for="sc">Credential</label><select id="sc"><option>${s.id}-svc</option></select></div><div class="field"><label for="so">Owners</label><input id="so" value="${s.owners.join(", ")}"></div></section>
+    <section class="panel" style="margin:0"><h3>Collection</h3><div class="field"><label for="sf">Scan frequency</label><select id="sf">${["Every 15 min","Every 30 min","Hourly","Daily 02:00"].map(f=>`<option ${f==="Every "+s.freq?"selected":""}>${f}</option>`).join("")}</select></div><div class="field"><label for="sd">Scan depth</label><select id="sd"><option>Basic metadata</option><option selected>Metadata + lineage</option><option>Full (sampling and classification)</option></select></div>
+      <label class="toggle"><input type="checkbox" class="swi" id="se" checked><span class="sw"></span>Event-driven trigger</label><label class="toggle"><input type="checkbox" class="swi" id="si" checked><span class="sw"></span>Incremental harvest</label><label class="toggle"><input type="checkbox" class="swi" id="sa" checked><span class="sw"></span>Pause after 5 failures in a row</label>
+      <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="toast('Settings saved')">Save changes</button><button class="btn" onclick="toast('Removing a source needs confirmation from an admin')">Remove source</button></div></section></div>`;
+  const lines=events(s,R).map(e=>`<div class="logl"><span class="sub2">${e[1]}</span><span class="lv ${e[0]==="warning"?"w":""}">${e[0]==="warning"?"WARN":"INFO"}</span><span>${esc(e[2])}</span></div>`).join("");
+  return `<section class="panel"><div class="ph"><h3>Logs</h3><button class="btn xs" onclick="toast('Log file prepared for download')">Download</button></div><div class="logs">${lines}</div></section>`;
+}
+function chartSvg(R){if(state.range==="7d")R=R.slice(-7);const W=1100,H=210,pl=34,pb=22,pt=10,max=Math.ceil(Math.max(...R.map(r=>r.tot))/20)*20,bw=(W-pl-10)/R.length,y=v=>H-pb-(v/max)*(H-pb-pt);
+  let g="";for(let t=0;t<=max;t+=max/4)g+=`<line class="gl" x1="${pl}" x2="${W-6}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${pl-6}" y="${y(t)+3}" text-anchor="end">${Math.round(t)}s</text>`;
+  const bars=R.map((r,i)=>{const x=pl+i*bw+bw*.2,w=bw*.6;return `<rect data-i="${i}" x="${x}" y="${y(r.tot)}" width="${w}" height="${H-pb-y(r.tot)}" rx="3" fill="${r.st==="ok"?"var(--blue-2)":"var(--warn)"}" ${i===R.length-1?'stroke="var(--ink)" stroke-width="1.5"':""}/>`}).join("");
+  return `<div class="chart" id="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Duration of the last 14 scans">${g}${bars}<text class="axis" x="${pl}" y="${H-6}">14 scans ago</text><text class="axis" x="${W-6}" y="${H-6}" text-anchor="end">latest</text></svg><div class="tip" hidden></div></div>`}
+function wireChart(R){const c=$("#chart");if(!c)return;const tip=c.querySelector(".tip");c.querySelectorAll("rect").forEach(r=>{r.onmouseenter=()=>{const d=R[r.dataset.i],bb=r.getBoundingClientRect(),cb=c.getBoundingClientRect();tip.innerHTML=`<b>${d.st==="ok"?"Succeeded":"Partial"}</b>${[["Connect",d.c],["Extract",d.e],["Classify",d.cl],["Publish",d.p]].map(([l,v])=>`<div class="st"><span>${l}</span><span>${Math.round(v)}s</span></div>`).join("")}<div class="st"><span>Objects changed</span><span>${d.changed}</span></div>`;tip.style.left=(bb.left-cb.left+bb.width/2)+"px";tip.style.top=(bb.top-cb.top-6)+"px";tip.hidden=false};r.onmouseleave=()=>tip.hidden=true})}
+
+/* ---------- connectors tab ---------- */
+const CONNECTORS=[["Snowflake","Warehouse","SF"],["Databricks","Lakehouse","DB"],["BigQuery","Warehouse","BQ"],["Amazon Redshift","Warehouse","RS"],["Amazon S3","Object storage","S3"],["Azure Data Lake","Object storage","AD"],["SQL Server","Database","MS"],["PostgreSQL","Database","PG"],["Oracle","Database","OR"],["Power BI","BI","BI"],["Tableau","BI","TB"],["Confluent","Streaming","CC"],["REST API (OpenAPI)","API","API"],["dbt Cloud","Transformation","dbt"]];
+const AUTH={"Snowflake":"Key pair · OAuth · Password","Databricks":"Service principal · PAT","BigQuery":"Service account","Amazon Redshift":"IAM role · Password","Amazon S3":"IAM role","Azure Data Lake":"Service principal · Managed identity","SQL Server":"Agent · SQL login · Entra ID","PostgreSQL":"Password · SSH tunnel","Oracle":"Agent · Password","Power BI":"Service principal","Tableau":"Personal access token","Confluent":"API key","REST API (OpenAPI)":"API key · OAuth","dbt Cloud":"Service token"};
+function renderRuns(){
+  const rows=sources.flatMap(s=>runs(s).slice(-4).map((r,k,a)=>({s,r,ago:(a.length-1-k)*freqMin(s.freq)+mins(s.last)}))).filter(x=>state.rfilter==="all"||(state.rfilter==="partial"?x.r.st!=="ok":x.r.st==="ok")).sort((a,b)=>a.ago-b.ago);
+  const tot=sources.length*4,part=sources.flatMap(s=>runs(s).slice(-4)).filter(r=>r.st!=="ok").length;
+  $("#view").innerHTML=shell(`<div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))"><div class="kpi"><span class="kic">${I.hist}</span><span><span class="n">${tot}</span><span class="l" style="display:block">Scans shown</span><span class="s">last 4 per source</span></span></div><div class="kpi"><span class="kic">${I.check}</span><span><span class="n">${tot-part}</span><span class="l" style="display:block">Succeeded</span><span class="s">${Math.round((tot-part)/tot*100)}%</span></span></div><div class="kpi"><span class="kic">${I.warn}</span><span><span class="n">${part}</span><span class="l" style="display:block">Partial</span><span class="s">published with gaps</span></span></div><div class="kpi"><span class="kic">${I.xc}</span><span><span class="n">0</span><span class="l" style="display:block">Failed</span><span class="s">nothing published</span></span></div></div>
+  <div class="subbar" style="margin-top:16px"><label class="inl">Result <select class="sel sm" id="rf"><option value="all">All results</option><option value="ok" ${state.rfilter==="ok"?"selected":""}>Succeeded</option><option value="partial" ${state.rfilter==="partial"?"selected":""}>Partial</option></select></label><span class="sub" style="margin-left:auto">Every scan across every source, newest first</span></div>
+  <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>Source</th><th>Result</th><th>Started</th><th>Duration</th><th>Stages</th><th>Changes</th><th></th></tr></thead><tbody>${rows.map(({s,r,ago})=>`<tr data-open="${s.id}"><td><div class="srccell" style="min-width:0"><span class="tile">${s.tile}</span><div><b>${esc(s.name)}</b><span>${s.tech}</span></div></div></td><td>${r.st==="ok"?'<span class="health">'+mk("healthy")+"Succeeded</span>":'<span class="health">'+mk("warning")+"Partial</span>"}</td><td>${ago?ago+" min ago":"just now"}</td><td class="num">${Math.round(r.tot)}s</td><td>${stageBar(r)}</td><td>${pl(r.changed,"objects")}</td><td data-stop><button class="btn sm ghost" data-link>Copy link</button></td></tr>`).join("")}</tbody></table></div>${stageLegend()}`);
+  wireShell();$("#rf").onchange=e=>{state.rfilter=e.target.value;render()};
+  $$("[data-open]").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-stop]"))return;openDetail(el.dataset.open);state.dtab="runs";render()});wireLinks();
+}
+const CREDS=[["dwh-svc","Key pair","Rplus_DWH","12 days ago","in 78 days",""],["lake-sp","Service principal","Rplus Lakehouse","40 days ago","in 50 days",""],["case-agent","Agent token","Casework DB","3 days ago","No expiry",""],["s3-role","IAM role","Rplus Amazon S3","64 days ago","No expiry","Missing s3:GetObject on archive/"],["confluent-key","API key","Rplus Streaming","80 days ago","in 10 days","Expires soon"],["pbi-sp","Service principal","Exec Reporting","21 days ago","in 69 days",""]];
+function renderCreds(){
+  $("#view").innerHTML=shell(`<p class="sub" style="margin:18px 0 0">Credentials are stored once and reused by sources. Secrets are never shown after saving.</p>
+  <div class="tablewrap"><table style="min-width:860px"><thead><tr><th>Credential</th><th>Type</th><th>Used by</th><th>Last rotated</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>${CREDS.map(c=>`<tr><td class="mono">${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td><td>${c[4]}</td><td>${c[5]?`<span class="health">${mk("warning")}${c[5]}</span>`:`<span class="health">${mk("healthy")}Valid</span>`}</td><td><button class="btn sm" data-rot="${c[0]}">${c[5]==="Expires soon"?"Rotate now":c[5]?"Fix permissions":"Rotate"}</button></td></tr>`).join("")}</tbody></table></div>`);
+  wireShell();$$("[data-rot]").forEach(b=>b.onclick=()=>toast(`${b.dataset.rot}: opens the rotate form. Connected sources are re-tested automatically after saving.`));
+}
+function stageBar(r){return `<div class="stages"><i style="flex:${r.c};background:#A9C8F8"></i><i style="flex:${r.e};background:var(--blue-2)"></i><i style="flex:${r.cl};background:var(--blue)"></i><i style="flex:${r.p};background:var(--deep)"></i></div>`}
+function stageLegend(){return `<div class="lg"><span><i style="background:#A9C8F8"></i>Connect</span><span><i style="background:var(--blue-2)"></i>Extract</span><span><i style="background:var(--blue)"></i>Classify</span><span><i style="background:var(--deep)"></i>Publish</span></div>`}
+function wireLinks(){$$("[data-link]").forEach(b=>b.onclick=e=>{e.stopPropagation();const url="https://dev.genmeta.rplusanalytics.co.uk/sources/runs/"+Math.random().toString(36).slice(2,9);(navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>toast("Link to this scan copied")).catch(()=>toast("Link: "+url))})}
+const MKT=[
+ {id:"ukpii",n:"UK personal data classifier",cat:"Classifiers",pub:"Rplus",v:"2.3.0",st:"update",tile:"PII",d:"Detects National Insurance numbers, NHS numbers, UK postcodes, sort codes and phone numbers in column names and samples.",adds:"12 classification rules · feeds the PII tag",perm:"Read column samples (Full scan depth)",feat:true},
+ {id:"hmrc",n:"Tax identifier classifier",cat:"Classifiers",pub:"Rplus",v:"1.1.0",st:"install",tile:"TAX",d:"Finds Unique Taxpayer References, VAT registration numbers and PAYE references so they are tagged FINANCIAL.",adds:"5 classification rules",perm:"Read column samples"},
+ {id:"art9",n:"Special category data detector",cat:"Classifiers",pub:"Rplus",v:"1.4.2",st:"installed",tile:"SC",d:"Flags columns likely to hold UK GDPR special category data such as health, ethnicity or religion.",adds:"SPECIAL_CATEGORY tag · steward review queue",perm:"Read column names and samples"},
+ {id:"govgloss",n:"UK public sector glossary",cat:"Glossary packs",pub:"Rplus",v:"1.0.0",st:"install",tile:"GL",d:"Starter business glossary of common public sector terms (case, claimant, payment, grant) with definitions you can edit.",adds:"180 glossary terms · auto-linking suggestions",perm:"Write to Business glossary",feat:true},
+ {id:"fin",n:"Finance chart of accounts",cat:"Glossary packs",pub:"Partner",v:"0.9.0",st:"install",tile:"COA",d:"Glossary terms and hierarchies for ledger, cost centre and account codes.",adds:"96 glossary terms",perm:"Write to Business glossary"},
+ {id:"dq",n:"Curated layer quality rules",cat:"Quality rules",pub:"Rplus",v:"1.2.0",st:"install",tile:"DQ",d:"Completeness, uniqueness and freshness checks for every asset in the Curated layer, with a primary-key check.",adds:"4 rule templates · Data quality tab suggestions",perm:"Run queries on in-scope tables"},
+ {id:"dbt",n:"dbt manifest lineage",cat:"Lineage parsers",pub:"Rplus",v:"3.0.1",st:"installed",tile:"dbt",d:"Reads dbt manifest.json and run results to add model-level and column-level lineage.",adds:"Column lineage · model descriptions",perm:"Read dbt artifacts from storage"},
+ {id:"airflow",n:"Airflow DAG lineage",cat:"Lineage parsers",pub:"Community",v:"0.6.0",st:"install",tile:"AF",d:"Adds pipeline tasks between sources as lineage steps, with run status from Airflow.",adds:"Pipeline nodes in Lineage",perm:"Read Airflow REST API"},
+ {id:"teams",n:"Microsoft Teams alerts",cat:"Notifications",pub:"Rplus",v:"1.5.0",st:"installed",tile:"MT",d:"Posts failed scans, schema drift and new sensitive columns to a Teams channel.",adds:"Alert channel",perm:"Post to one Teams channel"},
+ {id:"slack",n:"Slack alerts",cat:"Notifications",pub:"Rplus",v:"1.5.0",st:"install",tile:"SL",d:"Same alerts as Teams, sent to a Slack channel.",adds:"Alert channel",perm:"Post to one Slack channel"},
+ {id:"jira",n:"Jira issue creation",cat:"Ticketing",pub:"Partner",v:"2.0.0",st:"install",tile:"JR",d:"Opens a Jira issue for the source owner when a scan fails or a steward task is overdue.",adds:"Auto-created issues",perm:"Create issues in one project"},
+ {id:"snow",n:"ServiceNow incidents",cat:"Ticketing",pub:"Partner",v:"1.3.0",st:"install",tile:"SN",d:"Raises ServiceNow incidents for failed scans, linked to the configuration item.",adds:"Auto-created incidents",perm:"Create incidents"},
+ {id:"wd",n:"Workday connector",cat:"Connectors",pub:"Partner",v:"1.0.0",st:"install",tile:"WD",d:"Catalogues Workday report and object metadata. Adds Workday to the Connectors tab once installed.",adds:"New connector",perm:"Integration system user"},
+ {id:"sp",n:"SharePoint Online connector",cat:"Connectors",pub:"Rplus",v:"1.1.0",st:"install",tile:"SP",d:"Catalogues SharePoint lists and document libraries, with sensitivity labels.",adds:"New connector",perm:"Sites.Read.All"},
+ {id:"ol",n:"OpenLineage export",cat:"Exports",pub:"Community",v:"0.4.0",st:"install",tile:"OL",d:"Publishes GenMeta lineage as OpenLineage events for other tools to consume.",adds:"Outbound events",perm:"Outbound HTTPS to your endpoint"}
+];
+const PUB={Rplus:"Built by Rplus",Partner:"Partner · reviewed by Rplus",Community:"Community · reviewed by Rplus"};
+function mktBtn(m){return m.st==="installed"?`<span class="conn" style="margin:0">${mk("healthy")}Installed</span>`:m.st==="update"?`<button class="btn sm" data-inst="${m.id}">Update to ${m.v}</button>`:`<button class="btn sm inst" data-inst="${m.id}">${I.plus}Install</button>`}
+function install(id){const m=MKT.find(x=>x.id===id),was=m.st;m.st="installed";closeWizard();render();toast(was==="update"?`${m.n} updated to ${m.v}`:`${m.n} installed. ${m.cat==="Connectors"?"It now appears under Connectors.":"It applies from the next scan."}`)}
+function openMkt(id){const m=MKT.find(x=>x.id===id);
+  $("#modalRoot").innerHTML=`<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" style="width:min(640px,100%)"><div class="mhead"><div class="t" style="display:flex;gap:12px;align-items:center"><span class="tile" style="width:44px;height:44px;font-size:11px">${m.tile}</span><div><h3 id="mt">${m.n}</h3><span class="sub">${PUB[m.pub]} · v${m.v}</span></div></div><button class="btn ghost sm" id="wclose" aria-label="Close">${I.x}</button></div>
+  <div class="mbody"><p style="margin-top:0">${esc(m.d)}</p><dl class="kv"><dt>Category</dt><dd>${m.cat}</dd><dt>What it adds</dt><dd>${m.adds}</dd><dt>Access needed</dt><dd>${m.perm}</dd><dt>Applies to</dt><dd>All connected sources (you can limit this after installing)</dd></dl>
+  ${m.st==="update"?`<div class="hint" style="margin-top:14px"><b style="font-weight:500">What's new in ${m.v}:</b> adds Scottish CHI number detection and cuts false positives on postcode-like codes.</div>`:""}</div>
+  <div class="mfoot"><span class="sub">Every change is recorded in the Activity log.</span><div class="actions">${m.st==="installed"?`<button class="btn" id="mcfg">Settings</button><button class="btn" id="mun">Uninstall</button>`:`<button class="btn primary" data-inst="${m.id}">${m.st==="update"?"Update":"Install"}</button>`}</div></div></div></div>`;
+  $("#wclose").onclick=closeWizard;$("#scrim").onclick=e=>{if(e.target.id==="scrim")closeWizard()};
+  const ib=$("[data-inst]");if(ib)ib.onclick=()=>install(m.id);
+  const un=$("#mun");if(un)un.onclick=()=>{m.st="install";closeWizard();render();toast(`${m.n} uninstalled`)};
+  const cf=$("#mcfg");if(cf)cf.onclick=()=>toast("Settings: choose which sources and channels this applies to");
+}
+/* ---------- metadata changes tab ---------- */
+/* ---------- bulk import tab ---------- */
+/* ===== v5: requirement-driven tabs ===== */
+const HOST="https://dev.genmeta.rplusanalytics.co.uk";
+/* ---------- Connectors (CON-01, CON-04, TMM-01, TMM-02) ---------- */
+const SHIPPED=[
+ ["Snowflake","Warehouse","Multi-cloud","Agentless","Databases, schemas, tables, views, columns, declared keys, query lineage","dwh"],
+ ["Databricks","Lakehouse","Cloud (Azure)","API","Unity Catalog tables, Delta metadata, notebooks, job lineage","lake"],
+ ["Amazon S3","Data lake","Cloud (AWS)","API/manifest","Prefixes, files, manifest schemas, pipeline stages","s3"],
+ ["SQL Server","Database","On-premises/hybrid","Agent","Schemas, tables, columns, keys, views, stored procedures","case"],
+ ["Confluent","Streaming","Cloud (SaaS)","API","Topics, Schema Registry subjects and versions, producers","stream"],
+ ["Power BI","BI","Third-party SaaS","API","Workspaces, datasets, reports, dataset-to-report lineage","pbi"],
+ ["PostgreSQL","Database","On-premises/hybrid","Agentless","Schemas, tables, columns, keys, views",""],
+ ["Oracle","Database","On-premises/hybrid","Agent","Schemas, tables, columns, keys, packages",""],
+ ["Amazon Redshift","Warehouse","Cloud (AWS)","Agentless","Schemas, tables, columns, distribution and sort keys",""],
+ ["BigQuery","Warehouse","Cloud (GCP)","API","Datasets, tables, columns, partitions, job lineage",""],
+ ["Azure Data Lake","Data lake","Cloud (Azure)","API/manifest","Containers, folders, files, manifest schemas",""],
+ ["Tableau","BI","Third-party SaaS","API","Sites, workbooks, data sources, field lineage",""],
+ ["Salesforce","SaaS/API","Third-party SaaS","API","Objects, fields, picklists, relationships",""],
+ ["REST API (OpenAPI)","SaaS/API","Third-party SaaS","API/manifest","Endpoints, request and response schemas from the OpenAPI spec",""],
+ ["Apache Kafka","Streaming","On-premises/hybrid","Agent","Topics, partitions, schemas, consumer groups",""]
+];
+function renderConnectors(){
+  const cats=["All",...new Set(SHIPPED.map(c=>c[1]))],envs=["All",...new Set(SHIPPED.map(c=>c[2]))];
+  const list=SHIPPED.filter(c=>(state.ccat==="All"||c[1]===state.ccat)&&(state.cenv==="All"||c[2]===state.cenv)&&(state.cst==="All"||(state.cst==="Connected"?!!c[5]:!c[5])));
+  const con=SHIPPED.filter(c=>c[5]).length;
+  $("#view").innerHTML=shell(`
+  <div class="bar2"><select class="sel" id="cc" aria-label="Category">${cats.map(c=>`<option ${state.ccat===c?"selected":""}>${c==="All"?"All categories":c}</option>`).join("").replace(">All categories<",' value="All">All categories<')}</select>
+    <select class="sel" id="ce" aria-label="Environment">${envs.map(c=>`<option value="${c}" ${state.cenv===c?"selected":""}>${c==="All"?"All environments":c}</option>`).join("")}</select>
+    <select class="sel" id="cs" aria-label="Status"><option value="All">All statuses</option><option ${state.cst==="Connected"?"selected":""}>Connected</option><option value="Available" ${state.cst==="Available"?"selected":""}>Available, not configured</option></select>
+    <span class="grow"></span><button class="btn" id="contract">${I.api}Show the SourceConnector contract</button><div class="seg2" role="group" aria-label="Layout"><button data-clay="grid" class="${state.clay==="grid"?"on":""}" aria-label="Grid view">${I.grid}</button><button data-clay="list" class="${state.clay==="list"?"on":""}" aria-label="List view">${I.list}</button></div></div>
+  <p class="sub" style="margin:10px 0 0">${SHIPPED.length} shipped connectors · ${con} connected here · ${SHIPPED.length-con} available but not configured. Categories: ${[...new Set(SHIPPED.map(c=>c[1]))].join(", ")}.</p>
+  ${state.clay==="grid"?`<div class="cgrid2">${list.map(c=>{const s=sources.find(x=>x.id===c[5]);const tl=(CONNECTORS.find(x=>x[0]===c[0])||[0,0,c[0].slice(0,2).toUpperCase()])[2];return `<article class="conncard ${s?"on":""}"><div class="pk-h"><span class="pk-logo">${tl}${s?'<i class="pk-ok" title="Connected">✓</i>':""}</span><div><b>${c[0]}</b><span>${c[1]}${s?" · "+esc(s.name):""}</span></div></div><p>${c[4]}</p><dl class="cmeta"><div><dt>Environment</dt><dd>${c[2]}</dd></div><div><dt>Extraction method</dt><dd>${c[3]}</dd></div></dl><div class="cfoot2">${s?`<span class="bdg healthy">Connected</span>${c[0]==="SQL Server"?'<span class="sub">Test environment</span>':""}<span class="grow"></span><button class="btn xs" data-opensrc="${s.id}">View source</button>`:`<span class="bdg paused" title="Available, not configured">Not configured</span><span class="grow"></span><button class="btn xs" data-conn="${c[0]}">${I.plus}Configure</button>`}</div></article>`}).join("")}</div>`:`<div class="tbl"><table style="min-width:1100px"><thead><tr><th>Connector</th><th>Category</th><th>Environment</th><th>Extraction method</th><th>What it captures</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(c=>{const s=sources.find(x=>x.id===c[5]);return `<tr><td><div class="nmcell" style="min-width:170px"><span class="tile">${(CONNECTORS.find(x=>x[0]===c[0])||[0,0,c[0].slice(0,2).toUpperCase()])[2]}</span><div><b>${c[0]}</b>${s?`<span>${esc(s.name)}</span>`:""}</div></div></td><td>${c[1]}</td><td class="nw">${c[2]}</td><td class="nw"><span class="tg">${c[3]}</span></td><td class="sub2" style="min-width:260px">${c[4]}</td>
+   <td class="nw">${s?`<span class="bdg healthy">Connected</span>${c[0]==="SQL Server"?'<div class="sub" style="margin-top:3px">Runs in the test environment</div>':""}`:'<span class="bdg paused">Available, not configured</span>'}</td>
+   <td class="nw">${s?`<button class="btn xs" data-opensrc="${s.id}">View source</button>`:`<button class="btn xs" data-conn="${c[0]}">${I.plus}Configure</button>`}</td></tr>`}).join("")}</tbody></table></div>`}`);
+  wireShell();
+  $("#cc").onchange=e=>{state.ccat=e.target.value;render()};$("#ce").onchange=e=>{state.cenv=e.target.value;render()};$("#cs").onchange=e=>{state.cst=e.target.value;render()};
+  $$("[data-opensrc]").forEach(b=>b.onclick=()=>openDetail(b.dataset.opensrc));
+  $$("[data-conn]").forEach(b=>b.onclick=()=>openWizard(CONNECTORS.some(x=>x[0]===b.dataset.conn)?b.dataset.conn:undefined));
+  $("#contract").onclick=openContract;
+  $$("[data-clay]").forEach(b=>b.onclick=()=>{state.clay=b.dataset.clay;render()});
+}
+function openContract(){
+  const code=`class SourceConnector(Protocol):
+    """Every connector implements this interface. Catalogue, lineage and
+    classification all read metadata through it and nothing else."""
+
+    info: ConnectorInfo
+
+    def test_connection(self) -> list[ConnectionCheck]: ...
+    def list_tables(self, scope: Scope) -> Iterator[TableRef]: ...
+    def describe_table(self, table: TableRef) -> list[ColumnDef]: ...
+    def signature(self, scope: Scope) -> str: ...
+    def lineage(self, table: TableRef) -> list[LineageEdge]: ...   # optional`;
+  const types=`@dataclass(frozen=True)
+class ConnectorInfo:
+    name: str                 # "snowflake"
+    category: str             # Warehouse | Lakehouse | Data lake | Database | BI | SaaS/API | Streaming
+    environment: str          # Multi-cloud | Cloud (AWS) | On-premises/hybrid | Third-party SaaS ...
+    extraction_method: str    # Agentless | Agent | API | API/manifest
+
+@dataclass(frozen=True)
+class TableRef:
+    source: str
+    database: str | None
+    schema: str | None
+    name: str
+    kind: str                 # table | view | file | topic | report
+
+@dataclass(frozen=True)
+class ColumnDef:
+    name: str
+    data_type: str
+    nullable: bool
+    is_key: bool = False
+    partition: bool = False`;
+  const ex=`class PostgresConnector(SourceConnector):
+    info = ConnectorInfo("postgresql", "Database", "On-premises/hybrid", "Agentless")
+
+    def list_tables(self, scope):
+        for row in self.query("select table_schema, table_name, table_type "
+                              "from information_schema.tables"):
+            yield TableRef("postgresql", self.db, row[0], row[1],
+                           "view" if row[2] == "VIEW" else "table")
+
+    def describe_table(self, t):
+        return [ColumnDef(c.name, c.type, c.nullable, c.name in self.pk(t))
+                for c in self.columns(t)]
+
+    def signature(self, scope):
+        # unchanged signature = source is reused, not re-read
+        return sha256(self.query("select max(xmin) ...")).hexdigest()`;
+  const rows=[["info","ConnectorInfo","Identifies the connector: category, environment, extraction method"],["test_connection()","→ list[ConnectionCheck]","Network, authentication and permission checks, each reported separately"],["list_tables(scope)","→ Iterator[TableRef]","Every table, view, file, topic or report in scope"],["describe_table(table)","→ list[ColumnDef]","Columns with types, nullability, keys and partitions"],["signature(scope)","→ str","Fingerprint used by incremental harvest to skip unchanged sources"],["lineage(table)","→ list[LineageEdge]","Optional: upstream and downstream edges"]];
+  $("#modalRoot").innerHTML=`<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ct" style="width:min(920px,100%)"><div class="mhead"><div><h3 id="ct">SourceConnector contract</h3><span class="sub">Read from <span class="mono">genmeta/connectors/base.py</span> at build time</span></div><button class="btn ghost sm" id="wclose" aria-label="Close">${I.x}</button></div>
+  <div class="mbody"><h4 class="h4">Required attributes and methods</h4><div class="tbl" style="margin-top:6px"><table style="min-width:600px"><thead><tr><th>Member</th><th>Signature</th><th>Purpose</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono">${r[0]}</td><td class="mono">${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</tbody></table></div>
+  <h4 class="h4">Interface</h4><pre class="code">${esc(code)}</pre><h4 class="h4">Data types</h4><pre class="code">${esc(types)}</pre><h4 class="h4">Worked example</h4><pre class="code">${esc(ex)}</pre></div>
+  <div class="mfoot"><span class="sub">Catalogue, lineage and classification all work off this one interface.</span><button class="btn" id="cpy">Copy interface</button></div></div></div>`;
+  $("#wclose").onclick=closeWizard;$("#scrim").onclick=e=>{if(e.target.id==="scrim")closeWizard()};
+  $("#cpy").onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(code):Promise.reject()).then(()=>toast("Interface copied")).catch(()=>toast("Select the code to copy it"))};
+}
+/* ---------- Metadata changes (TMM-05, TMM-06) ---------- */
+let VERSIONS=[
+ {v:1,t:"12 Sep 2026, 02:00",trig:"Scheduled",a:1201,c:13980,m:402,fp:"9c1e44a0b7",ch:null},
+ {v:2,t:"15 Sep 2026, 09:14",trig:"Event-driven",a:1219,c:14150,m:410,fp:"3fa81c02de",ch:{aa:["STG.CUSTOMER_ORDER_LIVE_RPLUS"],ar:[],ac:[{a:"SRC.ORDERS",add:["ORDER_CHANNEL"],rem:[],rt:[],key:[],part:[]}],mp:[["added","STG.CUSTOMER_ORDER_LIVE_RPLUS.TOTAL","SUM(l.EXTENDEDPRICE)"]]}},
+ {v:3,t:"18 Sep 2026, 02:00",trig:"Scheduled",a:1236,c:14311,m:414,fp:"b27d905e1f",ch:{aa:["gold.customer_360"],ar:["dbo.PAYMENT_TMP"],ac:[],mp:[["added","gold.customer_360.LIFETIME_VALUE","SUM(o.TOTALPRICE)"]]}},
+ {v:4,t:"20 Sep 2026, 14:30",trig:"Manual",a:1240,c:14360,m:414,fp:"d0e6a1733c",ch:{aa:[],ar:[],ac:[{a:"SRC.ORDERS",add:[],rem:[],rt:[["TOTAL_PRICE","number(12,2)","number(18,2)"]],key:[],part:[]}],mp:[]}},
+ {v:5,t:"22 Sep 2026, 02:00",trig:"Scheduled",a:1251,c:14502,m:418,fp:"5e9b2f8810",ch:{aa:["cleansed/customers_v2.parquet"],ar:[],ac:[{a:"INT.LINEITEM",add:[],rem:[],rt:[],key:["Primary key declared: (ORDERKEY, LINENUMBER)"],part:[]}],mp:[["re-expressed","INT.LINEITEM.NET_PRICE","EXTENDEDPRICE*(1-DISCOUNT) → ROUND(EXTENDEDPRICE*(1-DISCOUNT),2)"]]}},
+ {v:6,t:"24 Sep 2026, 11:02",trig:"Event-driven",a:1266,c:14630,m:421,fp:"a41c7d09e2",ch:{aa:["ml_features.churn_inputs"],ar:["dbo.CASE_NOTES_TMP"],ac:[{a:"INT.CUSTOMER",add:["SEGMENT"],rem:[],rt:[],key:[],part:[]}],mp:[["added","INT.CUSTOMER.SEGMENT","SRC.CUSTOMER.MKTSEGMENT"]]}},
+ {v:7,t:"25 Sep 2026, 02:00",trig:"Scheduled",a:1279,c:14811,m:423,fp:"7b33e5c6a9",ch:{aa:["bronze.web_events_raw"],ar:[],ac:[{a:"bronze.web_events",add:[],rem:[],rt:[],key:[],part:["Partitioned by EVENT_DATE (was unpartitioned)"]},{a:"INT.ORDERS",add:[],rem:["LEGACY_FLAG"],rt:[],key:[],part:[]}],mp:[["removed","INT.ORDERS.LEGACY_FLAG","CASE WHEN ... END"]]}},
+ {v:8,t:"26 Sep 2026, 09:46",trig:"Scheduled",a:1284,c:14902,m:425,fp:"e8f2019bd4",ch:{aa:["gold.orders_daily"],ar:[],ac:[{a:"INT.NATION",add:[],rem:[],rt:[["NATION_ID","number","varchar(3)"]],key:[],part:[]}],mp:[["added","gold.orders_daily.ORDER_COUNT","COUNT(DISTINCT o.ORDERKEY)"]]}}
+];
+let pendingChange=false;
+function diffBetween(f,t){const vs=VERSIONS.filter(x=>x.v>f&&x.v<=t&&x.ch);const d={aa:[],ar:[],ac:{},mp:[]};
+  vs.forEach(x=>{d.aa.push(...x.ch.aa);d.ar.push(...x.ch.ar);d.mp.push(...x.ch.mp.map(m=>[...m,x.v]));x.ch.ac.forEach(c=>{const o=d.ac[c.a]||(d.ac[c.a]={add:[],rem:[],rt:[],key:[],part:[]});["add","rem","rt","key","part"].forEach(k=>o[k].push(...c[k]))})});return d}
+function renderChanges(){
+  const last=VERSIONS[VERSIONS.length-1].v;if(state.vto==null)state.vto=last;if(state.vfrom==null)state.vfrom=Math.max(1,last-3);
+  if(state.vfrom>=state.vto)state.vfrom=state.vto-1;
+  const d=diffBetween(state.vfrom,state.vto),acs=Object.entries(d.ac),rt=acs.reduce((a,[,o])=>a+o.rt.length,0);
+  const opt=(sel)=>VERSIONS.map(x=>`<option value="${x.v}" ${sel===x.v?"selected":""}>v${x.v} · ${x.t}</option>`).join("");
+  $("#view").innerHTML=shell(`
+  <div class="alert info"><span class="ai">${I.hist}</span><div class="grow">A new version is created only when a harvest's fingerprint differs from the last version. <b>${312+VERSIONS.length-8} harvests</b> since v1, <b>${VERSIONS.length} versions</b> created, <b>${304} unchanged harvests</b> skipped. Every version is written to the hash-chained audit log.</div><button class="btn xs" id="audit">View audit evidence</button></div>
+  <section class="panel"><div class="ph"><h3>Version history</h3><div class="actions"><label class="toggle" style="padding:0;font-size:13.5px"><input type="checkbox" class="swi" id="simc" ${pendingChange?"checked":""}><span class="sw"></span>Simulate a source change (add column INT.CUSTOMER.EMAIL_OPT_IN)</label><button class="btn xs" id="refresh">${I.sync}Trigger refresh</button></div></div>
+    <div class="tbl" style="margin-top:10px"><table style="min-width:980px"><thead><tr><th>Version</th><th>Captured</th><th>Trigger</th><th class="r">Assets</th><th class="r">Columns</th><th class="r">Mappings</th><th>Changes</th><th>Fingerprint</th><th>Audit</th></tr></thead><tbody>
+    ${[...VERSIONS].reverse().map((x,i,arr)=>{const n=x.ch?x.ch.aa.length+x.ch.ar.length+x.ch.ac.length+x.ch.mp.length:0;const prev=arr[i+1];return `<tr><td><b style="font-weight:500">v${x.v}</b>${i===0?' <span class="tg">Current</span>':""}</td><td class="nw">${x.t}</td><td><span class="et ${x.trig==="Event-driven"?"sync":""}">${x.trig}</span></td><td class="num r">${x.a.toLocaleString("en-GB")}</td><td class="num r">${x.c.toLocaleString("en-GB")}</td><td class="num r">${x.m}</td><td class="sub2">${x.ch?`${n} change${n===1?"":"s"}`:"Baseline"}</td><td class="mono">sha256:${x.fp}…</td><td class="sub2 nw">#${1030+x.v*4} ${prev?`← #${1030+prev.v*4}`:"(genesis)"}</td></tr>`}).join("")}</tbody></table></div></section>
+  <section class="panel"><div class="ph"><h3>Compare versions</h3><div class="actions"><label class="inl">From <select class="sel" id="vf">${opt(state.vfrom)}</select></label><label class="inl">To <select class="sel" id="vt">${opt(state.vto)}</select></label></div></div>
+    <div class="tiles">${[["Assets added",d.aa.length],["Assets removed",d.ar.length],["Assets changed",acs.length],["Columns retyped",rt],["Mappings changed",d.mp.length]].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join("")}</div>
+    ${d.aa.length||d.ar.length?`<p class="sub2" style="margin:12px 0 0">${d.aa.length?`<b style="font-weight:500">Added:</b> <span class="mono">${d.aa.join(", ")}</span>`:""}${d.aa.length&&d.ar.length?"<br>":""}${d.ar.length?`<b style="font-weight:500">Removed:</b> <span class="mono">${d.ar.join(", ")}</span>`:""}</p>`:""}
+    <h4 class="h4">Changed assets</h4><div class="tbl" style="margin-top:6px"><table style="min-width:900px"><thead><tr><th>Asset</th><th>Columns added</th><th>Columns removed</th><th>Columns retyped</th><th>Key / partition changes</th></tr></thead><tbody>${acs.length?acs.map(([a,o])=>`<tr><td class="mono">${a}</td><td class="mono">${o.add.join(", ")||"—"}</td><td class="mono">${o.rem.join(", ")||"—"}</td><td class="mono">${o.rt.map(r=>`${r[0]}: ${r[1]} → ${r[2]}`).join("<br>")||"—"}</td><td class="sub2">${[...o.key,...o.part].join("<br>")||"—"}</td></tr>`).join(""):'<tr><td colspan="5" class="sub">No asset changes between these versions.</td></tr>'}</tbody></table></div>
+    <h4 class="h4">Mappings</h4><div class="tbl" style="margin-top:6px"><table style="min-width:800px"><thead><tr><th>Change</th><th>Target</th><th>Transformation</th><th>In version</th></tr></thead><tbody>${d.mp.length?d.mp.map(m=>`<tr><td><span class="et ${m[0]==="removed"?"":m[0]==="added"?"sync":"warning"}">${m[0][0].toUpperCase()+m[0].slice(1)}</span></td><td class="mono">${m[1]}</td><td class="mono">${esc(m[2])}</td><td>v${m[3]}</td></tr>`).join(""):'<tr><td colspan="4" class="sub">No mapping changes between these versions.</td></tr>'}</tbody></table></div></section>`);
+  wireShell();
+  $("#vf").onchange=e=>{state.vfrom=+e.target.value;render()};$("#vt").onchange=e=>{state.vto=+e.target.value;render()};
+  $("#simc").onchange=e=>{pendingChange=e.target.checked};
+  $("#audit").onclick=()=>toast("Opens Dashboard → Audit evidence: each version's entry holds its fingerprint and the previous entry's hash");
+  $("#refresh").onclick=()=>{const L=VERSIONS[VERSIONS.length-1];addHarvest("Manual",pendingChange?["Rplus_DWH"]:[],pendingChange?"1 change":"No change");
+    if(!pendingChange){toast("Harvest complete. Fingerprint unchanged, so no new version was created.");return}
+    const nv={v:L.v+1,t:"26 Sep 2026, "+new Date().toTimeString().slice(0,5),trig:"Manual",a:L.a,c:L.c+1,m:L.m,fp:Math.random().toString(16).slice(2,12),ch:{aa:[],ar:[],ac:[{a:"INT.CUSTOMER",add:["EMAIL_OPT_IN"],rem:[],rt:[],key:[],part:[]}],mp:[]}};
+    VERSIONS.push(nv);pendingChange=false;state.vto=nv.v;state.vfrom=L.v;render();toast(`Fingerprint changed. v${nv.v} created and written to the audit log.`)};
+}
+/* ---------- Recent ingestion activity + event trigger (CON-02, CON-03, TMM-07) ---------- */
+let HARVESTS=[
+ ["7 min ago","Scheduled",["Rplus Lakehouse","Casework DB"],["Rplus_DWH","Rplus Amazon S3","Rplus Streaming","Exec Reporting"],"3 changes",38],
+ ["37 min ago","Scheduled",["Rplus_DWH"],["Rplus Lakehouse","Casework DB","Rplus Amazon S3","Rplus Streaming","Exec Reporting"],"1 change",21],
+ ["52 min ago","Event-driven",["Rplus Streaming"],["Rplus_DWH","Rplus Lakehouse","Casework DB","Rplus Amazon S3","Exec Reporting"],"No change",4],
+ ["67 min ago","Scheduled",[],["Rplus_DWH","Rplus Lakehouse","Casework DB","Rplus Amazon S3","Rplus Streaming","Exec Reporting"],"No change",6]
+];
+function addHarvest(trig,reread,res){const all=sources.map(s=>s.name);HARVESTS.unshift(["just now",trig,reread,all.filter(n=>!reread.includes(n)),res,Math.max(2,reread.length*14)]);}
+function ingestionPanel(){return `<section class="panel"><div class="ph"><h3>Recent ingestion activity</h3><span class="sub">Recorded automatically for every harvest. Asset and column counts come from the connectors; nothing is uploaded by hand.</span></div>
+  <div class="tbl" style="margin-top:10px"><table style="min-width:900px"><thead><tr><th>When</th><th>Trigger</th><th>Re-read (signature changed)</th><th>Reused (signature unchanged)</th><th>Result</th><th class="r">Duration</th></tr></thead><tbody>${HARVESTS.slice(0,6).map(h=>`<tr><td class="nw">${h[0]}</td><td><span class="et ${h[1]==="Event-driven"?"sync":""}">${h[1]}</span></td><td>${h[2].join(", ")||'<span class="sub">None</span>'}</td><td class="sub2">${h[3].length===sources.length?"All sources":h[3].join(", ")}</td><td>${h[4]}</td><td class="num r">${h[5]}s</td></tr>`).join("")}</tbody></table></div></section>`}
+function openTrigger(){
+  const curl=`curl -X POST ${HOST}/api/gm/metadata/refresh \\\n  -H 'X-Genmeta-Token: <token>' \\\n  -d '{"source":"event-test"}'`;
+  $("#modalRoot").innerHTML=`<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="et" style="width:min(720px,100%)"><div class="mhead"><div><h3 id="et">Event-driven trigger</h3><span class="sub">Start a harvest the moment a source changes</span></div><button class="btn ghost sm" id="wclose" aria-label="Close">${I.x}</button></div>
+  <div class="mbody"><dl class="kv"><dt>Endpoint</dt><dd class="mono">POST /api/gm/metadata/refresh</dd><dt>Auth</dt><dd><span class="mono">X-Genmeta-Token</span> header (tokens under Settings → API)</dd><dt>Body</dt><dd class="mono">{"source": "&lt;source name or event label&gt;"}</dd><dt>Behaviour</dt><dd>Returns within seconds, clears the metadata cache and runs an incremental harvest. Only sources whose signature changed are re-read. Calls without a valid token are refused with 401.</dd></dl>
+  <pre class="code">${esc(curl)}</pre><div class="actions" style="margin-top:12px"><button class="btn primary" id="send">Send test event</button><button class="btn" id="send401">Send without token</button><button class="btn" id="cpc">Copy curl</button></div><div id="resp"></div></div></div></div>`;
+  $("#wclose").onclick=closeWizard;$("#scrim").onclick=e=>{if(e.target.id==="scrim")closeWizard()};
+  $("#cpc").onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(curl):Promise.reject()).then(()=>toast("curl command copied")).catch(()=>toast("Select the command to copy it"))};
+  $("#send").onclick=()=>{$("#resp").innerHTML=`<pre class="code ok">HTTP/1.1 202 Accepted   (0.41 s)\n{"status":"accepted","harvest_id":"h_${Math.random().toString(36).slice(2,8)}","cache":"cleared","mode":"incremental"}</pre>`;addHarvest("Event-driven",["Rplus Streaming"],"No change");};
+  $("#send401").onclick=()=>{$("#resp").innerHTML=`<pre class="code bad">HTTP/1.1 401 Unauthorized   (0.03 s)\n{"error":"missing or invalid X-Genmeta-Token"}</pre>`};
+}
+/* ---------- Bulk import by asset (CON-05, BMG-03) ---------- */
+const KNOWN_ASSETS=["INT.CUSTOMER","INT.ORDERS","INT.LINEITEM","INT.NATION","INT.PART","SRC.CUSTOMER","SRC.ORDERS","SRC.NATION","STG.CUSTOMER_ORDER"];
+const KNOWN_PEOPLE=["Rajesh","PK","Raghav","Priya","Data Platform Team"];
+const EXAMPLE=`asset,description,owner,steward,custodian,domain,terms
+INT.CUSTOMER,Integration view of customer records,Rajesh,Priya,Data Platform Team,Customer,Customer;Account balance
+INT.ORDERS,Orders enriched with line totals,PK,Priya,Data Platform Team,Orders,Order;Order total
+SRC.NATION,Reference list of nations,Raghav,Priya,Data Platform Team,Reference,Nation
+INT.CUSTOMER_OLD,Legacy customer view,Rajesh,Priya,,Customer,Customer
+INT.LINEITEM,Order line items,Bob,Priya,,Orders,Order line`;
+let bulk={text:"",rows:[],result:null,imported:{}};
+function parseCsv(t){const L=t.trim().split(/\r?\n/).filter(Boolean);if(!L.length)return{err:"The file is empty."};const h=L[0].split(",").map(x=>x.trim().toLowerCase());
+  if(!h.includes("asset"))return{err:"The first row must include an asset column."};
+  return{h,rows:L.slice(1).map((l,i)=>{const c=l.split(",");const o={line:i+2};h.forEach((k,j)=>o[k]=(c[j]||"").trim());const why=!KNOWN_ASSETS.includes(o.asset)?`Asset ${o.asset||"(blank)"} is not in the catalogue`:[["owner",o.owner],["steward",o.steward],["custodian",o.custodian]].filter(([,v])=>v&&!KNOWN_PEOPLE.includes(v)).map(([k,v])=>`${k[0].toUpperCase()+k.slice(1)} "${v}" is not a known user`)[0]||"";o.why=why;return o})}}
+function renderBulk(){
+  const p=bulk.text?parseCsv(bulk.text):null,cols=["description","owner","steward","custodian","domain","terms"];
+  $("#view").innerHTML=shell(`
+  <p class="sub2" style="margin:18px 0 0;max-width:80ch">Update catalogue metadata for many assets at once. Rows are keyed by <b style="font-weight:500">asset</b>. Supported columns: <span class="mono">asset, description, owner, steward, custodian, domain, terms</span> (separate several terms with ;). Imported values are marked <span class="tg">Imported</span> in the Data catalogue and are kept on the next harvest.</p>
+  <div class="bulkbar"><button class="btn" id="ex">Use the example</button><label class="btn" for="csv">${I.up}Upload CSV</label><input type="file" id="csv" accept=".csv,text/csv" hidden>${p&&p.rows?`<button class="btn primary" id="apply">Apply import</button><button class="btn ghost" id="clr">Clear</button>`:""}</div>
+  ${p&&p.err?`<div class="alert warning"><span class="ai">${I.warn}</span><div class="grow">${esc(p.err)}</div></div>`:""}
+  ${p&&p.rows&&!bulk.result?`<section class="panel"><div class="ph"><h3>Preview</h3><span class="sub">${p.rows.length} rows · ${p.rows.filter(r=>!r.why).length} ready · ${p.rows.filter(r=>r.why).length} will be rejected</span></div><div class="tbl" style="margin-top:10px"><table style="min-width:980px"><thead><tr><th>Row</th><th>Asset</th>${cols.map(c=>`<th>${c[0].toUpperCase()+c.slice(1)}</th>`).join("")}<th>Check</th></tr></thead><tbody>${p.rows.map(r=>`<tr><td>${r.line}</td><td class="mono">${esc(r.asset)}</td>${cols.map(c=>`<td class="sub2">${esc(r[c]||"")}</td>`).join("")}<td>${r.why?`<span class="bdg warning">Reject</span><div class="sub" style="margin-top:3px">${esc(r.why)}</div>`:'<span class="bdg healthy">Ready</span>'}</td></tr>`).join("")}</tbody></table></div></section>`:""}
+  ${bulk.result?`<section class="panel"><div class="ph"><h3>Import result</h3><span class="sub">Applied just now by Admin · recorded in the audit log</span></div>
+    <div class="tiles" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><span>Assets updated</span><b>${bulk.result.ok.length}</b></div><div><span>Fields set</span><b>${bulk.result.ok.reduce((a,r)=>a+r.fields.length,0)}</b></div><div><span>Rows rejected</span><b>${bulk.result.bad.length}</b></div></div>
+    <h4 class="h4">Updated</h4><ul class="plain">${bulk.result.ok.map(r=>`<li><span class="mono">${r.asset}</span> · ${r.fields.join(", ")}</li>`).join("")}</ul>
+    ${bulk.result.bad.length?`<h4 class="h4">Rejected</h4><ul class="plain">${bulk.result.bad.map(r=>`<li>Row ${r.line} · <span class="mono">${esc(r.asset)}</span> · ${esc(r.why)}</li>`).join("")}</ul>`:""}
+    <h4 class="h4">How it appears in the Data catalogue</h4>${bulk.result.ok.slice(0,1).map(r=>`<div class="assetprev"><b class="mono">${r.asset}</b><p>${esc(r.row.description)} <span class="tg imp">Imported</span></p><dl class="kv"><dt>Owner</dt><dd>${esc(r.row.owner)} <span class="tg imp">Imported</span></dd><dt>Steward</dt><dd>${esc(r.row.steward)} <span class="tg imp">Imported</span></dd><dt>Custodian</dt><dd>${esc(r.row.custodian||"—")} ${r.row.custodian?'<span class="tg imp">Imported</span>':""}</dd><dt>Domain</dt><dd>${esc(r.row.domain)} <span class="tg imp">Imported</span></dd><dt>Terms</dt><dd>${esc((r.row.terms||"").split(";").join(", "))} <span class="tg imp">Imported</span></dd></dl></div>`).join("")}
+    <div class="actions" style="margin-top:12px"><button class="btn" id="rh">${I.sync}Run a harvest to check</button><button class="btn ghost" id="clr2">Start a new import</button></div><div id="rhres"></div></section>`:""}
+  ${!p?`<label class="drop" id="drop" for="csv">${I.up}<p style="margin:10px 0 4px;font-size:16px">Drop a CSV file here, or click Upload CSV</p><p class="sub" style="margin:0">One row per asset. The first row must be the column names.</p></label>`:""}`);
+  wireShell();
+  const f=$("#csv"),load=file=>{if(!file)return;const rd=new FileReader();rd.onload=()=>{bulk={text:String(rd.result),result:null,imported:{}};render()};rd.readAsText(file)};
+  f.onchange=()=>load(f.files[0]);
+  const d=$("#drop");if(d){d.ondragover=e=>{e.preventDefault();d.classList.add("over")};d.ondragleave=()=>d.classList.remove("over");d.ondrop=e=>{e.preventDefault();d.classList.remove("over");load(e.dataTransfer.files[0])}}
+  $("#ex").onclick=()=>{bulk={text:EXAMPLE,result:null,imported:{}};render()};
+  const ap=$("#apply");if(ap)ap.onclick=()=>{const q=parseCsv(bulk.text);bulk.result={ok:q.rows.filter(r=>!r.why).map(r=>({asset:r.asset,row:r,fields:cols.filter(c=>r[c])})),bad:q.rows.filter(r=>r.why)};render();toast(`${bulk.result.ok.length} assets updated, ${bulk.result.bad.length} rows rejected`)};
+  [$("#clr"),$("#clr2")].forEach(b=>{if(b)b.onclick=()=>{bulk={text:"",rows:[],result:null,imported:{}};render()}});
+  const rh=$("#rh");if(rh)rh.onclick=()=>{addHarvest("Manual",[],"No change");$("#rhres").innerHTML=`<div class="alert info" style="margin-top:12px"><span class="ai">${I.check}</span><div class="grow">Harvest finished. Imported descriptions, owners, stewards, custodians, domains and terms were kept. Harvests only overwrite values that came from the source, never imported ones.</div></div>`};
+}
+
+/* ---------- Marketplace v6: Atlan package catalogue, published by Rplus ---------- */
+(function(){
+const crawl=n=>`Package to crawl ${n} assets and publish to GenMeta for discovery`;
+const ol=n=>`Integrate ${n} with OpenLineage to create native assets and publish to GenMeta.`;
+const V=[ // the 24 packages shown in the reference screenshot, wording kept, Atlan → Rplus / GenMeta
+ ["AI Application Risk Classifier","Custom","Classifies AI applications by risk level to support AI governance and compliance in GenMeta."],
+ ["Airflow Assets","Orchestrator",ol("Airflow")],
+ ["Aiven Kafka Assets","Connector","Package to crawl Aiven-managed Kafka assets and publish to GenMeta for discovery."],
+ ["AlloyDB (PostgreSQL)","Connector","Package to crawl AlloyDB PostgreSQL assets and publish to GenMeta for discovery"],
+ ["Alteryx Assets","Connector",ol("Alteryx")],
+ ["ALTR","Connector","Package to ingest classifications metadata from ALTR"],
+ ["Amazon DynamoDB Assets","Connector",crawl("Amazon DynamoDB")],
+ ["Amazon MSK Assets","Connector","Package to crawl Apache Kafka Assets and publish to GenMeta for discovery"],
+ ["Amazon MWAA Airflow Assets","Orchestrator",ol("Amazon MWAA Airflow")],
+ ["Anaplan","Connector",crawl("Anaplan")],
+ ["Anomalo","Connector","Package to ingest metadata from Anomalo to enable consumption of data quality metadata."],
+ ["Apache Iceberg","Connector",crawl("Apache Iceberg")],
+ ["Apache Kafka Assets","Connector","Package to crawl Apache Kafka Assets and publish to GenMeta for discovery"],
+ ["Asset Import","Utility","Import assets from a CSV file."],
+ ["Astronomer Airflow Assets","Orchestrator",ol("Astronomer Airflow")],
+ ["Ataccama","Connector","Package to ingest data quality metadata from Ataccama for GenMeta Tables/Views and Columns."],
+ ["Athena Assets","Connector","Package to crawl Athena assets and publish to GenMeta for discovery."],
+ ["GenMeta Lakehouse","Utility","Deploy and connect to your GenMeta Lakehouse."],
+ ["AWS Lambda Trigger","Orchestrator","Package to trigger and wait for AWS Lambda function to finish"],
+ ["AWS SageMaker Unified Studio","Connector","Package to crawl SageMaker Unified Studio and publish to GenMeta for discovery"],
+ ["Azure Data Factory","Orchestrator","Connects to Azure Data Factory via the Azure REST API and extracts full metadata into GenMeta. Supported entity types: Pipelines, Activities."],
+ ["Azure Data Lake Storage","Connector",crawl("Azure Data Lake Storage")],
+ ["Azure Event Hubs Assets","Connector","Catalog Azure Event Hubs namespaces and event hubs in GenMeta. Gain visibility into event streams, lineage, and governance for your Azure-based messaging platform."],
+ ["Bigeye","Connector","Package to ingest data quality metadata from Bigeye for GenMeta Tables/Views and Columns."]
+];
+const moreConn=["BigQuery Assets","Cassandra Assets","ClickHouse Assets","Cloud SQL (MySQL)","Cloud SQL (PostgreSQL)","Confluent Kafka Assets","Confluent Schema Registry","Azure Cosmos DB Assets","Couchbase Assets","Databricks Assets","Dataplex","dbt Cloud Assets","dbt Core Assets","IBM Db2 Assets","Domo Assets","Dremio Assets","Elasticsearch Assets","Fivetran Assets","Google Cloud Storage","Great Expectations","Hive Assets","IBM Cognos Analytics","Informatica PowerCenter","Looker Assets","MariaDB Assets","Matillion Assets","Metabase Assets","Microsoft Fabric Assets","Microsoft Purview Assets","Microsoft SQL Server Assets","Mode Assets","MongoDB Assets","Monte Carlo","MySQL Assets","Netezza Assets","Oracle Assets","Oracle Analytics Cloud","PostgreSQL Assets","Power BI Assets","Presto Assets","Qlik Sense Cloud","Qlik Sense Enterprise","Amazon QuickSight Assets","Amazon Redshift Assets","Redash Assets","Salesforce Assets","SAP HANA Assets","SAP S/4HANA","SAP BusinessObjects","SharePoint Online","Sigma Assets","Sisense Assets","Snowflake Assets","Soda","Spark Assets","Starburst Galaxy","Azure Synapse Analytics Assets","Tableau Assets","Teradata Assets","ThoughtSpot Assets","Trino Assets","Vertica Assets","Workday Assets","Amazon S3 Assets","Amazon Aurora (MySQL)","Amazon Aurora (PostgreSQL)","Amazon EMR Assets","AWS Glue Assets","Azure SQL Database Assets","Google Pub/Sub Assets","Kafka Connect Assets"];
+const miners=["BigQuery Miner","Databricks Miner","Snowflake Miner","Amazon Redshift Miner","Teradata Miner","Microsoft SQL Server Miner","Oracle Miner","PostgreSQL Miner","Athena Miner"];
+const extra=[["Asset Export (Basic)","Utility","Export asset metadata to a CSV file on a schedule."],["Casework Classifier","Custom","Classifies casework reference numbers and tags matching columns for stewardship review."]];
+const rest=[...moreConn.map(n=>[n,"Connector",/Great Expectations|Monte Carlo|Soda/.test(n)?`Package to ingest data quality metadata from ${n} for GenMeta Tables/Views and Columns.`:/Spark/.test(n)?ol("Spark"):crawl(n.replace(/ Assets$/,""))]),...miners.map(n=>[n,"Miner",`Package to mine query history from ${n.replace(" Miner","")} to build lineage and usage metrics in GenMeta.`]),...extra];
+const connected=["Snowflake Assets","Databricks Assets","Amazon S3 Assets","Microsoft SQL Server Assets","Confluent Kafka Assets","Power BI Assets","Asset Import","Snowflake Miner"];
+const ini=n=>{const w=n.replace(/\(.*?\)/g,"").split(/[\s/-]+/).filter(x=>x&&!/^(Assets|Amazon|AWS|Azure|Apache|Microsoft|Google|Cloud|IBM|SAP|GenMeta)$/.test(x));const f=(w[0]||n);return (f.length<=3?f:f.slice(0,2)).toUpperCase()};
+MKT.length=0;
+const all=[...V,...rest.sort((a,b)=>a[0].localeCompare(b[0],"en",{sensitivity:"base"}))];all.forEach(([n,pc,d],i)=>MKT.push({id:"p"+i,n,cat:pc,pc,pub:"Rplus",by:"Rplus",v:"1.0.0",st:connected.includes(n)?"installed":"install",tile:ini(n),d,adds:pc==="Miner"?"Query-log lineage and usage":pc==="Orchestrator"?"Pipeline assets and run lineage":pc==="Utility"?"Platform utility":pc==="Custom"?"Estate-specific package":"New connector and its extraction package",perm:pc==="Connector"||pc==="Miner"?"Credential for the source system":"GenMeta admin"}));
+})();
+function renderMarket(){
+  const cats=["Connector","Miner","Orchestrator","Utility","Custom"],q=state.mq.toLowerCase();
+  const list=MKT.filter(m=>(state.mcat==="All"||m.pc===state.mcat)&&`${m.n} ${m.d}`.toLowerCase().includes(q));
+  $("#view").innerHTML=shell(`
+  <div class="mkbar"><div class="pills">${["All",...cats].map(c=>`<button data-mcat="${c}" class="pill2 ${state.mcat===c?"on":""}">${c==="All"?I.grid:""}${c}<span>${c==="All"?MKT.length:MKT.filter(m=>m.pc===c).length}</span></button>`).join("")}</div>
+    <label class="search mks">${I.search}<input id="mq" placeholder="Search packages" value="${esc(state.mq)}" aria-label="Search packages"></label></div>
+  <div class="pkgs">${list.map(m=>`<button class="pkg" data-mdet="${m.id}"><div class="pk-h"><span class="pk-logo">${m.tile}<i class="pk-ok" title="Verified by Rplus">✓</i></span><div><b>${esc(m.n)}</b><span>By Rplus</span></div></div><p>${esc(m.d)}</p></button>`).join("")||'<p class="sub">No packages match.</p>'}</div>`);
+  wireShell();
+  $$("[data-mcat]").forEach(b=>b.onclick=()=>{state.mcat=b.dataset.mcat;render()});
+  const mq=$("#mq");mq.oninput=()=>{state.mq=mq.value;const p=mq.selectionStart;render();const n=$("#mq");n.focus();n.setSelectionRange(p,p)};
+  $$("[data-mdet]").forEach(el=>el.onclick=()=>openMkt(el.dataset.mdet));
+}
+
+/* ---------- wizard ---------- */
+const wz={step:0,cat:"All",q:"",pick:null,tested:0,name:"",auto:true,freq:"Every 30 min",evt:true,inc:true};
+function openWizard(pick){Object.assign(wz,{step:pick?1:0,cat:"All",q:"",pick:pick||null,tested:0,name:pick?pick+" – Finance":""});renderWizard()}
+function closeWizard(){$("#modalRoot").innerHTML=""}
+function renderWizard(){
+  const steps=["Choose connector","Connect","Scope","Collection & review"],cats=["All",...new Set(CONNECTORS.map(c=>c[1]))];let body="";
+  if(wz.step===0){const list=CONNECTORS.filter(c=>(wz.cat==="All"||c[1]===wz.cat)&&c[0].toLowerCase().includes(wz.q.toLowerCase()));
+    body=`<div class="gal" style="margin:0;grid-template-columns:170px 1fr"><div class="cats">${cats.map(c=>`<button data-wcat="${c}" class="${wz.cat===c?"on":""}"><span>${c}</span></button>`).join("")}</div><div><label class="search" style="max-width:none">${I.search}<input id="wq" placeholder="Search connectors" value="${esc(wz.q)}" aria-label="Search connectors"></label><div class="ctiles">${list.map(c=>`<button class="ctile ${wz.pick===c[0]?"on":""}" data-pick="${c[0]}"><div class="t"><span class="tile" style="width:38px;height:38px">${c[2]}</span><div><b>${c[0]}</b><br><span>${c[1]}</span></div></div></button>`).join("")}</div></div></div>`}
+  else if(wz.step===1){const checks=["Reach the host over the network","Authenticate with the credential","Read permission on metadata views","Read column statistics (for profiling)"];
+    body=`<div class="two"><div><div class="field"><label for="wname">Source name</label><input id="wname" value="${esc(wz.name)}"></div>
+      <div class="field"><label for="wmeth">Connection method</label><select id="wmeth"><option>Agentless</option><option>Agent (on-premise)</option><option>API</option></select></div>
+      <div class="field"><label for="whost">Host / account</label><input id="whost" class="mono" value="rplus-uk.eu-west-2"></div>
+      <div class="field"><label for="wcred">Credential</label><select id="wcred"><option>genmeta-svc (key pair) · used by 2 sources</option><option>+ New credential</option></select></div>
+      <div class="two" style="gap:12px"><div class="field"><label for="wown">Owner</label><select id="wown"><option>Rajesh</option><option>PK</option><option>Raghav</option></select></div><div class="field"><label for="wdom">Domain</label><select id="wdom"><option>Customer</option><option>Orders</option><option>Casework</option><option>Events</option></select></div></div></div>
+      <div><button class="btn" id="wtest">${I.check}Test connection</button><ul class="checks">${checks.map((c,i)=>`<li><span class="ci ${wz.tested>i+1||wz.tested===5?"ok":wz.tested===i+1?"run":""}">${wz.tested>i+1||wz.tested===5?"✓":""}</span>${c}</li>`).join("")}</ul><p class="sub">${wz.tested===5?"All 4 checks passed.":"Each check reports separately, so you can see exactly what to fix."}</p></div></div>`}
+  else if(wz.step===2){body=`<div class="two"><div><ul class="tree"><li><label><input type="checkbox" checked> <b>FINANCE_DB</b> <span class="sub">3 schemas</span></label><ul><li><label><input type="checkbox" checked> PUBLIC <span class="sub">12 tables</span></label></li><li><label><input type="checkbox" checked> LEDGER <span class="sub">7 tables</span></label></li><li><label><input type="checkbox"> SCRATCH <span class="sub">31 tables</span></label></li></ul></li></ul></div>
+    <div><label class="toggle"><input type="checkbox" class="swi" id="wauto" ${wz.auto?"checked":""}><span class="sw"></span>Include new schemas automatically</label><div class="field" style="margin-top:8px"><label for="wexcl">Exclude pattern</label><input id="wexcl" class="mono" value="*_TMP, *_BACKUP"></div><div class="box" style="background:var(--panel-2)"><b style="font-weight:500">Preview</b><p class="sub" style="margin:4px 0 0">About 19 tables and 214 columns on the first scan.</p></div></div></div>`}
+  else{body=`<div class="two"><div><div class="field"><label for="wfreq">Scan frequency</label><select id="wfreq">${["Every 15 min","Every 30 min","Hourly","Daily 02:00"].map(f=>`<option ${f===wz.freq?"selected":""}>${f}</option>`).join("")}</select></div>
+    <label class="toggle"><input type="checkbox" class="swi" id="wevt" checked><span class="sw"></span>Event-driven trigger</label><label class="toggle"><input type="checkbox" class="swi" id="winc" checked><span class="sw"></span>Incremental harvest</label></div>
+    <div class="box" style="background:var(--panel-2)"><h3>Review</h3><dl class="kv" style="margin-top:10px"><dt>Connector</dt><dd>${wz.pick}</dd><dt>Name</dt><dd>${esc(wz.name)}</dd><dt>Scope</dt><dd>FINANCE_DB: PUBLIC, LEDGER</dd><dt>New schemas</dt><dd>${wz.auto?"Included automatically":"Ignored"}</dd><dt>Collection</dt><dd>${wz.freq} · event-driven · incremental</dd></dl></div></div>`}
+  const can=wz.step===0?!!wz.pick:wz.step===1?wz.tested===5:true;
+  $("#modalRoot").innerHTML=`<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="wt"><div class="mhead"><h3 id="wt">Connect a source</h3><button class="btn ghost sm" id="wclose" aria-label="Close">${I.x}</button></div>
+    <div class="wsteps">${steps.map((s,i)=>`<span class="wst ${i===wz.step?"on":i<wz.step?"done":""}"><b>${i<wz.step?"✓":i+1}</b>${s}</span>`).join("")}</div><div class="mbody">${body}</div>
+    <div class="mfoot"><button class="btn" id="wback" ${wz.step===0?"hidden":""}>Back</button><span class="sub">${wz.step===0&&wz.pick?"Selected: "+wz.pick:""}</span><div class="actions">${wz.step<3?`<button class="btn primary" id="wnext" ${can?"":"disabled"}>Continue</button>`:`<button class="btn" id="wsave">Save</button><button class="btn primary" id="wrun">${I.play}Save & scan now</button>`}</div></div></div></div>`;
+  $("#wclose").onclick=closeWizard;$("#scrim").onclick=e=>{if(e.target.id==="scrim")closeWizard()};
+  $$("[data-wcat]").forEach(b=>b.onclick=()=>{wz.cat=b.dataset.wcat;renderWizard()});
+  $$("[data-pick]").forEach(b=>b.onclick=()=>{wz.pick=b.dataset.pick;wz.name=wz.pick+" – Finance";renderWizard()});
+  const wq=$("#wq");if(wq)wq.oninput=()=>{wz.q=wq.value;const p=wq.selectionStart;renderWizard();const n=$("#wq");n.focus();n.setSelectionRange(p,p)};
+  const wn=$("#wname");if(wn)wn.oninput=()=>wz.name=wn.value;
+  const wa=$("#wauto");if(wa)wa.onchange=()=>wz.auto=wa.checked;
+  const wf=$("#wfreq");if(wf)wf.onchange=()=>wz.freq=wf.value;
+  const wt=$("#wtest");if(wt)wt.onclick=()=>{let k=1;wz.tested=1;renderWizard();const iv=setInterval(()=>{k++;wz.tested=k>4?5:k;renderWizard();if(k>4)clearInterval(iv)},600)};
+  const nx=$("#wnext");if(nx)nx.onclick=()=>{wz.step++;renderWizard()};
+  const bk=$("#wback");if(bk)bk.onclick=()=>{wz.step--;renderWizard()};
+  const fin=run=>{const c=CONNECTORS.find(x=>x[0]===wz.pick);sources.unshift({id:"n"+Date.now(),name:wz.name,tech:c[0],tile:c[2],desc:`${c[1]} — newly connected`,deploy:["Agentless","Cloud (AWS)"],domains:["Customer"],sens:[],schemaList:[["PUBLIC",12],["LEDGER",7]],tables:0,freq:wz.freq.replace("Every ",""),last:run?"running now":"never",next:"after first scan",status:run?"scanning":"healthy",conn:true,owners:["Rajesh"],keys:0,layers:0,lineage:0,sensitive:0,coverage:{Owner:100,Description:0,Classification:0,"Glossary terms":0},sensDetail:{},spark:[1],caps:{Metadata:1,Lineage:1,Profiling:0,Classification:1,Glossary:0},drift:[],banner:{t:run?"First scan running":"Saved, not scanned yet",d:"About 19 tables will be catalogued."}});
+    closeWizard();state.tab="sources";state.view="list";state.filter="all";render();toast(run?`${wz.name} connected. First scan started.`:`${wz.name} saved`);
+    if(run)setTimeout(()=>{const s=sources[0];Object.assign(s,{status:"healthy",tables:19,last:"just now",sensitive:14,sens:["FINANCIAL"],sensDetail:{PII:5,FINANCIAL:9},spark:[19],coverage:{Owner:100,Description:10,Classification:62,"Glossary terms":0},banner:{t:"First scan completed",d:"19 tables catalogued · 14 sensitive columns classified"}});render();toast(`${s.name}: 19 tables catalogued`)},3200)};
+  const sv=$("#wsave");if(sv)sv.onclick=()=>fin(false);const rn=$("#wrun");if(rn)rn.onclick=()=>fin(true);
+}
+
+let tt;function toast(m){$("#toastRoot").innerHTML=`<div class="toast" role="status">${esc(m)}</div>`;clearTimeout(tt);tt=setTimeout(()=>$("#toastRoot").innerHTML="",3400)}
+function render(){crumb();if(state.view==="detail")return renderDetail();({sources:renderSources,connectors:renderConnectors,market:renderMarket,runs:renderRuns,changes:renderChanges,creds:renderCreds,bulk:renderBulk})[state.tab]()}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#modalRoot").innerHTML)closeWizard()});
+render();
+</script>
+</body>
+</html>

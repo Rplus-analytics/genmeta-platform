@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users,
+  LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck,
   PanelLeft, ChevronsUpDown, LogOut, Search, Bell, CircleHelp, Check,
 } from 'lucide-react';
 import { NAV, pad3 } from '../nav.js';
@@ -11,7 +11,6 @@ import { useAuth } from '../auth.jsx';
 import { Burst } from '../components/Loader.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import DataSources from '../pages/DataSources.jsx';
-import DataEstate from '../pages/DataEstate.jsx';
 import Catalogue from '../pages/Catalogue.jsx';
 import AssetDetail from '../pages/AssetDetail.jsx';
 import KnowledgeGraph from '../pages/KnowledgeGraph.jsx';
@@ -20,8 +19,9 @@ import Governance from '../pages/Governance.jsx';
 import Classification from '../pages/Classification.jsx';
 import DataProducts from '../pages/DataProducts.jsx';
 import Stewardship from '../pages/Stewardship.jsx';
+import Admin from '../pages/Admin.jsx';
 
-const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users };
+const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck };
 
 function Sidebar({ onToggle }) {
   const { user, signOut } = useAuth();
@@ -63,6 +63,7 @@ function Sidebar({ onToggle }) {
       <nav className="sb-nav">
         <div className="sb-group">Discover</div><Group g="Discover" />
         <div className="sb-group">Govern</div><Group g="Govern" />
+        <div className="sb-group">Admin</div><Group g="Admin" />
       </nav>
 
       <div className="sb-foot">
@@ -81,10 +82,12 @@ function Topbar({ loading }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const idx = Math.max(0, NAV.findIndex((n) => (n.end ? n.to === pathname : pathname === n.to || pathname.startsWith(n.to + '/'))));
+  const rest = pathname.slice(NAV[idx].to.length + 1);
+  const sub = rest && (NAV[idx].crumbs ? NAV[idx].crumbs[rest] : 'Asset');
   return (
     <header className="topbar">
       <i className={`route-bar ${loading ? 'on' : ''}`} />
-      <div className="crumbs"><span className="counter">{pad3(idx + 1)} — {pad3(NAV.length)}</span><span>{NAV[idx].group} / {pathname !== NAV[idx].to ? <><span className="crumb-link">{NAV[idx].label}</span> / <b>Asset</b></> : <b>{NAV[idx].label}</b>}</span></div>
+      <div className="crumbs"><span className="counter">{pad3(idx + 1)} — {pad3(NAV.length)}</span><span>{NAV[idx].group} / {sub ? <><span className="crumb-link">{NAV[idx].label}</span> / <b>{sub}</b></> : <b>{NAV[idx].label}</b>}</span></div>
       <label className="top-search"><Search size={15} strokeWidth={1.5} /><input placeholder="Search data, systems, or ask a question…" aria-label="Search" /><kbd>⌘K</kbd></label>
       <div className="top-actions">
         <span className={`top-burst ${loading ? 'on' : ''}`}><Burst size={20} /></span>
@@ -98,7 +101,7 @@ function Topbar({ loading }) {
 
 export default function AppShell() {
   const { user } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const nav = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const main = useRef(null);
@@ -116,11 +119,12 @@ export default function AppShell() {
       <Sidebar onToggle={() => setCollapsed((c) => !c)} />
       <div className="main">
         <Topbar loading={loading} />
-        <main ref={main} className="content">
+        <main ref={main} className={`content ${pathname === '/app/sources' ? 'flush' : ''}`}>
           <Routes>
             <Route index element={<Dashboard />} />
             <Route path="sources" element={<DataSources />} />
-            <Route path="data-estate" element={<DataEstate />} />
+            {/* The standalone Data estate page is retired; old links land on the dashboard. */}
+            <Route path="data-estate" element={<Navigate to={`/app${search}`} replace />} />
             <Route path="catalogue" element={<Catalogue />} />
             <Route path="catalogue/:assetId" element={<AssetDetail />} />
             <Route path="graph" element={<KnowledgeGraph />} />
@@ -129,6 +133,7 @@ export default function AppShell() {
             <Route path="classification" element={<Classification />} />
             <Route path="products" element={<DataProducts />} />
             <Route path="stewardship" element={<Stewardship />} />
+            <Route path="admin/*" element={<Admin />} />
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Routes>
         </main>

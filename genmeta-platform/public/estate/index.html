@@ -2316,7 +2316,8 @@ document.addEventListener('keydown',e=>{
   if(q.get('open'))setTimeout(()=>openSource(q.get('open')),q.get('mode')==='3d'?1600:700);
   window.addEventListener('message',e=>{const d=e.data||{};
     if(d.type==='genmeta:mode'){const b=$(d.mode==='3d'?'mode3d':'mode2d');if(b)b.click();}
-    if(d.type==='genmeta:refresh'){const b=$('refreshBtn');if(b&&!b.disabled)b.click();}});
+    if(d.type==='genmeta:refresh'){const b=$('refreshBtn');if(b&&!b.disabled)b.click();}
+    if(d.type==='genmeta:openSource'&&d.id)openSource(d.id);});
 })();
 })();
 </script>

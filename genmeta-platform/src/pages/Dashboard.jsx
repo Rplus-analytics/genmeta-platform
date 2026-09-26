@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Plus, RefreshCw, Download, Maximize2 } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Plus, RefreshCw, Download } from 'lucide-react';
 import { SOURCES, TOTALS, CHANGES, fmt, sizeTxt } from '../data.js';
 import { Ring, Status } from '../components/ui.jsx';
 import { KPIS, GlossCard } from '../components/Tablet.jsx';
@@ -15,20 +15,27 @@ function greeting() {
 
 export default function Dashboard() {
   const nav = useNavigate();
+  const { search } = useLocation();
   const { user } = useAuth();
   const frame = useRef(null);
-  const [mode, setMode] = useState('2d');
+  const card = useRef(null);
+  /* Deep links (?open=<source>&mode=3d) are read once, when the estate is first drawn. */
+  const [params] = useState(() => {
+    const q = new URLSearchParams(search);
+    return `?embed=1&modal=1${q.get('open') ? `&open=${q.get('open')}` : ''}${q.get('mode') === '3d' ? '&mode=3d' : ''}`;
+  });
+  const [mode, setMode] = useState(() => (new URLSearchParams(search).get('mode') === '3d' ? '3d' : '2d'));
   const { refreshing, refresh, ago, next, changes } = useEstateRefresh(frame, TOTALS.changes);
 
-  useEffect(() => {
-    const onMsg = (e) => {
-      if (e.data && e.data.type === 'genmeta:open') nav(`/app/data-estate?open=${e.data.id}${mode === '3d' ? '&mode=3d' : ''}`);
-    };
-    window.addEventListener('message', onMsg);
-    return () => window.removeEventListener('message', onMsg);
-  }, [nav, mode]);
+  useEffect(() => { if (search) nav('/app', { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const switchMode = (m) => { setMode(m); frame.current?.contentWindow?.postMessage({ type: 'genmeta:mode', mode: m }, '*'); };
+  const post = (msg) => frame.current?.contentWindow?.postMessage(msg, '*');
+  const switchMode = (m) => { setMode(m); post({ type: 'genmeta:mode', mode: m }); };
+  /* Opens the building pop-up inside the estate, bringing the estate into view first. */
+  const openSource = (id) => {
+    card.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    post({ type: 'genmeta:openSource', id });
+  };
   const maxTables = Math.max(...SOURCES.map((s) => s.tables));
   const first = (user?.name || 'Admin').split(' ')[0];
 
@@ -36,7 +43,7 @@ export default function Dashboard() {
     <div className="page fade-in">
       <div className="page-head">
         <div>
-          <span className="eyebrow">Estate overview</span>
+          <span className="eyebrow">Data estate</span>
           <h1>{greeting()}, {first}</h1>
           <p>Refreshed {ago} · next pull in {next} min · {changes} changes since the last pull.</p>
         </div>
@@ -52,18 +59,17 @@ export default function Dashboard() {
           {KPIS.map((k, i) => <GlossCard key={k.key} k={k} i={i} spark={92} flat />)}
         </div>
 
-        <article className="estate-card">
+        <article ref={card} className="estate-card">
           <header className="block-head tight">
-            <div><h2>Data estate</h2><p className="block-sub">Each connected source drawn as a landmark at its relative size.</p></div>
+            <div><h2>Data estate</h2><p className="block-sub">Each connected source drawn as a landmark at its relative size. Lit windows are described tables. Select a building to see its layers.</p></div>
             <div className="block-tools">
               <div className="toggle" role="group" aria-label="View">
                 <button className={mode === '2d' ? 'on' : ''} onClick={() => switchMode('2d')}>2D</button><span>/</span>
                 <button className={mode === '3d' ? 'on' : ''} onClick={() => switchMode('3d')}>3D</button>
               </div>
-              <button className="icon-btn" onClick={() => nav(`/app/data-estate${mode === '3d' ? '?mode=3d' : ''}`)} aria-label="Open full view" title="Open full view"><Maximize2 size={15} strokeWidth={1.5} /></button>
             </div>
           </header>
-          <div className="bezel grow"><div className="estate-frame fill"><EstateFrame ref={frame} title="GenMeta data estate" params="?embed=1" /></div></div>
+          <div className="bezel grow"><div className="estate-frame fill"><EstateFrame ref={frame} title="GenMeta data estate" params={params} /></div></div>
           <div className="facts three">
             <div><Ring value={TOTALS.coverage} size={40} stroke={3}><b>{Math.round(TOTALS.coverage * 100)}</b></Ring><p><span>Description coverage</span>{Math.round(TOTALS.coverage * 100)}% of tables</p></div>
             <div><b className="fact-n">{changes}</b><p><span>Changes since last pull</span>metadata changes</p></div>
@@ -83,7 +89,7 @@ export default function Dashboard() {
               <thead><tr><th>System</th><th className="num">Tables</th><th className="num">Fields</th><th className="num">Size</th><th>Described</th><th>Status</th></tr></thead>
               <tbody>
                 {SOURCES.map((s) => (
-                  <tr key={s.id} onClick={() => nav(`/app/data-estate?open=${s.id}`)}>
+                  <tr key={s.id} onClick={() => openSource(s.id)}>
                     <td><div className="sys"><span className="ini">{s.ini}</span><div><b>{s.vendor}</b><small>{s.name}</small></div></div></td>
                     <td className="num"><div className="numbar"><i style={{ width: `${(s.tables / maxTables) * 100}%` }} />{fmt(s.tables)}</div></td>
                     <td className="num">{fmt(s.fields)}</td>

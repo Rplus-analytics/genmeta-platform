@@ -534,7 +534,7 @@ h1, h2, h3 { text-wrap: balance; }
 .estate-card { display: flex; flex-direction: column; min-width: 0; }
 .block-head.tight { margin-bottom: 18px; }
 .bezel.grow { flex: 1; display: flex; }
-.estate-frame.fill { flex: 1; height: auto; min-height: 460px; }
+.estate-frame.fill { flex: 1; height: auto; min-height: 600px; }
 .facts.three { grid-template-columns: repeat(3, 1fr); }
 .block.last { border-bottom: 0; }
 
