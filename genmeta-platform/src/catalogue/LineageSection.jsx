@@ -4,6 +4,7 @@ import { Search, ChevronDown } from 'lucide-react';
 import { ASSETS, srcMeta } from './model.js';
 import LineageGraph from './LineageGraph.jsx';
 import ColumnMappings from './ColumnMappings.jsx';
+import AttributeGranularity from './AttributeGranularity.jsx';
 import EndToEnd from './EndToEnd.jsx';
 
 const SUBTABS = [['graph', 'Graph'], ['end-to-end', 'End to end']];
@@ -81,6 +82,7 @@ export default function LineageSection({ a, onOpenAsset }) {
         <>
           <LineageGraph ref={graphRef} focusKey={a.key} onOpenAsset={onOpenAsset} onFocusChange={setGraphFocus} />
           <ColumnMappings assetKey={graphFocus} onFocus={(k) => graphRef.current?.refocus(k)} />
+          <AttributeGranularity assetKey={graphFocus} />
         </>
       ) : (
         <EndToEnd assetKey={a.key} />

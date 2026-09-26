@@ -403,3 +403,23 @@
 .cm-tf { font-size: 12.5px; color: var(--muted); }
 .cm-empty { margin: 12px 0 2px; font-size: 12.5px; color: var(--faint); }
 .cm-empty-all { margin: 16px 0 0; }
+
+/* ---------- Lineage: Attribute granularity panel (below Column mappings) ---------- */
+.attr-panel { margin-top: 16px; padding: 18px 20px; }
+.attr-head { margin-bottom: 12px; }
+.attr-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+.attr-meta { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.attr-table-wrap { border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+.attr-table { min-width: 560px; }
+.attr-table thead tr { background: var(--tint2); }
+.attr-table th { text-transform: uppercase; letter-spacing: .06em; font-size: 11px; color: var(--muted); }
+.attr-table :is(th, td):first-child { padding-left: 14px; }
+.attr-table :is(th, td):last-child { padding-right: 14px; }
+.attr-table tbody tr { border-top: 1px solid var(--line); }
+.attr-col { font-size: 13px; color: var(--navy); }
+.attr-type { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.attr-null { font-size: 12.5px; color: var(--muted); }
+.attr-cls { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; margin: 2px 4px 2px 0; border-radius: 5px;
+  background: #FCF3E2; border: 1px solid #EAD6A6; color: #7A5B1E; font-family: var(--mono); font-size: 10.5px; font-weight: 500; }
+.attr-dash { color: var(--faint); }
+.attr-empty { margin: 8px 0 0; font-size: 12.5px; color: var(--faint); }
