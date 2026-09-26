@@ -14,7 +14,7 @@ export default function AttributeGranularity({ assetKey }) {
   return (
     <section className="card attr-panel">
       <div className="attr-head">
-        <b className="attr-title">Attribute granularity</b>
+        <b className="attr-title">Attribute Granularity</b>
         <p className="attr-meta">{cols.length} attribute{cols.length === 1 ? '' : 's'} · {classified} classified</p>
       </div>
 

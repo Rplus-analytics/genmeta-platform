@@ -94,40 +94,56 @@ export default function ColumnMappings({ assetKey, onFocus }) {
   if (note && isS3) note = `Synthetic demo records in a live S3 bucket. ${note}`;
 
   return (
-    <section className="card cm-panel">
-      <div className="cm-head">
-        <div>
+    <>
+      <section className="card cm-panel">
+        <div className="cm-head">
+          <div>
+            <b className="cm-cardtitle">Table Granularity</b>
+            <p className="cm-cardsub">Which tables feed this asset and which it feeds</p>
+          </div>
+        </div>
+
+        <div className="cm-assetline">
           <b className="cm-name">{a.key}</b>
           <p className="cm-meta">{kindLabel(a.kind)} · {a.cols} columns · double-click a node to re-centre</p>
         </div>
-        {sections.length > 0 && (
-          <div className="cm-actions">
-            <button className="btn ghost sm" onClick={expandAll}>Expand all</button>
-            <button className="btn ghost sm" onClick={collapseAll}>Collapse all</button>
+
+        <div className="cm-rel">
+          <div className="cm-rel-row">
+            <span className="cm-rel-l">Upstream</span>
+            {ups.length ? ups.map((e) => <Chip key={e.s} k={e.s} onFocus={onFocus} />) : <span className="cm-none">None recorded</span>}
           </div>
+          <div className="cm-rel-row">
+            <span className="cm-rel-l">Downstream</span>
+            {downs.length ? downs.map((e) => <Chip key={e.t} k={e.t} onFocus={onFocus} />) : <span className="cm-none">None recorded</span>}
+          </div>
+        </div>
+
+        {note && <p className="cm-note">{note}</p>}
+      </section>
+
+      <section className="card cm-panel">
+        <div className="cm-head">
+          <div>
+            <b className="cm-cardtitle">Column Granularity</b>
+            <p className="cm-cardsub">How each column maps from source to target</p>
+          </div>
+          {sections.length > 0 && (
+            <div className="cm-actions">
+              <button className="btn ghost sm" onClick={expandAll}>Expand all</button>
+              <button className="btn ghost sm" onClick={collapseAll}>Collapse all</button>
+            </div>
+          )}
+        </div>
+
+        {sections.length ? (
+          <div className="cm-secs">
+            {sections.map((e) => <Section key={edgeId(e)} e={e} open={open.has(edgeId(e))} onToggle={() => toggle(edgeId(e))} />)}
+          </div>
+        ) : (
+          <p className="cm-empty cm-empty-all">No lineage links recorded for this asset.</p>
         )}
-      </div>
-
-      <div className="cm-rel">
-        <div className="cm-rel-row">
-          <span className="cm-rel-l">Upstream</span>
-          {ups.length ? ups.map((e) => <Chip key={e.s} k={e.s} onFocus={onFocus} />) : <span className="cm-none">None recorded</span>}
-        </div>
-        <div className="cm-rel-row">
-          <span className="cm-rel-l">Downstream</span>
-          {downs.length ? downs.map((e) => <Chip key={e.t} k={e.t} onFocus={onFocus} />) : <span className="cm-none">None recorded</span>}
-        </div>
-      </div>
-
-      {note && <p className="cm-note">{note}</p>}
-
-      {sections.length ? (
-        <div className="cm-secs">
-          {sections.map((e) => <Section key={edgeId(e)} e={e} open={open.has(edgeId(e))} onToggle={() => toggle(edgeId(e))} />)}
-        </div>
-      ) : (
-        <p className="cm-empty cm-empty-all">No lineage links recorded for this asset.</p>
-      )}
-    </section>
+      </section>
+    </>
   );
 }
