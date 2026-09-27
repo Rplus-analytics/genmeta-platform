@@ -1,7 +1,6 @@
 import { NavLink, Routes, Route, Navigate } from 'react-router-dom';
 import { Orbit, Share2 } from 'lucide-react';
 import { RailHead } from '../components/Rail.jsx';
-import { useShell } from '../app/shell.js';
 import Galaxy from './graph/Galaxy.jsx';
 import GraphExplorer from './graph/GraphExplorer.jsx';
 
@@ -11,10 +10,10 @@ const GRAPH_NAV = [
   { to: 'explorer', label: 'Graph explorer', icon: Share2 },
 ];
 
-function GraphNav({ collapsed, onToggle }) {
+function GraphNav() {
   return (
-    <nav className={`admin-nav ${collapsed ? 'collapsed' : ''}`} aria-label="Knowledge graph">
-      <RailHead title="Knowledge graph" collapsed={collapsed} onToggle={onToggle} />
+    <nav className="admin-nav" aria-label="Knowledge graph">
+      <RailHead title="Knowledge graph" />
       {GRAPH_NAV.map((n) => {
         const I = n.icon;
         return (
@@ -28,15 +27,12 @@ function GraphNav({ collapsed, onToggle }) {
   );
 }
 
-/* Knowledge graph is a section with its own left rail (same pattern as Admin):
-   opening the GenMeta sidebar collapses this rail, and opening this rail collapses the sidebar. */
+/* Knowledge graph is a section with its own left rail (same pattern as Admin); the rail is always open. */
 export default function KnowledgeGraph() {
-  const shell = useShell();
-  const collapsed = !shell.collapsed;
   return (
     <div className="page fade-in admin-page">
-      <div className={`admin-layout ${collapsed ? 'rail-collapsed' : ''}`}>
-        <GraphNav collapsed={collapsed} onToggle={() => shell.setCollapsed((c) => !c)} />
+      <div className="admin-layout">
+        <GraphNav />
         <div className="admin-body">
           <Routes>
             <Route index element={<Galaxy />} />

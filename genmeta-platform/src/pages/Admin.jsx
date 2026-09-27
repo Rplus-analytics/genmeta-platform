@@ -5,7 +5,6 @@ import {
 import { ADMIN_NAV } from '../nav.js';
 import { BASE } from './admin/kit.jsx';
 import { RailHead } from '../components/Rail.jsx';
-import { useShell } from '../app/shell.js';
 import Overview from './admin/Overview.jsx';
 import { UsersPage, GroupsPage } from './admin/Directory.jsx';
 import ApiAccess from './admin/ApiAccess.jsx';
@@ -16,10 +15,10 @@ import { QueryLogs, EventLogs } from './admin/Logs.jsx';
 
 const ICONS = { LayoutDashboard, Users, UsersRound, KeyRound, LockKeyhole, Fingerprint, Mail, Blocks, Webhook, Bell, FlaskConical, SquareTerminal, ScrollText };
 
-function AdminNav({ collapsed, onToggle }) {
+function AdminNav() {
   return (
-    <nav className={`admin-nav ${collapsed ? 'collapsed' : ''}`} aria-label="Admin">
-      <RailHead title="Admin" collapsed={collapsed} onToggle={onToggle} />
+    <nav className="admin-nav" aria-label="Admin">
+      <RailHead title="Admin" />
       {ADMIN_NAV.map((n) => {
         if (n.section) return <div key={n.section} className="admin-nav-sec">{n.section}</div>;
         const I = ICONS[n.icon];
@@ -35,14 +34,11 @@ function AdminNav({ collapsed, onToggle }) {
 }
 
 export default function Admin() {
-  /* Only one of the two navigations is open at a time: opening the GenMeta sidebar collapses the
-     Admin rail, and opening the Admin rail collapses the GenMeta sidebar. */
-  const shell = useShell();
-  const collapsed = !shell.collapsed;
+  /* The Admin rail is always open. */
   return (
     <div className="page fade-in admin-page">
-      <div className={`admin-layout ${collapsed ? 'rail-collapsed' : ''}`}>
-        <AdminNav collapsed={collapsed} onToggle={() => shell.setCollapsed((c) => !c)} />
+      <div className="admin-layout">
+        <AdminNav />
         <div className="admin-body">
           <Routes>
             <Route index element={<Overview />} />
