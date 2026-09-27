@@ -2,7 +2,7 @@
 export const NAV = [
   { to: '/app', label: 'Data estate', group: 'Discover', icon: 'Building2', end: true },
   { to: '/app/catalogue', label: 'Data catalogue', group: 'Discover', icon: 'Layers' },
-  { to: '/app/graph', label: 'Knowledge graph', group: 'Discover', icon: 'Network' },
+  { to: '/app/graph', label: 'Knowledge graph', group: 'Discover', icon: 'Network', crumbs: { explorer: 'Graph explorer' } },
   { to: '/app/ask', label: 'Ask GenMeta', group: 'Discover', icon: 'MessagesSquare' },
   { to: '/app/governance', label: 'Governance', group: 'Govern', icon: 'Landmark' },
   { to: '/app/classification', label: 'Classification', group: 'Govern', icon: 'Tag' },
