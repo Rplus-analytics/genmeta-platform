@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Plus, Minus, Maximize, Crosshair, ChevronDown, ChevronUp, Search, ArrowUpRight, Hash, Type, Calendar, ToggleLeft } from 'lucide-react';
 import { BY_KEY, KIND_ICON, lineageFor, srcMeta, kindLabel, upstreamOf, downstreamOf } from './model.js';
 
@@ -84,7 +84,7 @@ function Node({ k, p, focus, selected, open, colSel, traceSeen, hot, dim, onSele
   );
 }
 
-export default function LineageGraph({ focusKey, onOpenAsset }) {
+const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, onFocusChange }, ref) {
   const [focus, setFocus] = useState(focusKey);
   const [selected, setSelected] = useState(focusKey);
   const [open, setOpen] = useState(() => new Set());
@@ -135,6 +135,10 @@ export default function LineageGraph({ focusKey, onOpenAsset }) {
     setTimeout(() => setOpen((s) => new Set([...s, ...[...(traceRef.current?.seen || [])].map((id) => id.split('|')[0])])), 0);
   };
   const refocus = (k) => { setFocus(k); setSelected(k); setColSel(null); };
+  // Let a parent read the focused asset and drive refocus (e.g. the column
+  // mappings panel below), without changing any in-graph behaviour.
+  useImperativeHandle(ref, () => ({ refocus }));
+  useEffect(() => { if (onFocusChange) onFocusChange(focus); }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (k) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   /* which edges carry the selected column */
@@ -285,7 +289,9 @@ export default function LineageGraph({ focusKey, onOpenAsset }) {
       </div>
     </div>
   );
-}
+});
+
+export default LineageGraph;
 
 function RelItem({ k, e, onFocus }) {
   const a = BY_KEY[k];
