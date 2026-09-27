@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2,
-  ChevronsUpDown, LogOut, Search, Bell, CircleHelp, Check, Server,
+  LogOut, Search, Bell, CircleHelp, Server,
 } from 'lucide-react';
 import { NAV, pad3, navMatch, isDataAssets } from '../nav.js';
-import { PRODUCTS } from '../data.js';
 import { BRAND } from '../brand.js';
 import { useAuth } from '../auth.jsx';
 import { Burst } from '../components/Loader.jsx';
@@ -29,18 +28,6 @@ function Sidebar() {
   const { user, signOut } = useAuth();
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const [switcher, setSwitcher] = useState(false);
-  const productRef = useRef(null);
-  /* The platform switcher closes on click-outside and on Escape (it also closes when the
-     sidebar collapses, via onMouseLeave below, and when an item is selected). */
-  useEffect(() => {
-    if (!switcher) return undefined;
-    const onDown = (e) => { if (productRef.current && !productRef.current.contains(e.target)) setSwitcher(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setSwitcher(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [switcher]);
   const Group = ({ g }) => NAV.filter((n) => n.group === g).map((n) => {
     const I = ICONS[n.icon];
     /* "Data assets" opens /app/catalogue and stays highlighted across all its section routes */
@@ -60,22 +47,7 @@ function Sidebar() {
   });
 
   return (
-    <aside className="sidebar" onMouseLeave={() => setSwitcher(false)}>
-      <div className="sb-product" ref={productRef}>
-        <button className="sb-switch" onClick={() => setSwitcher((v) => !v)} aria-expanded={switcher}>
-          <div><div className="sb-pname">GenMeta</div><div className="sb-psub">Metadata Intelligence Platform</div></div>
-          <ChevronsUpDown size={14} strokeWidth={1.5} />
-        </button>
-        {switcher && (
-          <div className="menu-pop sb-pop">
-            <div className="mp-h">Rplus platform</div>
-            <button type="button" className="menu-item on" onClick={() => setSwitcher(false)}><span className="mi-n">P1</span><span className="mi-l">GenMeta</span><Check size={13} /></button>
-            {PRODUCTS.map((p, i) => <button type="button" key={p.id} className="menu-item dim" onClick={() => setSwitcher(false)}><span className="mi-n">P{i + 2}</span><span className="mi-l">{p.name}</span><span className="mi-s">Soon</span></button>)}
-          </div>
-        )}
-        <div className="sb-tagline">Understand · Connect · Govern</div>
-      </div>
-
+    <aside className="sidebar">
       <nav className="sb-nav">
         <div className="sb-group">Discover</div><Group g="Discover" />
         <div className="sb-group">Govern</div><Group g="Govern" />

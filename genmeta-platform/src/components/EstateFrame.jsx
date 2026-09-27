@@ -1,17 +1,19 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Cover } from './Loader.jsx';
 import estateHtml from '../../public/estate/index.html?raw';
+import threeSource from '../../public/estate/three.min.js?raw';
 
 /* The Data Estate view (public/estate/index.html).
    Local dev: served as a normal page at /estate/index.html.
-   Hosted build (VITE_TARGET=artifact): inlined via srcdoc, three.js from cdnjs. */
+   Hosted build (VITE_TARGET=artifact): inlined via srcdoc, three.js inlined too so 3D
+   works with no internet. (`</script>` is escaped defensively before inlining.) */
 const HOSTED = import.meta.env.VITE_TARGET === 'artifact';
-const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+const THREE_INLINE = `<script>${threeSource.replace(/<\/script/gi, '<\\/script')}</script>`;
 
 function srcdocFor(params) {
   return estateHtml
     .replace('<head>', `<head>\n<script>window.__GM_PARAMS=${JSON.stringify(params)};</script>`)
-    .replace('<script src="./three.min.js"></script>', `<script src="${THREE_CDN}"></script>`);
+    .replace('<script src="./three.min.js"></script>', THREE_INLINE);
 }
 
 const EstateFrame = forwardRef(function EstateFrame({ params = '', title }, ref) {

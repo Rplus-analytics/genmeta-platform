@@ -159,11 +159,8 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 /* ---------- app shell ---------- */
 /* fixed 56px gutter; the sidebar overlays the page on hover (see .sidebar in styles.css) */
 .shell { background: var(--canvas); grid-template-columns: 56px 1fr; }
-.sidebar { background: var(--white); border-right: 1px solid var(--line); padding: 14px 12px 14px; }
-.sb-product { padding: 0 8px 14px; }
-.sb-pname { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
-.sb-psub { font-size: 12px; }
-.sb-tagline { display: none; }
+/* padding-top aligns the first nav icon with the inner menu's first item (both start below the top bar) */
+.sidebar { background: var(--white); border-right: 1px solid var(--line); padding: 17px 12px 14px; }
 .sb-group { font-size: 11.5px; font-weight: 600; color: var(--faint); padding: 18px 10px 6px; }
 .nav-item { padding: 8px 10px; border-radius: var(--r-ctl); font-size: 13.5px; font-weight: 500; color: var(--text); }
 .nav-item:hover { background: #F3F6F9; }
@@ -354,7 +351,7 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 .sec-toggle span { flex: 1; }
 .sec-chev { flex: none; color: var(--faint); transition: transform .15s var(--ease); }
 .sec-chev.closed { transform: rotate(-90deg); }
-.admin-link { position: relative; display: flex; align-items: center; gap: 8px; height: 32px; margin: 0 8px; padding: 0 8px; border-radius: 6px; font-size: 13.5px; color: var(--text); white-space: nowrap; transition: background .15s, color .15s; }
+.admin-link { position: relative; flex: none; display: flex; align-items: center; gap: 8px; height: 32px; margin: 0 8px; padding: 0 8px; border-radius: 6px; font-size: 13.5px; color: var(--text); white-space: nowrap; transition: background .15s, color .15s; }
 .admin-link svg { color: var(--faint); flex: none; }
 .admin-link:hover { background: var(--mist); color: var(--navy); }
 .admin-link.on { background: var(--ice); color: var(--navy); font-weight: 600; box-shadow: none; }
