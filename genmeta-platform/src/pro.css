@@ -124,9 +124,9 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 .estate-frame { border-radius: 0; background: #FFFFFF; }
 
 /* ---------- app shell ---------- */
-.shell { background: var(--canvas); grid-template-columns: 248px 1fr; }
-.shell.is-collapsed { grid-template-columns: 72px 1fr; }
-.sidebar { background: var(--white); border-right: 1px solid var(--line); padding: 18px 12px 14px; }
+/* fixed 56px gutter; the sidebar overlays the page on hover (see .sidebar in styles.css) */
+.shell { background: var(--canvas); grid-template-columns: 56px 1fr; }
+.sidebar { background: var(--white); border-right: 1px solid var(--line); padding: 14px 12px 14px; }
 .sb-product { padding: 0 8px 14px; }
 .sb-pname { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
 .sb-psub { font-size: 12px; }

@@ -21,10 +21,12 @@ export function RailHead({ title, collapsed, onToggle, children }) {
     <div className="admin-nav-top">
       <div className="admin-nav-h">{title}</div>
       {children}
-      <button type="button" className="icon-btn rail-toggle" onClick={onToggle} aria-expanded={!collapsed}
-        aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title.toLowerCase()}`} title={`${collapsed ? 'Expand' : 'Collapse'} ${title.toLowerCase()}`}>
-        <I size={16} strokeWidth={1.6} />
-      </button>
+      {onToggle && (
+        <button type="button" className="icon-btn rail-toggle" onClick={onToggle} aria-expanded={!collapsed}
+          aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title.toLowerCase()}`} title={`${collapsed ? 'Expand' : 'Collapse'} ${title.toLowerCase()}`}>
+          <I size={16} strokeWidth={1.6} />
+        </button>
+      )}
     </div>
   );
 }
