@@ -131,7 +131,7 @@ export default function AppShell() {
             <Route path="data-estate" element={<Navigate to={`/app${search}`} replace />} />
             <Route path="catalogue" element={<Catalogue />} />
             <Route path="catalogue/:assetId" element={<AssetDetail />} />
-            <Route path="graph" element={<KnowledgeGraph />} />
+            <Route path="graph/*" element={<KnowledgeGraph />} />
             <Route path="ask" element={<AskGenMeta />} />
             <Route path="governance" element={<Governance />} />
             <Route path="classification" element={<Classification />} />
