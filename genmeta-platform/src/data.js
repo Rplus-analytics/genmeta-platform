@@ -46,6 +46,16 @@ export const TOTALS = {
 export const sizeTxt = (pb) => (pb < 0.1 ? `${Math.round(pb * 1000)} TB` : `${pb.toFixed(2)} PB`);
 export const fmt = (n) => n.toLocaleString('en-GB');
 
+/* Standards alignment — shared by the Data estate (Dashboard) and Governance pages
+   so the two screens can never drift apart. [label, coverage 0–1]. */
+export const STANDARDS = [
+  ['GDS Service Standard', 0.92],
+  ['NCSC CAF', 0.88],
+  ['Technology Code of Practice', 0.95],
+  ['UK GDPR', 0.9],
+  ['ISO 27001', 0.94],
+];
+
 /* 14-day trend lines for the KPI sparklines */
 export const TRENDS = {
   systems: [4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6],

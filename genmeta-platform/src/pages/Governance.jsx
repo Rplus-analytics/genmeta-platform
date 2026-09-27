@@ -1,5 +1,6 @@
 import { ShieldCheck, KeyRound, ScrollText, Fingerprint, Lock, FileSearch } from 'lucide-react';
 import { PageHead, Ring } from '../components/ui.jsx';
+import { STANDARDS } from '../data.js';
 
 const POLICIES = [
   { icon: KeyRound, name: 'Role-based access', id: 'GOV-01', d: 'Least-privilege roles federated from Microsoft Entra ID; steward approval for PERSONAL assets.', cov: 0.96 },
@@ -15,7 +16,7 @@ export default function Governance() {
     <div className="page fade-in">
       <PageHead title="Governance" sub="Policies, controls and standards alignment across the estate." />
       <section className="rings card pad">
-        {[['GDS Service Standard', 0.92], ['NCSC CAF', 0.88], ['Technology Code of Practice', 0.95], ['UK GDPR', 0.9], ['ISO 27001', 0.94]].map(([n, v]) => (
+        {STANDARDS.map(([n, v]) => (
           <div key={n} className="ring-item"><Ring value={v} size={92} stroke={8}><b>{Math.round(v * 100)}%</b></Ring><span>{n}</span></div>
         ))}
       </section>
