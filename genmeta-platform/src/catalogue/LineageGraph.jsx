@@ -209,7 +209,7 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
                   const mx = (x1 + x2) / 2;
                   const on = litEdge(e), off = (colEdges || lit) && !on;
                   return (
-                    <g key={e.s + e.t} className={`ledge ${on ? 'on' : ''} ${off ? 'off' : ''}`}>
+                    <g key={e.s + e.t} className={`ledge ${on ? 'on' : ''} ${off ? 'off' : ''} ${e.ai ? 'ai' : ''}`}>
                       <path d={`M${x1} ${y1} C${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} markerEnd={`url(#${off ? 'lin-arrow-dim' : 'lin-arrow'})`} />
                       <g transform={`translate(${mx} ${(y1 + y2) / 2})`}>
                         <rect x="-38" y="-9" width="76" height="18" rx="9" />

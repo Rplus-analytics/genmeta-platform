@@ -6,8 +6,9 @@ import LineageGraph from './LineageGraph.jsx';
 import ColumnMappings from './ColumnMappings.jsx';
 import AttributeGranularity from './AttributeGranularity.jsx';
 import EndToEnd from './EndToEnd.jsx';
+import MethodsLimits from './MethodsLimits.jsx';
 
-const SUBTABS = [['graph', 'Graph'], ['end-to-end', 'End to end']];
+const SUBTABS = [['graph', 'Graph'], ['end-to-end', 'End to end'], ['methods-limits', 'Methods & limits']];
 
 /* One connected platform per source system, in a stable order. */
 const PLATFORMS = [...new Set(ASSETS.map((a) => a.source))]
@@ -21,7 +22,8 @@ const PLATFORMS = [...new Set(ASSETS.map((a) => a.source))]
 export default function LineageSection({ a, onOpenAsset }) {
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
-  const sub = sp.get('lineage') === 'end-to-end' ? 'end-to-end' : 'graph';
+  const rawSub = sp.get('lineage');
+  const sub = rawSub === 'end-to-end' ? 'end-to-end' : rawSub === 'methods-limits' ? 'methods-limits' : 'graph';
   const setSub = (v) => setSp((prev) => { const n = new URLSearchParams(prev); n.set('lineage', v); return n; }, { replace: true });
 
   const [q, setQ] = useState('');
@@ -84,6 +86,8 @@ export default function LineageSection({ a, onOpenAsset }) {
           <ColumnMappings assetKey={graphFocus} onFocus={(k) => graphRef.current?.refocus(k)} />
           <AttributeGranularity assetKey={graphFocus} />
         </>
+      ) : sub === 'methods-limits' ? (
+        <MethodsLimits />
       ) : (
         <EndToEnd assetKey={a.key} />
       )}

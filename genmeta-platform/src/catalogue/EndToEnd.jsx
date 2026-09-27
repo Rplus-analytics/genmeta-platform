@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Share2, Sparkles, Boxes, ListChecks } from 'lucide-react';
-import { DATA, BY_KEY, srcMeta } from './model.js';
+import { BY_KEY, srcMeta, allEdges } from './model.js';
 
 /* ------------------------------------------------------------------
    "End to end" — the selected asset's lineage read as a single story:
@@ -70,17 +70,19 @@ export const METHOD_META = {
   ingested: { label: 'Direct metadata ingestion', cls: 'is-ingested' },
   parsed: { label: 'Parsed from query logic', cls: 'is-parsed' },
   observed: { label: 'Observed at runtime', cls: 'is-observed' },
+  declared: { label: 'Declared by a person', cls: 'is-declared' },
   inferred: { label: 'Inferred from schema', cls: 'is-inferred' },
 };
 
-/* No confidence field exists; derive it from how the hop is known. */
-export const CONFIDENCE = { ingested: 1, parsed: 0.85, observed: 0.75, inferred: 0.6 };
+/* No confidence field exists; derive it from how the hop is known.
+   Shared by End to end and Methods & limits so both tabs agree. */
+export const CONFIDENCE = { ingested: 1, parsed: 0.95, observed: 0.9, declared: 0.85, inferred: 0.5 };
 export const hopConfidence = (e) => CONFIDENCE[hopMethod(e)];
 
 /* The selected asset's whole lineage: its ancestors, itself and its
    descendants (siblings that merely share a source are excluded). */
 export function endToEnd(key) {
-  const all = DATA.edges;
+  const all = allEdges();
   const up = new Set(), down = new Set();
   const walkUp = (k) => { for (const e of all) if (e.t === k && !up.has(e.s)) { up.add(e.s); walkUp(e.s); } };
   const walkDown = (k) => { for (const e of all) if (e.s === k && !down.has(e.t)) { down.add(e.t); walkDown(e.t); } };
