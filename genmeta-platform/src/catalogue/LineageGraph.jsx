@@ -1,8 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Plus, Minus, Maximize, Crosshair, ChevronDown, ChevronUp, Search, ArrowUpRight, Hash, Type, Calendar, ToggleLeft } from 'lucide-react';
+import { Plus, Minus, Maximize, Maximize2, Minimize2, Crosshair, ChevronDown, ChevronUp, Search, ArrowUpRight, Hash, Type, Calendar, ToggleLeft, Info, X } from 'lucide-react';
 import { BY_KEY, KIND_ICON, lineageFor, srcMeta, kindLabel, upstreamOf, downstreamOf } from './model.js';
 
-const W = 244, H = 88, GX = 120, GY = 26, ROW = 26, LIST_MAX = 8;
+const W = 244, H = 88, GX = 120, GY = 26, ROW = 26, LIST_MAX = 8, PAD = 24;
+const DETAILS_KEY = 'lineage.detailsOpen';
+const readLS = (k, f) => { try { const v = localStorage.getItem(k); return v == null ? f : v === '1'; } catch { return f; } };
+const writeLS = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* ignore */ } };
 const TYPE_ICON = { number: Hash, text: Type, date: Calendar, boolean: ToggleLeft, timestamp: Calendar };
 
 function nodeHeight(a, open) {
@@ -92,31 +95,102 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
   const [hover, setHover] = useState(null);
   const [view, setView] = useState({ s: 1, x: 0, y: 0 });
   const [tab, setTab] = useState('overview');
+  const [canvasH, setCanvasH] = useState(480);
+  const [panelOpen, setPanelOpen] = useState(() => readLS(DETAILS_KEY, false));
+  const [pulse, setPulse] = useState(false);
+  const [isFS, setIsFS] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const wrap = useRef(null);
   const drag = useRef(null);
+  const cardRef = useRef(null);
+  const panelRef = useRef(null);
+  const toggleRef = useRef(null);
+  const expandedRef = useRef(false);
+  const firstPanelRun = useRef(true);
+  const lastW = useRef(0);
+  expandedRef.current = expanded;
 
   useEffect(() => { setFocus(focusKey); setSelected(focusKey); setColSel(null); }, [focusKey]);
 
   const { nodes, edges } = useMemo(() => lineageFor(focus), [focus]);
   const { pos, box } = useMemo(() => layout(nodes, edges, open), [nodes, edges, open]);
 
+  /* Fit the content to the canvas: scale to width, size the canvas to the
+     content (min 420px, max ~75vh — or fill in full screen), and pin to the
+     top with PAD so there is no blank band above the nodes. */
   const fit = () => {
     const el = wrap.current; if (!el) return;
-    const pw = el.clientWidth, ph = el.clientHeight, bw = box.x1 - box.x0 + 80, bh = box.y1 - box.y0 + 80;
-    const fitS = Math.min(1.05, pw / bw, ph / bh);
-    if (fitS >= 0.72) { setView({ s: fitS, x: (pw - (box.x1 - box.x0) * fitS) / 2 - box.x0 * fitS, y: (ph - (box.y1 - box.y0) * fitS) / 2 - box.y0 * fitS }); return; }
-    /* too big to fit legibly: stay readable and centre on the focused asset */
-    const s = 0.8, f = pos[focus] || { x: 0, y: 0, h: H };
-    const cx = Math.min(Math.max(f.x + W / 2, box.x0 + pw / (2 * s) - 40), box.x1 - pw / (2 * s) + 40);
-    setView({ s, x: pw / 2 - cx * s, y: ph / 2 - (f.y + f.h / 2) * s });
+    const pw = el.clientWidth || 1;
+    const bw = Math.max(1, box.x1 - box.x0), bh = Math.max(1, box.y1 - box.y0);
+    const filling = !!(document.fullscreenElement || document.webkitFullscreenElement) || expandedRef.current;
+    const vh = window.innerHeight || 800;
+    const maxH = filling ? Math.max(420, vh - 150) : Math.round(vh * 0.75);
+    let s = Math.min(1.05, (pw - PAD * 2) / bw);
+    const desiredH = filling ? maxH : Math.min(maxH, Math.max(420, Math.round(bh * s) + PAD * 2));
+    const sH = (desiredH - PAD * 2) / bh;
+    s = Math.max(0.4, Math.min(s, sH, 1.05));
+    const contentW = bw * s, contentH = bh * s;
+    const x = Math.max(PAD, (pw - contentW) / 2) - box.x0 * s;
+    const y = (filling ? Math.max(PAD, (desiredH - contentH) / 2) : PAD) - box.y0 * s;
+    lastW.current = pw;
+    setCanvasH(desiredH);
+    setView({ s, x, y });
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(fit, [focus]);
-  useEffect(() => { const ro = new ResizeObserver(() => fit()); if (wrap.current) ro.observe(wrap.current); return () => ro.disconnect(); }, [focus]); // eslint-disable-line
+  // re-fit whenever the layout (focus / expanded nodes) or full-screen state changes
+  useEffect(fit, [box, isFS, expanded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // re-fit on width change only (height is ours to set, so ignore height-only changes)
+  useEffect(() => {
+    const el = wrap.current; if (!el) return;
+    const ro = new ResizeObserver(() => { if (Math.abs(el.clientWidth - lastW.current) > 1) fit(); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [box]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const zoom = (f) => {
     const el = wrap.current; const cx = el.clientWidth / 2, cy = el.clientHeight / 2;
     setView((v) => { const s = Math.max(0.35, Math.min(2, v.s * f)); return { s, x: cx - (cx - v.x) * (s / v.s), y: cy - (cy - v.y) * (s / v.s) }; });
+  };
+
+  /* Full screen: real Fullscreen API on the graph card, CSS fallback if absent. */
+  const enterFS = () => {
+    const el = cardRef.current; if (!el) return;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) Promise.resolve(req.call(el)).catch(() => setExpanded(true));
+    else setExpanded(true);
+  };
+  const exitFS = () => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else setExpanded(false);
+  };
+  const toggleFS = () => ((isFS || expanded) ? exitFS() : enterFS());
+  useEffect(() => {
+    const onFs = () => { setIsFS(!!(document.fullscreenElement || document.webkitFullscreenElement)); };
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+    return () => { document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('webkitfullscreenchange', onFs); };
+  }, []);
+
+  /* Asset-details panel: persist open/closed, move focus, Esc to close. */
+  useEffect(() => { writeLS(DETAILS_KEY, panelOpen); }, [panelOpen]);
+  useEffect(() => {
+    if (firstPanelRun.current) { firstPanelRun.current = false; return; }
+    if (panelOpen) panelRef.current?.focus();
+    else toggleRef.current?.focus();
+  }, [panelOpen]);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (expanded) setExpanded(false);
+      else if (panelOpen) setPanelOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [expanded, panelOpen]);
+
+  const selectNode = (k) => {
+    setSelected(k);
+    if (!panelOpen) { setPulse(true); setTimeout(() => setPulse(false), 650); } // hint, don't auto-open
   };
   const down = (e) => { if (e.button !== 0) return; drag.current = { x: e.clientX, y: e.clientY, v: view, moved: false }; };
   const move = (e) => {
@@ -179,7 +253,7 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
   const ups = upstreamOf(sa.key), downs = downstreamOf(sa.key);
 
   return (
-    <div className="lineage">
+    <div className={`lineage ${panelOpen ? 'details-open' : ''} ${(isFS || expanded) ? 'is-fs' : ''}`}>
       <div className="lin-stats">
         <div><b>{up1}</b><span>Upstream assets</span><small>Direct inputs to the focused asset</small></div>
         <div><b>{down1}</b><span>Downstream assets</span><small>Direct consumers in lineage</small></div>
@@ -189,12 +263,18 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
       </div>
 
       <div className="lin-body">
-        <div className="card lin-canvas-card">
+        <div ref={cardRef} className={`card lin-canvas-card ${panelOpen ? 'with-panel' : ''} ${expanded ? 'expanded' : ''}`}>
           <div className="lin-h">
             <div><h3>Lineage graph</h3><p>Click an asset for details · double-click to refocus · open “cols” to trace a column</p></div>
-            {focus !== focusKey && <button className="btn ghost sm" onClick={() => refocus(focusKey)}>Back to {BY_KEY[focusKey].name}</button>}
+            <div className="lin-h-actions">
+              {focus !== focusKey && <button className="btn ghost sm" onClick={() => refocus(focusKey)}>Back to {BY_KEY[focusKey].name}</button>}
+              <button ref={toggleRef} className={`lin-details-toggle ${panelOpen ? 'on' : ''} ${pulse ? 'pulse' : ''}`}
+                aria-expanded={panelOpen} aria-label="Asset details" title="Asset details"
+                onClick={() => setPanelOpen((o) => !o)}><Info size={16} /></button>
+            </div>
           </div>
-          <div ref={wrap} className="lin-canvas" onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
+          <div className="lin-main">
+          <div ref={wrap} className="lin-canvas" style={{ height: canvasH }} onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
             onClick={() => { if (!drag.current?.moved) setColSel(null); }}>
             <div className="lin-world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}>
               <svg className="lin-edges" style={{ left: box.x0 - 40, top: box.y0 - 40, width: box.x1 - box.x0 + 80, height: box.y1 - box.y0 + 80 }}
@@ -223,7 +303,7 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
                 <div key={n.key} onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
                   <Node k={n.key} p={pos[n.key]} focus={n.key === focus} selected={n.key === selected} open={open.has(n.key)}
                     colSel={colSel} traceSeen={trace?.seen} hot={lit === n.key} dim={dimNode(n.key)}
-                    onSelect={setSelected} onFocus={refocus} onToggle={toggle} onCol={pickCol} />
+                    onSelect={selectNode} onFocus={refocus} onToggle={toggle} onCol={pickCol} />
                 </div>
               ))}
             </div>
@@ -231,14 +311,19 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
             <div className="lin-zoom" onMouseDown={(e) => e.stopPropagation()}>
               <button onClick={() => zoom(1.2)} aria-label="Zoom in"><Plus size={15} /></button>
               <button onClick={() => zoom(1 / 1.2)} aria-label="Zoom out"><Minus size={15} /></button>
-              <button onClick={fit} aria-label="Fit to screen"><Maximize size={14} /></button>
+              <button onClick={fit} aria-label="Fit to view"><Maximize size={14} /></button>
+              <button onClick={toggleFS} aria-label={(isFS || expanded) ? 'Exit full screen' : 'Full screen'} aria-pressed={isFS || expanded}>
+                {(isFS || expanded) ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
             </div>
             <div className="lin-legend"><span><i className="lg-focus" />Focus</span><span><i className="lg-edge" />Recorded lineage</span><span>Ctrl + scroll to zoom · drag to pan</span></div>
           </div>
-        </div>
 
-        <aside className="card lin-side">
-          <h3>Asset details</h3>
+          <aside ref={panelRef} tabIndex={-1} className={`lin-side ${panelOpen ? 'open' : ''}`} aria-hidden={!panelOpen} aria-label="Asset details">
+          <div className="ls-top">
+            <h3>Asset details</h3>
+            <button className="ls-close" aria-label="Close asset details" onClick={() => setPanelOpen(false)}><X size={16} /></button>
+          </div>
           <div className="ls-head">
             <b>{sa.name}</b>
             <small>{sa.schema} · {kindLabel(sa.kind)}</small>
@@ -285,7 +370,9 @@ const LineageGraph = forwardRef(function LineageGraph({ focusKey, onOpenAsset, o
             </div>
           )}
           {sa.key !== focusKey && <button className="btn ghost wide-sm" onClick={() => onOpenAsset(sa)}><ArrowUpRight size={14} />Open {sa.name}</button>}
-        </aside>
+          </aside>
+          </div>
+        </div>
       </div>
     </div>
   );
