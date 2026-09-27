@@ -21,6 +21,26 @@ export const ASSETS = RAW.assets.map((a) => ({
 export const BY_KEY = Object.fromEntries(ASSETS.map((a) => [a.key, a]));
 export const BY_ID = Object.fromEntries(ASSETS.map((a) => [String(a.id), a]));
 
+/* ---------- AI-assisted overlay ----------
+   Edges a person accepted from the Methods & limits proposals. Kept in memory
+   and mirrored to localStorage so they survive a refresh, and folded into the
+   graph / End to end lineage (drawn as inferred, but flagged ai + acceptedBy). */
+const OVERLAY_KEY = 'lineage.acceptedEdges';
+let ACCEPTED = [];
+try { ACCEPTED = JSON.parse(localStorage.getItem(OVERLAY_KEY) || '[]'); } catch { ACCEPTED = []; }
+const saveOverlay = () => { try { localStorage.setItem(OVERLAY_KEY, JSON.stringify(ACCEPTED)); } catch { /* ignore */ } };
+
+export const acceptedEdges = () => ACCEPTED;
+export const allEdges = () => (ACCEPTED.length ? RAW.edges.concat(ACCEPTED) : RAW.edges);
+export function addAcceptedEdge(edge) {
+  ACCEPTED = [...ACCEPTED.filter((e) => !(e.s === edge.s && e.t === edge.t)), edge];
+  saveOverlay();
+}
+export function removeAcceptedEdge(s, t) {
+  ACCEPTED = ACCEPTED.filter((e) => !(e.s === s && e.t === t));
+  saveOverlay();
+}
+
 /* Source systems, shown as small vendor marks */
 export const SOURCE_META = {
   Rplus_DWH: { ini: 'SF', vendor: 'Snowflake' },
@@ -163,17 +183,34 @@ export function tiles(list) {
 
 /* ---------- lineage ---------- */
 export function lineageFor(key) {
-  const hops = RAW.focus[key];
-  if (!hops) return { nodes: [{ key, hop: 0 }], edges: [] };
-  const keys = Object.keys(hops);
-  const set = new Set(keys);
+  const base = RAW.focus[key];
+  const edgesAll = allEdges();
+  if (!base) {
+    /* asset not in the precomputed focus map: build a one-hop neighbourhood */
+    const hop = { [key]: 0 };
+    for (const e of edgesAll) { if (e.s === key) hop[e.t] = 1; else if (e.t === key) hop[e.s] = -1; }
+    const set = new Set(Object.keys(hop));
+    return { nodes: Object.keys(hop).map((k) => ({ key: k, hop: hop[k] })), edges: edgesAll.filter((e) => set.has(e.s) && set.has(e.t)) };
+  }
+  const hops = { ...base };
+  /* pull accepted overlay edges into the picture by hanging their new endpoint
+     off whichever end is already on screen */
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const e of ACCEPTED) {
+      if (e.s in hops && !(e.t in hops)) { hops[e.t] = hops[e.s] + 1; changed = true; }
+      else if (e.t in hops && !(e.s in hops)) { hops[e.s] = hops[e.t] - 1; changed = true; }
+    }
+  }
+  const set = new Set(Object.keys(hops));
   return {
-    nodes: keys.map((k) => ({ key: k, hop: hops[k] })),
-    edges: RAW.edges.filter((e) => set.has(e.s) && set.has(e.t)),
+    nodes: Object.keys(hops).map((k) => ({ key: k, hop: hops[k] })),
+    edges: edgesAll.filter((e) => set.has(e.s) && set.has(e.t)),
   };
 }
-export const upstreamOf = (key) => RAW.edges.filter((e) => e.t === key);
-export const downstreamOf = (key) => RAW.edges.filter((e) => e.s === key);
+export const upstreamOf = (key) => allEdges().filter((e) => e.t === key);
+export const downstreamOf = (key) => allEdges().filter((e) => e.s === key);
 export const columnLineage = (key) => RAW.colLineage[key] || [];
 export const termsFor = (a) => RAW.terms.filter((t) => a.terms.includes(t.name) || t.assets.map((x) => x.toUpperCase()).includes(a.key));
 
