@@ -19,12 +19,17 @@
 .count-pill b { color: var(--navy); }
 
 /* ---------- compact stat strip ---------- */
+/* ---------- KPI strip — the one shared style across the app ----------
+   Used by .tiles-sm (Data estate, Data catalogue, Admin kit), .lin-stats
+   (Lineage tab) and .dq-tiles (Data quality tab). Each tile is a vertical
+   stack, everything left-aligned on the same x: value, label, then sub-label. */
 .tiles-sm { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--white); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-1); margin-bottom: 16px; }
-.tiles-sm > div { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: baseline; padding: 10px 16px; border-left: 1px solid var(--line); }
-.tiles-sm > div:first-child { border-left: 0; }
-.tiles-sm b { grid-row: span 2; font-size: 20px; font-weight: 600; color: var(--navy); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.tiles-sm span { font-size: 12.5px; font-weight: 600; color: var(--navy); }
-.tiles-sm small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tiles-sm > div, .lin-stats > div, .dq-tiles > div { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px 18px; border-left: 1px solid var(--line); min-width: 0; }
+.tiles-sm > div:first-child, .lin-stats > div:first-child, .dq-tiles > div:first-child { border-left: 0; }
+.tiles-sm b, .lin-stats b, .dq-tiles b { font-size: 22px; font-weight: 600; color: var(--navy); letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.tiles-sm b .unit, .lin-stats b .unit, .dq-tiles b .unit { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 3px; }
+.tiles-sm span, .lin-stats span, .dq-tiles span { font-size: 12.5px; font-weight: 600; color: var(--navy); }
+.tiles-sm small, .lin-stats small, .dq-tiles small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 /* ---------- ask in plain English ---------- */
 .askbox { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; background: var(--white); border: 1px solid var(--line2); border-radius: 10px; box-shadow: var(--shadow-1); }
@@ -165,12 +170,8 @@
 .asset-side .chips { gap: 5px; }
 
 /* ---------- lineage ---------- */
+/* container only; tile layout/typography come from the shared KPI-strip rules above */
 .lin-stats { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--white); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-1); margin-bottom: 16px; }
-.lin-stats > div { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: baseline; padding: 10px 16px; border-left: 1px solid var(--line); }
-.lin-stats > div:first-child { border-left: 0; }
-.lin-stats b { grid-row: span 2; font-size: 20px; font-weight: 600; color: var(--navy); }
-.lin-stats span { font-size: 12.5px; font-weight: 600; color: var(--navy); }
-.lin-stats small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lin-body { display: block; }
 .lin-canvas-card { padding: 16px; position: relative; }
 .lin-main { display: flex; align-items: stretch; }
@@ -577,12 +578,8 @@
 /* ================= Data quality ================= */
 .dq-header { margin-top: 14px; }
 .dq-modebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
-.dq-tiles { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; margin-top: 12px; }
-.dq-tiles > div { padding: 10px 14px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.dq-tiles > div:first-child { border-left: 0; }
-.dq-tiles b { font-size: 18px; font-weight: 600; color: var(--navy); }
-.dq-tiles span { font-size: 12px; font-weight: 600; color: var(--navy); }
-.dq-tiles small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* container only; tile layout/typography come from the shared KPI-strip rules above */
+.dq-tiles { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--white); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-1); overflow: hidden; margin-top: 12px; }
 .dq-body { margin-top: 0; }
 .dq-run, .dq-save { margin: 10px 0; }
 

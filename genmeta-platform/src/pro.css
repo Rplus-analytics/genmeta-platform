@@ -383,8 +383,9 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 .sources-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: var(--canvas); }
 
 /* ---------- dashboard: figures on top, the estate sized to fit the window ---------- */
+/* the six-KPI strip uses the shared stacked style (src/catalogue.css); only the column count is set here */
 .tiles-sm.dash-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.dash-grid { grid-template-columns: 1fr; padding-bottom: 28px; }
+.dash-grid { grid-template-columns: 1fr; padding-bottom: 0; margin-bottom: 16px; }
 .dash-grid .estate-frame.fill { min-height: 340px; height: calc(100vh - 450px); flex: 1 1 auto; }
 .estate-card .block-tools { display: flex; align-items: center; gap: 8px; }
 .estate-expand { border: 1px solid var(--line2); border-radius: var(--r-ctl); background: var(--white); }
@@ -394,4 +395,36 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 .estate-card.expanded { position: fixed; inset: 16px; z-index: 91; display: flex; flex-direction: column; }
 .dash-grid .estate-card.expanded .estate-frame.fill { flex: 1; height: auto; min-height: 0; }
 .estate-card.expanded .bezel.grow { flex: 1; }
+
+/* dashboard cards: same surface as the Data estate card, equal 16px gaps between all cards */
+.dash-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-1); padding: 18px 20px 16px; margin-bottom: 16px; }
+.dash-card > .block-head { align-items: center; margin-bottom: 16px; }
+.dash-card > .block-head h2 { font-size: 17px; }
+.dash-card .table-wrap { padding: 0; overflow-x: auto; }
+.dash-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-split .dash-card { margin-bottom: 0; }
+/* the share chart shows "count · pct%", so its value column needs a little more room */
+.dash-card .hbar { grid-template-columns: 96px 1fr auto; }
+.dash-card .hbar b { min-width: 78px; }
+
+/* Source systems: no bar under the Tables numbers, but the figures stay right-aligned */
+.dash-card .numbar i { display: none; }
+
+/* Status: Warning reads as a royal-outlined pill with a filled royal dot; Healthy is a plain muted dot */
+.status { text-transform: none; font-family: var(--body); letter-spacing: 0; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.status i { background: var(--faint); box-shadow: none; }
+.status.warning { color: var(--royal); border: 1px solid rgba(77, 125, 230, .45); border-radius: 99px; padding: 3px 10px; }
+.status.warning i { background: var(--royal); border: 0; box-shadow: none; width: 7px; height: 7px; }
+
+/* 6 across above 1180px; 3 across 720–1180px; 2 across below 720px
+   (the explicit dash-tiles column counts are needed because .tiles-sm.dash-tiles
+   outranks the shared .tiles-sm media rule) */
 @media (max-width: 1180px) { .tiles-sm.dash-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) {
+  .dash-split { grid-template-columns: 1fr; }
+  .tiles-sm.dash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tiles-sm.dash-tiles > div { border-top: 1px solid var(--line); }
+  .tiles-sm.dash-tiles > div:nth-child(-n+2) { border-top: 0; }
+  .tiles-sm.dash-tiles > div:nth-child(odd) { border-left: 0; }
+  .tiles-sm.dash-tiles > div:nth-child(even) { border-left: 1px solid var(--line); }
+}
