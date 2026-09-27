@@ -381,3 +381,17 @@ code, .mono, .log code, .tasks code { font-family: var(--mono); font-size: 12px;
 /* data sources (embedded page) */
 .sources-frame { position: relative; height: 100%; }
 .sources-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: var(--canvas); }
+
+/* ---------- dashboard: figures on top, the estate sized to fit the window ---------- */
+.tiles-sm.dash-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.dash-grid { grid-template-columns: 1fr; padding-bottom: 28px; }
+.dash-grid .estate-frame.fill { min-height: 340px; height: calc(100vh - 450px); flex: 1 1 auto; }
+.estate-card .block-tools { display: flex; align-items: center; gap: 8px; }
+.estate-expand { border: 1px solid var(--line2); border-radius: var(--r-ctl); background: var(--white); }
+/* the page fade-in animates transform, which would trap the fixed overlay inside the page */
+.page.estate-open { animation: none; }
+.estate-scrim { position: fixed; inset: 0; z-index: 90; background: rgba(7, 17, 31, .45); }
+.estate-card.expanded { position: fixed; inset: 16px; z-index: 91; display: flex; flex-direction: column; }
+.dash-grid .estate-card.expanded .estate-frame.fill { flex: 1; height: auto; min-height: 0; }
+.estate-card.expanded .bezel.grow { flex: 1; }
+@media (max-width: 1180px) { .tiles-sm.dash-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

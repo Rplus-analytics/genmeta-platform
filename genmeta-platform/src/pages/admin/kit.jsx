@@ -19,14 +19,12 @@ export function AdminHead({ title, sub, children }) {
   );
 }
 
+/* the same compact white strip of figures as the Data catalogue's tiles */
 export function Stats({ items }) {
   return (
-    <div className="stat-row">
+    <div className="tiles-sm" style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
       {items.map((s) => (
-        <div key={s.l} className="stat">
-          <span className="stat-ico"><s.icon size={19} /></span>
-          <div><b>{s.v}</b><span>{s.l}</span><small>{s.s}</small></div>
-        </div>
+        <div key={s.l} title={s.s}><b>{typeof s.v === 'number' ? s.v.toLocaleString('en-GB') : s.v}</b><span>{s.l}</span><small>{s.s}</small></div>
       ))}
     </div>
   );
