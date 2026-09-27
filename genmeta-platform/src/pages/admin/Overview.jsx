@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Users, UsersRound, Fingerprint, Mail, KeyRound } from 'lucide-react';
+import { Users, UsersRound, Fingerprint, Mail, KeyRound, ChevronRight } from 'lucide-react';
 import { Ring } from '../../components/ui.jsx';
 import { USERS, TOKENS, EVENT_LOGS, SSO, SMTP, ADMIN_TOTALS as T } from '../../admin-data.js';
 import { BASE, AdminHead, Stats, Pill, TOKEN_STATUS } from './kit.jsx';
@@ -21,7 +21,7 @@ export default function Overview() {
         <article className="card">
           <header className="card-head">
             <div><h2>API tokens</h2><p>Service credentials with scoped access to the GenMeta API.</p></div>
-            <Link className="bracket ghost" to={`${BASE}/api/tokens`}>API access</Link>
+            <Link className="btn link" to={`${BASE}/api/tokens`}>API access<ChevronRight size={14} /></Link>
           </header>
           <div className="table-wrap">
             <table className="tbl static">
@@ -58,7 +58,7 @@ export default function Overview() {
       <section className="card">
         <header className="card-head">
           <div><h2>Recent events</h2><p>Latest entries from the audit log.</p></div>
-          <Link className="bracket ghost" to={`${BASE}/logs/events`}>Event logs</Link>
+          <Link className="btn link" to={`${BASE}/logs/events`}>Event logs<ChevronRight size={14} /></Link>
         </header>
         <ul className="log admin-log">
           {EVENT_LOGS.slice(0, 5).map((e, i) => (

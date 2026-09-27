@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2,
   ChevronsUpDown, LogOut, Search, Bell, CircleHelp, Check, Server,
 } from 'lucide-react';
-import { NAV, pad3 } from '../nav.js';
+import { NAV, pad3, navMatch, isDataAssets } from '../nav.js';
 import { PRODUCTS } from '../data.js';
 import { BRAND } from '../brand.js';
 import { useAuth } from '../auth.jsx';
@@ -12,8 +12,7 @@ import { Burst } from '../components/Loader.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import DataSources from '../pages/DataSources.jsx';
 import CodeAnalyzer from '../pages/CodeAnalyzer.jsx';
-import Catalogue from '../pages/Catalogue.jsx';
-import AssetDetail from '../pages/AssetDetail.jsx';
+import DataAssets from '../pages/DataAssets.jsx';
 import KnowledgeGraph from '../pages/KnowledgeGraph.jsx';
 import AskGenMeta from '../pages/AskGenMeta.jsx';
 import Governance from '../pages/Governance.jsx';
@@ -29,6 +28,7 @@ const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesS
 function Sidebar() {
   const { user, signOut } = useAuth();
   const nav = useNavigate();
+  const { pathname } = useLocation();
   const [switcher, setSwitcher] = useState(false);
   const productRef = useRef(null);
   /* The platform switcher closes on click-outside and on Escape (it also closes when the
@@ -43,6 +43,14 @@ function Sidebar() {
   }, [switcher]);
   const Group = ({ g }) => NAV.filter((n) => n.group === g).map((n) => {
     const I = ICONS[n.icon];
+    /* "Data assets" opens /app/catalogue and stays highlighted across all its section routes */
+    if (n.assets) {
+      return (
+        <NavLink key={n.to} to={n.to} title={n.label} className={() => `nav-item ${isDataAssets(pathname) ? 'active' : ''}`}>
+          <I size={17} strokeWidth={1.5} /><span className="nav-label">{n.label}</span>
+        </NavLink>
+      );
+    }
     return (
       <NavLink key={n.to} to={n.to} end={n.end} title={n.label} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
         <I size={17} strokeWidth={1.5} /><span className="nav-label">{n.label}</span>
@@ -89,16 +97,16 @@ function Sidebar() {
 function Topbar({ loading }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const idx = Math.max(0, NAV.findIndex((n) => (n.end ? n.to === pathname : pathname === n.to || pathname.startsWith(n.to + '/'))));
-  const rest = pathname.slice(NAV[idx].to.length + 1);
-  const sub = rest && (NAV[idx].crumbs ? NAV[idx].crumbs[rest] : 'Asset');
+  const { group, parent, item, rest } = navMatch(pathname);
+  const sub = rest && (item.crumbs ? item.crumbs[rest] : 'Asset');
   /* don't repeat the group when it already matches the page label (e.g. Admin) */
-  const showGroup = NAV[idx].group !== NAV[idx].label;
+  const showGroup = !!parent || group !== item.label;
+  const topIdx = Math.max(0, NAV.findIndex((n) => n === parent || n === item));
   return (
     <header className="topbar">
       <i className={`route-bar ${loading ? 'on' : ''}`} />
       <img className="topbar-logo" src={BRAND.lockup} alt="Rplus | GenMeta" />
-      <div className="crumbs"><span className="counter">{pad3(idx + 1)} — {pad3(NAV.length)}</span><span>{showGroup && `${NAV[idx].group} / `}{sub ? <><span className="crumb-link">{NAV[idx].label}</span> / <b>{sub}</b></> : <b>{NAV[idx].label}</b>}</span></div>
+      <div className="crumbs"><span className="counter">{pad3(topIdx + 1)} — {pad3(NAV.length)}</span><span>{showGroup && `${group} / `}{parent && `${parent.label} / `}{sub ? <><span className="crumb-link">{item.label}</span> / <b>{sub}</b></> : <b>{item.label}</b>}</span></div>
       <label className="top-search"><Search size={15} strokeWidth={1.5} /><input placeholder="Search data, systems, or ask a question…" aria-label="Search" /><kbd>⌘K</kbd></label>
       <div className="top-actions">
         <span className={`top-burst ${loading ? 'on' : ''}`}><Burst size={20} /></span>
@@ -137,8 +145,14 @@ export default function AppShell() {
             <Route path="sources" element={<DataSources />} />
             {/* The standalone Data estate page is retired; old links land on the dashboard. */}
             <Route path="data-estate" element={<Navigate to={`/app${search}`} replace />} />
-            <Route path="catalogue" element={<Catalogue />} />
-            <Route path="catalogue/:assetId" element={<AssetDetail />} />
+            {/* The Data assets section shares one InnerLayout across all its routes */}
+            <Route path="catalogue" element={<DataAssets />} />
+            <Route path="catalogue/:assetId" element={<DataAssets />} />
+            <Route path="lineage" element={<DataAssets />} />
+            <Route path="quality" element={<DataAssets />} />
+            <Route path="data-governance" element={<DataAssets />} />
+            <Route path="data-explorer" element={<DataAssets />} />
+            <Route path="metadata-changes" element={<DataAssets />} />
             <Route path="graph/*" element={<KnowledgeGraph />} />
             <Route path="ask" element={<AskGenMeta />} />
             <Route path="governance" element={<Governance />} />

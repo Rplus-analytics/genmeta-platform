@@ -4,7 +4,7 @@ import {
   Search, X, ChevronDown, ChevronUp, ChevronsUpDown, ArrowUpDown, BadgeCheck, Sparkles, Server, Database, FolderTree, Shapes,
   Boxes, UserRound, ShieldAlert, Gauge, Layers, Activity, Tags,
 } from 'lucide-react';
-import { useCollapsed, RailHead } from '../components/Rail.jsx';
+import { Section } from '../components/Rail.jsx';
 import {
   ASSETS, FACETS, EXAMPLES, KIND_ICON, facetCounts, matchesFilters, matchesText, parseQuestion, srcMeta, kindLabel, tiles, pct,
 } from '../catalogue/model.js';
@@ -31,6 +31,47 @@ const FACET_ICON = {
 const DROP_ALL = { source: 'All source systems', db: 'All databases', schema: 'All schemas', kind: 'All asset types' };
 const optLabel = (k, v) => (k === 'kind' ? kindLabel(v) : v);
 
+/* All catalogue filter state, kept in one place so the inner-menu filters and the results share it. */
+export function useCatalogueState() {
+  const [sel, setSel] = useState(SAVED.sel);
+  const [words, setWords] = useState(SAVED.words);
+  const [asked, setAsked] = useState(SAVED.asked);
+  const [q, setQ] = useState(SAVED.q);
+  const [sort, setSort] = useState(SAVED.sort);
+  Object.assign(SAVED, { sel, words, asked, q, sort });
+
+  const toggle = (k, v) => setSel((s) => {
+    const cur = s[k] || [];
+    return { ...s, [k]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] };
+  });
+  /* picking a higher level clears the levels under it */
+  const setDrop = (k, v) => setSel((s) => {
+    const n = { ...s, [k]: v ? [v] : [] };
+    if (k === 'source') { n.db = []; n.schema = []; }
+    if (k === 'db') n.schema = [];
+    return n;
+  });
+  const ask = (text) => {
+    const t = text.trim();
+    if (!t) { setWords([]); setAsked(''); return; }
+    const p = parseQuestion(t);
+    setQ(t); setAsked(t); setSel(p.sel); setWords(p.words);
+  };
+  const clearAll = () => { setSel({}); setWords([]); setAsked(''); setQ(''); };
+
+  const results = useMemo(() => {
+    const r = ASSETS.filter((a) => matchesFilters(a, sel) && matchesText(a, words));
+    if (sort === 'name') r.sort((x, y) => x.fqn.localeCompare(y.fqn));
+    if (sort === 'trust') r.sort((x, y) => y.trust - x.trust);
+    return r;
+  }, [sel, words, sort]);
+  const counts = useMemo(() => facetCounts(ASSETS, sel, words), [sel, words]);
+  const active = Object.entries(sel).flatMap(([k, vs]) => vs.map((v) => [k, v]));
+  const nActive = active.length + (words.length ? 1 : 0);
+
+  return { sel, words, setWords, asked, q, setQ, sort, setSort, toggle, setDrop, ask, clearAll, results, counts, active, nActive };
+}
+
 /* One of the stacked dropdowns: source system › database › schema, then asset type */
 function Drop({ f, opts, value, onChange }) {
   const I = FACET_ICON[f.key];
@@ -47,11 +88,15 @@ function Drop({ f, opts, value, onChange }) {
   );
 }
 
-function FacetGroup({ f, opts, sel, toggle, focus }) {
+function FacetGroup({ f, opts, sel, toggle }) {
   const I = FACET_ICON[f.key];
-  const [open, setOpen] = useState(sel.length > 0 || focus);
+  /* Sensitivity opens by default; the rest collapse. */
+  const [open, setOpen] = useState(sel.length > 0 || f.key === 'sensitivity');
   const [more, setMore] = useState(false);
-  const shown = more ? opts : opts.slice(0, 6);
+  const [query, setQuery] = useState('');
+  const searchable = opts.length > 8 || f.key === 'owner';   /* a search box for long lists (Owner, Tags…) */
+  const filtered = query ? opts.filter((o) => o.v.toLowerCase().includes(query.toLowerCase())) : opts;
+  const shown = more || query ? filtered : filtered.slice(0, 6);
   return (
     <section className="fgroup">
       <button className={`admin-link fgroup-h ${open ? 'on' : ''}`} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
@@ -59,16 +104,48 @@ function FacetGroup({ f, opts, sel, toggle, focus }) {
       </button>
       {open && (
         <div className="fgroup-b">
-          {shown.map(({ v, n }) => (
-            <label key={v} className={`fopt ${n === 0 && !sel.includes(v) ? 'zero' : ''}`}>
-              <input type="checkbox" checked={sel.includes(v)} onChange={() => toggle(f.key, v)} />
-              <span className="fopt-l" title={v}>{v}</span><span className="fopt-n">{n}</span>
+          {searchable && (
+            <label className="fsearch"><Search size={13} strokeWidth={1.75} />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${f.label.toLowerCase()}…`} aria-label={`Search ${f.label}`} />
             </label>
-          ))}
-          {opts.length > 6 && <button className="fmore" onClick={() => setMore((m) => !m)}>{more ? 'Show fewer' : `Show ${opts.length - 6} more`}</button>}
+          )}
+          <div className="fopts">
+            {shown.map(({ v, n }) => (
+              <label key={v} className={`fopt ${n === 0 && !sel.includes(v) ? 'zero' : ''}`}>
+                <input type="checkbox" checked={sel.includes(v)} onChange={() => toggle(f.key, v)} />
+                <span className="fopt-l" title={v}>{v}</span><span className="fopt-n">{n}</span>
+              </label>
+            ))}
+            {!shown.length && <p className="fnone">No matches</p>}
+          </div>
+          {!query && opts.length > 6 && <button className="fmore" onClick={() => setMore((m) => !m)}>{more ? 'Show fewer' : `Show ${opts.length - 6} more`}</button>}
         </div>
       )}
     </section>
+  );
+}
+
+/* The filters, shown inside the Data assets inner menu (below the section links). */
+export function FiltersPanel({ state }) {
+  const { sel, toggle, setDrop, counts, clearAll, nActive } = state;
+  return (
+    <div className="cat-filters">
+      <div className="inner-sep" />
+      <div className="cat-filters-h">
+        <span className="admin-nav-sec">Filters</span>
+        {nActive > 0 && <button className="btn link cat-clear" onClick={clearAll}>Clear ({nActive})</button>}
+      </div>
+      <Section label="Source" defaultOpen>
+        <div className="fsource">
+          {FACETS.filter((f) => f.drop).map((f) => (
+            <Drop key={f.key} f={f} opts={counts[f.key]} value={sel[f.key]?.[0]} onChange={(v) => setDrop(f.key, v)} />
+          ))}
+        </div>
+      </Section>
+      {FACETS.filter((f) => !f.drop).map((f) => (
+        <FacetGroup key={f.key} f={f} opts={counts[f.key]} sel={sel[f.key] || []} toggle={toggle} />
+      ))}
+    </div>
   );
 }
 
@@ -110,53 +187,12 @@ function AssetRow({ a, onOpen }) {
   );
 }
 
-export default function Catalogue() {
+/* The catalogue content (KPIs, ask box, applied chips, results) — fills the content area. */
+export function CatalogueResults({ state }) {
   const nav = useNavigate();
-  const [sel, setSel] = useState(SAVED.sel);
-  const [words, setWords] = useState(SAVED.words);
-  const [asked, setAsked] = useState(SAVED.asked);
-  const [q, setQ] = useState(SAVED.q);
-  const [sort, setSort] = useState(SAVED.sort);
-  const [srcOpen, setSrcOpen] = useState(true);
-  const [collapsed, setCollapsed] = useCollapsed('catalogue-filters');
-  const [focus, setFocus] = useState(null);
-  /* In the collapsed rail each filter is an icon; choosing one opens the rail at that filter. */
-  const expandAt = (k) => { setFocus(k); if (FACETS.find((f) => f.key === k)?.drop) setSrcOpen(true); setCollapsed(false); };
-  Object.assign(SAVED, { sel, words, asked, q, sort });
-
-  const toggle = (k, v) => setSel((s) => {
-    const cur = s[k] || [];
-    return { ...s, [k]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] };
-  });
-  /* picking a higher level clears the levels under it */
-  const setDrop = (k, v) => setSel((s) => {
-    const n = { ...s, [k]: v ? [v] : [] };
-    if (k === 'source') { n.db = []; n.schema = []; }
-    if (k === 'db') n.schema = [];
-    return n;
-  });
-  const ask = (text) => {
-    const t = text.trim();
-    if (!t) { setWords([]); setAsked(''); return; }
-    const p = parseQuestion(t);
-    setQ(t); setAsked(t); setSel(p.sel); setWords(p.words);
-  };
-  const clearAll = () => { setSel({}); setWords([]); setAsked(''); setQ(''); };
-
-  const results = useMemo(() => {
-    const r = ASSETS.filter((a) => matchesFilters(a, sel) && matchesText(a, words));
-    if (sort === 'name') r.sort((x, y) => x.fqn.localeCompare(y.fqn));
-    if (sort === 'trust') r.sort((x, y) => y.trust - x.trust);
-    return r;
-  }, [sel, words, sort]);
-  const counts = useMemo(() => facetCounts(ASSETS, sel, words), [sel, words]);
-  const active = Object.entries(sel).flatMap(([k, vs]) => vs.map((v) => [k, v]));
-  const nActive = active.length + (words.length ? 1 : 0);
-
+  const { sel, words, setWords, asked, q, setQ, sort, setSort, toggle, ask, clearAll, results, active } = state;
   return (
-    <div className="page cat fade-in">
-      <span className="eyebrow cat-eyebrow">Discover</span>
-
+    <div className="cat fade-in">
       <div className="tiles-sm">
         {tiles(results).map((t) => (
           <div key={t.k}><b>{t.v.toLocaleString('en-GB')}</b><span>{t.k}</span><small>{t.s}</small></div>
@@ -173,77 +209,39 @@ export default function Catalogue() {
         {EXAMPLES.map((e) => <button key={e} onClick={() => ask(e)} className={asked === e ? 'on' : ''}>{e}</button>)}
       </div>
 
-      <div className={`cat-grid ${collapsed ? 'rail-collapsed' : ''}`}>
-        <aside className={`admin-nav cat-rail ${collapsed ? 'collapsed' : ''}`} aria-label="Filters">
-          <RailHead title="Filters" collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-          {collapsed ? (
-            FACETS.map((f, i) => {
-              const I = FACET_ICON[f.key];
-              const n = sel[f.key]?.length || 0;
-              return (
-                <div key={f.key}>
-                  {(i === 0 || (!f.drop && FACETS[i - 1].drop)) && <div className="admin-nav-sec" />}
-                  <button className={`admin-link ${n ? 'on' : ''}`} onClick={() => expandAt(f.key)} title={n ? `${f.label} (${n} selected)` : f.label} aria-label={`Filter by ${f.label.toLowerCase()}`}>
-                    <I size={16} strokeWidth={1.6} />{n > 0 && <i className="rail-dot" />}
-                  </button>
-                </div>
-              );
-            })
-          ) : (
-            <>
-              {nActive > 0 && <button className="rail-clear" onClick={clearAll}>Clear all filters ({nActive})</button>}
-              <button className="admin-nav-sec fsource-h" onClick={() => setSrcOpen((o) => !o)} aria-expanded={srcOpen}>
-                <span>Source</span>{srcOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      <section className="results">
+        <div className="results-h">
+          <div className="applied">
+            {asked && <span className="asked">Results for “{asked}”</span>}
+            {active.map(([k, v]) => (
+              <button key={k + v} className="achip" onClick={() => toggle(k, v)} aria-label={`Remove ${FACET_LABEL[k]} ${v}`}>
+                <span>{FACET_LABEL[k]}:</span> {optLabel(k, v)}<X size={12} />
               </button>
-              {srcOpen && (
-                <div className="fsource">
-                  {FACETS.filter((f) => f.drop).map((f) => (
-                    <Drop key={f.key} f={f} opts={counts[f.key]} value={sel[f.key]?.[0]} onChange={(v) => setDrop(f.key, v)} />
-                  ))}
-                </div>
-              )}
-              <div className="admin-nav-sec">Metadata filters</div>
-              {FACETS.filter((f) => !f.drop).map((f) => (
-                <FacetGroup key={f.key} f={f} opts={counts[f.key]} sel={sel[f.key] || []} toggle={toggle} focus={focus === f.key} />
-              ))}
-            </>
-          )}
-        </aside>
-
-        <section className="results">
-          <div className="results-h">
-            <div className="applied">
-              {asked && <span className="asked">Results for “{asked}”</span>}
-              {active.map(([k, v]) => (
-                <button key={k + v} className="achip" onClick={() => toggle(k, v)} aria-label={`Remove ${FACET_LABEL[k]} ${v}`}>
-                  <span>{FACET_LABEL[k]}:</span> {optLabel(k, v)}<X size={12} />
-                </button>
-              ))}
-              {words.length > 0 && (
-                <button className="achip" onClick={() => setWords([])} aria-label="Remove text search"><span>Text:</span> {words.join(' ')}<X size={12} /></button>
-              )}
-              {!asked && !active.length && <span className="asked">Showing all assets</span>}
-            </div>
-            <span className="showing">Showing <b>{results.length}</b> of {ASSETS.length}</span>
-            <label className="sort"><ArrowUpDown size={14} />
-              <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
-                {Object.entries(SORTS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-            </label>
+            ))}
+            {words.length > 0 && (
+              <button className="achip" onClick={() => setWords([])} aria-label="Remove text search"><span>Text:</span> {words.join(' ')}<X size={12} /></button>
+            )}
+            {!asked && !active.length && <span className="asked">Showing all assets</span>}
           </div>
+          <span className="showing">Showing <b>{results.length}</b> of {ASSETS.length}</span>
+          <label className="sort"><ArrowUpDown size={14} />
+            <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
+              {Object.entries(SORTS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </label>
+        </div>
 
-          {results.length === 0 ? (
-            <div className="empty card">
-              <Search size={20} />
-              <b>No assets match</b>
-              <p>Remove a filter or rephrase the question. Try naming a source, an owner, or a classification such as PII.</p>
-              <button className="btn ghost" onClick={clearAll}>Clear all filters</button>
-            </div>
-          ) : (
-            <div className="arows">{results.map((a) => <AssetRow key={a.id} a={a} onOpen={() => nav(`/app/catalogue/${a.id}`)} />)}</div>
-          )}
-        </section>
-      </div>
+        {results.length === 0 ? (
+          <div className="empty card">
+            <Search size={20} />
+            <b>No assets match</b>
+            <p>Remove a filter or rephrase the question. Try naming a source, an owner, or a classification such as PII.</p>
+            <button className="btn ghost" onClick={clearAll}>Clear all filters</button>
+          </div>
+        ) : (
+          <div className="arows">{results.map((a) => <AssetRow key={a.id} a={a} onOpen={() => nav(`/app/catalogue/${a.id}`)} />)}</div>
+        )}
+      </section>
     </div>
   );
 }

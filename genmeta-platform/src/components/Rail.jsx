@@ -1,18 +1,11 @@
 import { useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ChevronDown } from 'lucide-react';
 
-/* In-page left rails (Admin, Catalogue filters) share one look and one collapse behaviour.
-   The collapsed state is remembered per rail in this browser. */
-export function useCollapsed(key) {
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem(`gm:rail:${key}`) === '1'; } catch { return false; }
-  });
-  const set = (v) => setCollapsed((cur) => {
-    const next = typeof v === 'function' ? v(cur) : v;
-    try { localStorage.setItem(`gm:rail:${key}`, next ? '1' : '0'); } catch { /* storage unavailable */ }
-    return next;
-  });
-  return [collapsed, set];
+/* In-page left rails (Admin, Knowledge graph, Catalogue filters) share one look and one
+   collapse behaviour. Every rail opens expanded on each visit; collapsing lasts only while
+   you stay on the page (it is not saved), so a refresh or coming back shows it expanded again. */
+export function useCollapsed() {
+  return useState(false);
 }
 
 export function RailHead({ title, collapsed, onToggle, children }) {
@@ -27,6 +20,19 @@ export function RailHead({ title, collapsed, onToggle, children }) {
           <I size={16} strokeWidth={1.6} />
         </button>
       )}
+    </div>
+  );
+}
+
+/* A collapsible section label inside an inner menu (Logs, Filters…). */
+export function Section({ label, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="inner-section">
+      <button type="button" className="admin-nav-sec sec-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span>{label}</span><ChevronDown size={13} className={`sec-chev ${open ? '' : 'closed'}`} />
+      </button>
+      {open && <div className="inner-section-b">{children}</div>}
     </div>
   );
 }

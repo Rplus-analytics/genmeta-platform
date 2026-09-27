@@ -10,9 +10,10 @@
 :root{
   color-scheme:light;
   /* GenMeta palette: navy + burst blues, same as src/styles.css + src/pro.css */
-  --bg:#F3F6F9; --panel:#ffffff; --panel-2:#F6FBFF; --line:#E1E8F1; --line-2:#EFF3F7;
-  --ink:#0D264F; --ink-2:#566A89; --ink-3:#8694AB; --deep:#1E4281;
-  --blue:#447DE6; --blue-2:#92BAE6; --blue-soft:#EDF4FF; --sel:#EDF4FF;
+  /* mapped to the app tokens (src/pro.css) so Data sources matches the rest of the platform */
+  --bg:#F3F6F9; --panel:#ffffff; --panel-2:#F6FBFF; --line:#D7E1EC; --line-2:#EFF3F7;
+  --ink:#0E2A57; --ink-2:#566A89; --ink-3:#8694AB; --deep:#07111F;
+  --blue:#4D8CFF; --blue-2:#92BAE6; --blue-soft:#EDF4FF; --sel:#EDF4FF;
   --warn:#447DE6; --bad:#0D264F;
   --shadow:0 1px 2px rgba(13, 38, 79,.04),0 1px 1px rgba(13, 38, 79,.03);
   --sans:"Hanken Grotesk",-apple-system,"Helvetica Neue",Arial,sans-serif;
@@ -334,17 +335,18 @@ tr.grp td{background:var(--panel-2);font-weight:500;font-size:13.5px;cursor:defa
   .grid{grid-template-columns:1fr}
 }
 
-/* ===== v4 professional layer ===== */
-body{font-size:14.5px}
+/* ===== v4 professional layer — control sizes matched to the app scale (sm 28 / md 32 / lg 36) ===== */
+body{font-size:14px}
 .main{padding-block:24px 64px}
 .phead h1{font-size:26px}
-.btn{border-radius:8px;padding:7px 13px;font-size:14px}
-.btn.xs{padding:4px 10px;font-size:13px;border-radius:7px}
+.btn{border-radius:8px;height:36px;padding:0 14px;font-size:13.5px}
+.btn.xs{height:28px;padding:0 10px;font-size:12.5px;border-radius:8px}
 .sel,.search{border-radius:8px}
-.sel{padding:7px 10px;font-size:14px}
-.search{padding:7px 10px}
-.tabs{gap:24px;margin-top:16px}
-.tabs button{font-size:14.5px}
+.sel{height:32px;padding:0 12px;font-size:13px}
+.search{height:32px;padding:0 12px}
+.tabs{gap:26px;margin-top:16px}
+.tabs button{font-size:14px}
+td{font-size:14px}
 .grow{flex:1}
 .collect2{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:13.5px;color:var(--ink-2);flex-wrap:wrap}
 .collect2 svg{width:16px;height:16px;color:var(--blue);flex:none}

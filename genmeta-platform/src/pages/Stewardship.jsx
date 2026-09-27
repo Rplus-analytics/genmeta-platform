@@ -17,6 +17,10 @@ export default function Stewardship() {
     <div className="page fade-in">
       <PageHead title="Stewardship" sub="73 open tasks. GenMeta proposes changes; stewards approve them." />
       <article className="card">
+        <header className="card-head">
+          <div><h2>Open tasks</h2><p>GenMeta’s proposals, waiting on a steward.</p></div>
+          <button className="btn primary sm" onClick={() => setDone(Object.fromEntries(TASKS.map((_, i) => [i, true])))}><Check size={14} />Approve selected</button>
+        </header>
         <ul className="tasks">
           {TASKS.map((t, i) => {
             const I = ICON[t.k];
@@ -24,8 +28,8 @@ export default function Stewardship() {
               <li key={i} className={done[i] ? 'done' : ''}>
                 <span className="feed-ico"><I size={15} /></span>
                 <div className="task-t"><b>{t.t}</b><small><code>{t.target}</code> · {t.who} · due {t.due}</small></div>
-                <button className="btn ghost sm" onClick={() => setDone({ ...done, [i]: true })}><X size={14} />Reject</button>
-                <button className="btn primary sm" onClick={() => setDone({ ...done, [i]: true })}><Check size={14} />Approve</button>
+                <button className="btn subtle sm" onClick={() => setDone({ ...done, [i]: true })}><X size={14} />Reject</button>
+                <button className="btn secondary sm" onClick={() => setDone({ ...done, [i]: true })}><Check size={14} />Approve</button>
               </li>
             );
           })}

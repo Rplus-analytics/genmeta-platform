@@ -8,6 +8,6 @@ dist/
 .env
 .env.*
 
-# Local tooling / verification scripts
+# Local tooling / verification & screenshot scripts
 .claude/
-verify-*.mjs
+*.mjs

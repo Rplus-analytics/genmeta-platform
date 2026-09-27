@@ -523,15 +523,28 @@ h1, h2, h3 { text-wrap: balance; }
 .sb-pname, .sb-psub, .env-t, .me-t, .env-t b, .env-t small, .me-t b, .me-t small { white-space: nowrap; }
 .sb-switch { overflow: hidden; }
 /* labels/text fade in on hover; the icons themselves are never faded */
-.nav-label, .nav-badge, .sb-group, .sb-switch, .env-t, .me-t { transition: opacity .18s var(--ease); }
+.nav-label, .nav-badge, .nav-chev, .sb-group, .sb-switch, .env-t, .me-t { transition: opacity .18s var(--ease); }
 /* collapsed: fully hidden — no first-letter peeking — but the box stays so icons don't move */
 .sidebar:not(:hover):not(:focus-within) .nav-label,
 .sidebar:not(:hover):not(:focus-within) .nav-badge,
+.sidebar:not(:hover):not(:focus-within) .nav-chev,
 .sidebar:not(:hover):not(:focus-within) .sb-group,
 .sidebar:not(:hover):not(:focus-within) .sb-switch,
 .sidebar:not(:hover):not(:focus-within) .env-t,
 .sidebar:not(:hover):not(:focus-within) .me-t { opacity: 0; visibility: hidden; transition: opacity .18s var(--ease), visibility 0s .18s; }
 .sidebar:not(:hover):not(:focus-within) .me .icon-btn { display: none; }
+
+/* "Data assets" dropdown in the main sidebar */
+.nav-group { display: flex; flex-direction: column; gap: 1px; }
+.nav-parent { width: 100%; text-align: left; background: none; }
+.nav-chev { margin-left: auto; flex: none; color: var(--faint); transition: transform .18s var(--ease), opacity .18s var(--ease); }
+.nav-chev.closed { transform: rotate(-90deg); }
+.nav-children { display: flex; flex-direction: column; gap: 1px; }
+.nav-child { padding-left: 40px; }
+/* collapsed rail: only the parent icon shows; highlight it when a child route is active */
+.sidebar:not(:hover):not(:focus-within) .nav-children { display: none; }
+.sidebar:not(:hover):not(:focus-within) .nav-parent.has-active { background: var(--ice); color: var(--navy); font-weight: 600; }
+.sidebar:not(:hover):not(:focus-within) .nav-parent.has-active svg { color: var(--royal); }
 
 /* top bar spans the full width; the full logo sits on the left and never changes */
 .topbar { display: flex; align-items: center; gap: 28px; padding: 16px 40px; border-bottom: 1px solid var(--hair); }

@@ -54,9 +54,71 @@ export function VendorChip({ ini, size = 40 }) {
   return <span className="vchip" style={{ width: size, height: size, fontSize: size * 0.32 }}>{ini}</span>;
 }
 
+/* ------------------------------------------------------------------
+   Shared controls — the one button/control standard (see pro.css and
+   docs/ui-hygiene-audit.html). Reuse these when touching markup.
+   ------------------------------------------------------------------ */
+
+/* Button: variant = primary | secondary | ghost | subtle | link; size = sm | md | lg (default). */
+export function Button({ variant = 'secondary', size, icon: Icon, iconRight, loading, disabled, className = '', children, ...rest }) {
+  const cls = ['btn', variant, size, className].filter(Boolean).join(' ');
+  return (
+    <button className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
+      {Icon && !iconRight && <Icon size={size === 'sm' ? 14 : 16} strokeWidth={1.75} />}
+      {children}
+      {Icon && iconRight && <Icon size={size === 'sm' ? 14 : 16} strokeWidth={1.75} />}
+    </button>
+  );
+}
+
+/* IconButton: a square icon-only button. aria-label is required. */
+export function IconButton({ icon: Icon, label, variant = 'secondary', size, className = '', ...rest }) {
+  const cls = ['btn', 'icon', variant, size, className].filter(Boolean).join(' ');
+  return (
+    <button className={cls} aria-label={label} title={label} {...rest}>
+      <Icon size={size === 'sm' ? 14 : 16} strokeWidth={1.75} />
+    </button>
+  );
+}
+
+/* Segmented control (.seg2): options = [{value, label}]. Selected = ice + navy. */
+export function Segmented({ options, value, onChange, size = 'md', ariaLabel }) {
+  return (
+    <div className={`seg2 ${size}`} role="tablist" aria-label={ariaLabel}>
+      {options.map((o) => (
+        <button key={o.value} role="tab" aria-selected={value === o.value}
+          className={value === o.value ? 'on' : ''} onClick={() => onChange(o.value)}>{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+/* Tabs: level 1 (.tabs underline) or level 2 (.subtabs pills, set level="sub"). */
+export function Tabs({ items, value, onChange, level = 'main', className = '' }) {
+  return (
+    <div className={`${level === 'sub' ? 'subtabs' : 'tabs'} ${className}`} role="tablist">
+      {items.map((t) => {
+        const I = t.icon;
+        return (
+          <button key={t.value} role="tab" aria-selected={value === t.value}
+            className={value === t.value ? 'on' : ''} onClick={() => onChange(t.value)}>
+            {I && <I size={14} strokeWidth={1.7} />}{t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Badge: status lozenge — tone = ok | warn | bad. */
+export function Badge({ tone = 'ok', dot = true, children }) {
+  return <span className={`badge ${tone}`}>{dot && <i />}{children}</span>;
+}
+
 export function Status({ s }) {
-  const map = { healthy: 'Healthy', warning: 'Warning', failed: 'Failed' };
-  return <span className={`status ${s}`}><i />{map[s]}</span>;
+  const map = { healthy: ['ok', 'Healthy'], warning: ['warn', 'Warning'], failed: ['bad', 'Failed'] };
+  const [tone, label] = map[s] || ['ok', s];
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 export function PageHead({ title, sub, eyebrow, children }) {
