@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Plus, RefreshCw, Download } from 'lucide-react';
-import { SOURCES, TOTALS, CHANGES, fmt, sizeTxt } from '../data.js';
+import { Plus, RefreshCw, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { SOURCES, TOTALS, fmt, sizeTxt } from '../data.js';
 import { Ring, Status } from '../components/ui.jsx';
-import { KPIS, GlossCard } from '../components/Tablet.jsx';
 import EstateFrame, { useEstateRefresh } from '../components/EstateFrame.jsx';
 import { useAuth } from '../auth.jsx';
 import { Burst } from '../components/Loader.jsx';
@@ -26,6 +25,22 @@ export default function Dashboard() {
   });
   const [mode, setMode] = useState(() => (new URLSearchParams(search).get('mode') === '3d' ? '3d' : '2d'));
   const { refreshing, refresh, ago, next, changes } = useEstateRefresh(frame, TOTALS.changes);
+  /* the estate can be expanded to fill the window; Escape brings it back */
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded]);
+  const stats = [
+    { k: 'Systems connected', v: fmt(TOTALS.systems), s: 'All reporting' },
+    { k: 'Tables', v: fmt(TOTALS.tables), s: `${Math.round(TOTALS.coverage * 100)}% described` },
+    { k: 'Fields', v: fmt(TOTALS.fields), s: 'Profiled & classified' },
+    { k: 'Estate size', v: `${TOTALS.pb.toFixed(2)} PB`, s: `${TOTALS.databases} databases` },
+    { k: 'Description coverage', v: `${Math.round(TOTALS.coverage * 100)}%`, s: 'of tables' },
+    { k: 'Changes', v: changes, s: 'since the last pull · every 30 min' },
+  ];
 
   useEffect(() => { if (search) nav('/app', { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -40,7 +55,7 @@ export default function Dashboard() {
   const first = (user?.name || 'Admin').split(' ')[0];
 
   return (
-    <div className="page fade-in">
+    <div className={`page fade-in ${expanded ? 'estate-open' : ''}`}>
       <div className="page-head">
         <div>
           <span className="eyebrow">Data estate</span>
@@ -54,31 +69,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <section className="dash-grid">
-        <div className="kpi-col">
-          {KPIS.map((k, i) => <GlossCard key={k.key} k={k} i={i} spark={92} flat />)}
-        </div>
+      <div className="tiles-sm dash-tiles">
+        {stats.map((t) => <div key={t.k}><b>{t.v}</b><span>{t.k}</span><small>{t.s}</small></div>)}
+      </div>
 
-        <article ref={card} className="estate-card">
+      <section className="dash-grid">
+        {expanded && <div className="estate-scrim" onClick={() => setExpanded(false)} />}
+        <article ref={card} className={`estate-card ${expanded ? 'expanded' : ''}`}>
           <header className="block-head tight">
-            <div><h2>Data estate</h2><p className="block-sub">Each connected source drawn as a landmark at its relative size. Lit windows are described tables. Select a building to see its layers.</p></div>
+            <div><h2>Data estate</h2><p className="block-sub">Each connected source drawn as a building at its relative size. Lit windows are described tables. Select a building to see its layers.</p></div>
             <div className="block-tools">
               <div className="toggle" role="group" aria-label="View">
                 <button className={mode === '2d' ? 'on' : ''} onClick={() => switchMode('2d')}>2D</button><span>/</span>
                 <button className={mode === '3d' ? 'on' : ''} onClick={() => switchMode('3d')}>3D</button>
               </div>
+              <button className="icon-btn estate-expand" onClick={() => setExpanded((v) => !v)}
+                aria-label={expanded ? 'Collapse estate view' : 'Expand estate view'} title={expanded ? 'Collapse (Esc)' : 'Expand'}>
+                {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
             </div>
           </header>
           <div className="bezel grow"><div className="estate-frame fill"><EstateFrame ref={frame} title="GenMeta data estate" params={params} /></div></div>
-          <div className="facts three">
-            <div><Ring value={TOTALS.coverage} size={40} stroke={3}><b>{Math.round(TOTALS.coverage * 100)}</b></Ring><p><span>Description coverage</span>{Math.round(TOTALS.coverage * 100)}% of tables</p></div>
-            <div><b className="fact-n">{changes}</b><p><span>Changes since last pull</span>metadata changes</p></div>
-            <div><b className="fact-n">30<small>min</small></b><p><span>Collection</span>scheduled · incremental</p></div>
-          </div>
         </article>
       </section>
 
-      <section className="block split">
+      <section className="block">
         <div>
           <header className="block-head">
             <div><h2>Source systems</h2><p className="block-sub">Size, description coverage and ingestion health.</p></div>
@@ -101,17 +116,6 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-        </div>
-        <div>
-          <header className="block-head"><div><h2>Recent agent activity</h2></div></header>
-          <ul className="log">
-            {CHANGES.map((c, i) => (
-              <li key={i} className={c.kind === 'alert' ? 'flag' : ''}>
-                <time>{c.t}</time>
-                <p><b>{c.who}</b> {c.what} <code>{c.target}</code><small>{c.src}</small></p>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 

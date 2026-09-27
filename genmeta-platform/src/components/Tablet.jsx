@@ -21,7 +21,7 @@ export function GlossCard({ k, i = 0, spark = 70, flat = false }) {
     <article className={`gcard ${k.tone} ${flat ? 'flat' : ''}`} style={{ '--d': `${i * 0.35}s`, '--z': `${28 + i * 10}px` }}>
       <div className="gc-top"><span>{k.label}</span><i /></div>
       <div className="gc-val"><CountUp to={k.value} decimals={k.dec || 0} />{k.unit && <small>{k.unit}</small>}</div>
-      <div className="gc-foot"><span>{k.note}</span><Sparkline data={TRENDS[k.key]} w={spark} h={spark * 0.34} stroke={flat ? '#1F5FD6' : 'rgba(255,255,255,.95)'} fill={flat ? 'rgba(31,95,214,.08)' : 'rgba(255,255,255,.16)'} /></div>
+      <div className="gc-foot"><span>{k.note}</span><Sparkline data={TRENDS[k.key]} w={spark} h={spark * 0.34} stroke={flat ? '#447DE6' : 'rgba(255, 255, 255,.95)'} fill={flat ? 'rgba(68, 125, 230,.08)' : 'rgba(255, 255, 255,.16)'} /></div>
     </article>
   );
 }

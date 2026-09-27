@@ -8,6 +8,7 @@ export const NAV = [
   { to: '/app/classification', label: 'Classification', group: 'Govern', icon: 'Tag' },
   { to: '/app/products', label: 'Data products', group: 'Govern', icon: 'Package' },
   { to: '/app/stewardship', label: 'Stewardship', group: 'Govern', icon: 'Users', badge: 73 },
+  { to: '/app/code-analyzer', label: 'Code analyzer', group: 'Govern', icon: 'FileCode2' },
   { to: '/app/sources', label: 'Data sources', group: 'Govern', icon: 'Database' },
   { to: '/app/admin', label: 'Admin', group: 'Admin', icon: 'ShieldCheck' },
 ];

@@ -57,16 +57,16 @@ export const kindLabel = (k) => (k === 'api' ? 'API endpoint' : k[0].toUpperCase
 
 /* Filters, in the dev order and with the dev names */
 export const FACETS = [
-  /* the three stacked dropdowns at the top of the filter panel */
+  /* the stacked dropdowns at the top of the filter panel */
   { key: 'source', label: 'Source system', get: (a) => [a.source], drop: true },
   { key: 'db', label: 'Database', get: (a) => [a.db], drop: true },
   { key: 'schema', label: 'Schema', get: (a) => [a.schema], drop: true },
+  { key: 'kind', label: 'Asset type', get: (a) => [a.kind], drop: true },
   /* everything else, as expandable checkbox groups underneath */
   { key: 'domain', label: 'Domain', get: (a) => [a.domain] },
   { key: 'owner', label: 'Owner', get: (a) => [a.owner] },
   { key: 'sensitivity', label: 'Sensitivity', get: (a) => [a.sensitivity] },
   { key: 'quality', label: 'Quality', get: (a) => [a.quality] },
-  { key: 'kind', label: 'Type', get: (a) => [a.kind] },
   { key: 'layer', label: 'Layer', get: (a) => (a.layer ? [a.layer] : []) },
   { key: 'usage', label: 'Usage pattern', get: (a) => [a.usage] },
   { key: 'tags', label: 'Tags', get: (a) => a.tags },

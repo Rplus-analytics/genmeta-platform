@@ -10,11 +10,11 @@
 :root{
   color-scheme:light;
   /* GenMeta palette: navy + burst blues, same as src/styles.css + src/pro.css */
-  --bg:#F5F7FA; --panel:#ffffff; --panel-2:#F6F9FD; --line:#E3E8F0; --line-2:#EEF2F7;
-  --ink:#0B1A4A; --ink-2:#5F6B85; --ink-3:#8A95AB; --deep:#14307A;
-  --blue:#1F5FD6; --blue-2:#38C6F4; --blue-soft:#EAF2FE; --sel:#EAF2FE;
-  --warn:#1F5FD6; --bad:#0B1A4A;
-  --shadow:0 1px 2px rgba(11,26,74,.04),0 1px 1px rgba(11,26,74,.03);
+  --bg:#F3F6F9; --panel:#ffffff; --panel-2:#F6FBFF; --line:#E1E8F1; --line-2:#EFF3F7;
+  --ink:#0D264F; --ink-2:#566A89; --ink-3:#8694AB; --deep:#1E4281;
+  --blue:#447DE6; --blue-2:#92BAE6; --blue-soft:#EDF4FF; --sel:#EDF4FF;
+  --warn:#447DE6; --bad:#0D264F;
+  --shadow:0 1px 2px rgba(13, 38, 79,.04),0 1px 1px rgba(13, 38, 79,.03);
   --sans:"Hanken Grotesk",-apple-system,"Helvetica Neue",Arial,sans-serif;
   --mono:"JetBrains Mono","SF Mono",ui-monospace,Menlo,monospace;
 }
@@ -59,7 +59,7 @@ input,select{font:inherit;color:inherit}
 .ticons{display:flex;gap:14px;align-items:center}
 .ticons svg{width:20px;height:20px;color:var(--ink-2)}
 .ticons .bell{position:relative}.ticons .bell::after{content:"";position:absolute;top:0;right:0;width:7px;height:7px;border-radius:50%;background:var(--blue-2)}
-.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue-2),var(--blue));color:#fff;display:grid;place-items:center;font-weight:600}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue-2),var(--blue));color:#ffffff;display:grid;place-items:center;font-weight:600}
 .iconbtn{border:0;background:none;padding:4px;display:grid;place-items:center}
 /* main */
 .main{padding-block:22px 64px;padding-inline:32px;min-width:0}
@@ -68,7 +68,7 @@ input,select{font:inherit;color:inherit}
 .phead p{margin:2px 0 0;color:var(--ink-2)}
 .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 14px;font-weight:500;white-space:nowrap}
 .btn:hover{border-color:var(--ink-3)}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#ffffff}
 .btn.primary:hover{filter:brightness(1.07)}
 .btn.sm{padding:5px 11px;font-size:14px}
 .btn.ghost{border-color:transparent;background:none}
@@ -236,7 +236,7 @@ tr:last-child td{border-bottom:0}
 .field input,.field select{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 10px;width:100%}
 .toggle{display:flex;align-items:center;gap:10px;font-size:14.5px;padding:6px 0;cursor:pointer}
 .sw{width:36px;height:21px;border-radius:12px;background:var(--line);position:relative;flex:none;transition:background .15s}
-.sw::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#ffffff;transition:left .15s;box-shadow:0 1px 2px rgba(7, 17, 31,.2)}
 input.swi{position:absolute;opacity:0;width:1px;height:1px}
 input.swi:checked+.sw{background:var(--blue)}
 input.swi:checked+.sw::after{left:17px}
@@ -259,14 +259,14 @@ input.swi:focus-visible+.sw{outline:2px solid var(--blue);outline-offset:2px}
 .drop svg{width:34px;height:34px;color:var(--blue)}
 .steps3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
 /* modal */
-.scrim{position:fixed;inset:0;background:rgba(10,18,30,.45);display:grid;place-items:center;padding:16px;z-index:20}
-.modal{background:var(--panel);border-radius:16px;width:min(880px,100%);max-height:calc(100% - 20px);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.scrim{position:fixed;inset:0;background:rgba(7, 17, 31,.45);display:grid;place-items:center;padding:16px;z-index:20}
+.modal{background:var(--panel);border-radius:16px;width:min(880px,100%);max-height:calc(100% - 20px);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(7, 17, 31,.25);overflow:hidden}
 .mhead{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
 .mhead h3{margin:0;font-size:19px;font-weight:500}
 .wsteps{display:flex;gap:6px;padding:12px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .wst{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-3);padding:4px 12px 4px 4px;border-radius:999px}
 .wst b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;background:var(--line-2);color:var(--ink-2);font-weight:500}
-.wst.on{color:var(--ink);background:var(--sel)}.wst.on b{background:var(--blue);color:#fff}
+.wst.on{color:var(--ink);background:var(--sel)}.wst.on b{background:var(--blue);color:#ffffff}
 .wst.done b{background:var(--blue-soft);color:var(--blue)}
 .mbody{padding:18px 22px;overflow:auto;flex:1}
 .mfoot{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
@@ -477,7 +477,7 @@ tr.grp td{background:var(--bg);padding:0;border-bottom:1px solid var(--line)}
 .pkg:hover{border-color:var(--blue-2);box-shadow:var(--shadow)}
 .pk-h{display:flex;gap:12px;align-items:flex-start}
 .pk-logo{position:relative;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:500;flex:none;color:var(--ink-2)}
-.pk-ok{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-style:normal;display:grid;place-items:center;border:2px solid var(--panel)}
+.pk-ok{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#ffffff;font-size:10px;font-style:normal;display:grid;place-items:center;border:2px solid var(--panel)}
 .pk-h b{display:block;color:var(--blue);font-weight:500;font-size:15px;line-height:1.3}
 .pk-h span{font-size:13px;color:var(--ink-2)}
 .pkg p{margin:0;font-size:13px;color:var(--ink-3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -517,8 +517,8 @@ body{color:var(--ink);background:var(--bg)}
 .bdg.healthy::before{background:var(--blue-2)}
 .bdg.warning{background:transparent;color:var(--blue);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--blue) 40%,transparent)}
 .bdg.warning::before{background:transparent;border:1.5px solid currentColor;width:5px;height:5px}
-.bdg.failed{background:var(--ink);color:#fff}
-.bdg.failed::before{border-radius:1px;background:#fff}
+.bdg.failed{background:var(--ink);color:#ffffff}
+.bdg.failed::before{border-radius:1px;background:#ffffff}
 .alert,.attn{border-left-color:var(--blue)}
 .alert.failed{border-left-color:var(--ink)}
 .alert .ai svg{color:var(--blue)}
@@ -831,8 +831,8 @@ function renderCreds(){
   <div class="tablewrap"><table style="min-width:860px"><thead><tr><th>Credential</th><th>Type</th><th>Used by</th><th>Last rotated</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>${CREDS.map(c=>`<tr><td class="mono">${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td><td>${c[4]}</td><td>${c[5]?`<span class="health">${mk("warning")}${c[5]}</span>`:`<span class="health">${mk("healthy")}Valid</span>`}</td><td><button class="btn sm" data-rot="${c[0]}">${c[5]==="Expires soon"?"Rotate now":c[5]?"Fix permissions":"Rotate"}</button></td></tr>`).join("")}</tbody></table></div>`);
   wireShell();$$("[data-rot]").forEach(b=>b.onclick=()=>toast(`${b.dataset.rot}: opens the rotate form. Connected sources are re-tested automatically after saving.`));
 }
-function stageBar(r){return `<div class="stages"><i style="flex:${r.c};background:#A9C8F8"></i><i style="flex:${r.e};background:var(--blue-2)"></i><i style="flex:${r.cl};background:var(--blue)"></i><i style="flex:${r.p};background:var(--deep)"></i></div>`}
-function stageLegend(){return `<div class="lg"><span><i style="background:#A9C8F8"></i>Connect</span><span><i style="background:var(--blue-2)"></i>Extract</span><span><i style="background:var(--blue)"></i>Classify</span><span><i style="background:var(--deep)"></i>Publish</span></div>`}
+function stageBar(r){return `<div class="stages"><i style="flex:${r.c};background:#A7C3F3"></i><i style="flex:${r.e};background:var(--blue-2)"></i><i style="flex:${r.cl};background:var(--blue)"></i><i style="flex:${r.p};background:var(--deep)"></i></div>`}
+function stageLegend(){return `<div class="lg"><span><i style="background:#A7C3F3"></i>Connect</span><span><i style="background:var(--blue-2)"></i>Extract</span><span><i style="background:var(--blue)"></i>Classify</span><span><i style="background:var(--deep)"></i>Publish</span></div>`}
 function wireLinks(){$$("[data-link]").forEach(b=>b.onclick=e=>{e.stopPropagation();const url="https://dev.genmeta.rplusanalytics.co.uk/sources/runs/"+Math.random().toString(36).slice(2,9);(navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>toast("Link to this scan copied")).catch(()=>toast("Link: "+url))})}
 const MKT=[
  {id:"ukpii",n:"UK personal data classifier",cat:"Classifiers",pub:"Rplus",v:"2.3.0",st:"update",tile:"PII",d:"Detects National Insurance numbers, NHS numbers, UK postcodes, sort codes and phone numbers in column names and samples.",adds:"12 classification rules · feeds the PII tag",perm:"Read column samples (Full scan depth)",feat:true},
