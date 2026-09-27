@@ -196,8 +196,8 @@ export default function LineageGraph({ focusKey, onOpenAsset }) {
               <svg className="lin-edges" style={{ left: box.x0 - 40, top: box.y0 - 40, width: box.x1 - box.x0 + 80, height: box.y1 - box.y0 + 80 }}
                 viewBox={`${box.x0 - 40} ${box.y0 - 40} ${box.x1 - box.x0 + 80} ${box.y1 - box.y0 + 80}`}>
                 <defs>
-                  <marker id="lin-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1F5FD6" /></marker>
-                  <marker id="lin-arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#B8C6DD" /></marker>
+                  <marker id="lin-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#447DE6" /></marker>
+                  <marker id="lin-arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#B6C6DC" /></marker>
                 </defs>
                 {edges.map((e) => {
                   const a = pos[e.s], b = pos[e.t]; if (!a || !b) return null;

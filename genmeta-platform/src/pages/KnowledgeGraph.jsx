@@ -26,7 +26,7 @@ export default function KnowledgeGraph() {
       <article className="card graph-card">
         <svg viewBox={`0 0 ${W} ${H}`} className="graph">
           <defs>
-            <radialGradient id="hub" cx="50%" cy="40%"><stop offset="0" stopColor="#5ED3FA" /><stop offset="1" stopColor="#1F5FD6" /></radialGradient>
+            <radialGradient id="hub" cx="50%" cy="40%"><stop offset="0" stopColor="#A1CBF7" /><stop offset="1" stopColor="#447DE6" /></radialGradient>
           </defs>
           {srcNodes.map((s) => (
             <line key={`h-${s.id}`} x1={CX} y1={CY} x2={s.x} y2={s.y} className={`edge flow ${dim(s.id) ? 'dim' : ''}`} />

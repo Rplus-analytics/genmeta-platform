@@ -4,7 +4,8 @@ import {
 } from 'lucide-react';
 import { ADMIN_NAV } from '../nav.js';
 import { BASE } from './admin/kit.jsx';
-import { useCollapsed, RailHead } from '../components/Rail.jsx';
+import { RailHead } from '../components/Rail.jsx';
+import { useShell } from '../app/shell.js';
 import Overview from './admin/Overview.jsx';
 import { UsersPage, GroupsPage } from './admin/Directory.jsx';
 import ApiAccess from './admin/ApiAccess.jsx';
@@ -34,11 +35,14 @@ function AdminNav({ collapsed, onToggle }) {
 }
 
 export default function Admin() {
-  const [collapsed, setCollapsed] = useCollapsed('admin');
+  /* Only one of the two navigations is open at a time: opening the GenMeta sidebar collapses the
+     Admin rail, and opening the Admin rail collapses the GenMeta sidebar. */
+  const shell = useShell();
+  const collapsed = !shell.collapsed;
   return (
     <div className="page fade-in admin-page">
       <div className={`admin-layout ${collapsed ? 'rail-collapsed' : ''}`}>
-        <AdminNav collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+        <AdminNav collapsed={collapsed} onToggle={() => shell.setCollapsed((c) => !c)} />
         <div className="admin-body">
           <Routes>
             <Route index element={<Overview />} />

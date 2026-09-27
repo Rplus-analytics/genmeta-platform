@@ -22,7 +22,7 @@ export function CountUp({ to, decimals = 0, duration = 1100 }) {
 }
 
 /* Minimal sparkline (area + line) */
-export function Sparkline({ data, w = 120, h = 40, stroke = '#fff', fill = 'rgba(255,255,255,.18)' }) {
+export function Sparkline({ data, w = 120, h = 40, stroke = '#ffffff', fill = 'rgba(255, 255, 255,.18)' }) {
   const min = Math.min(...data), max = Math.max(...data);
   const pts = data.map((d, i) => [(i / (data.length - 1)) * w, h - 4 - ((d - min) / (max - min || 1)) * (h - 8)]);
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
@@ -35,7 +35,7 @@ export function Sparkline({ data, w = 120, h = 40, stroke = '#fff', fill = 'rgba
   );
 }
 
-export function Ring({ value, size = 64, stroke = 7, color = '#1F5FD6', track = '#E6EEFB', children }) {
+export function Ring({ value, size = 64, stroke = 7, color = '#447DE6', track = '#E5F2FF', children }) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return (
     <div className="ring" style={{ width: size, height: size }}>

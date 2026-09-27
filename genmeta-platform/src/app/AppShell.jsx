@@ -21,6 +21,7 @@ import Classification from '../pages/Classification.jsx';
 import DataProducts from '../pages/DataProducts.jsx';
 import Stewardship from '../pages/Stewardship.jsx';
 import Admin from '../pages/Admin.jsx';
+import { ShellCtx } from './shell.js';
 
 const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2 };
 
@@ -116,6 +117,7 @@ export default function AppShell() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
+    <ShellCtx.Provider value={{ collapsed, setCollapsed }}>
     <div className={`shell ${collapsed ? 'is-collapsed' : ''}`}>
       <Sidebar onToggle={() => setCollapsed((c) => !c)} />
       <div className="main">
@@ -144,5 +146,6 @@ export default function AppShell() {
         <button className="fab" onClick={() => nav('/app/ask')} aria-label="Ask GenMeta"><img src={BRAND.burst} alt="" /></button>
       )}
     </div>
+    </ShellCtx.Provider>
   );
 }

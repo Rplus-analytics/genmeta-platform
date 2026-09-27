@@ -2,11 +2,11 @@ import { PageHead } from '../components/ui.jsx';
 import { SOURCES, fmt } from '../data.js';
 
 const LEVELS = [
-  { k: 'Public', v: 212, c: '#A9D8FF' },
-  { k: 'Internal', v: 486, c: '#5AAEF7' },
-  { k: 'Personal', v: 241, c: '#2F7BE8' },
-  { k: 'Financial', v: 263, c: '#1B4FC0' },
-  { k: 'Sensitive', v: 82, c: '#0B1F5C' },
+  { k: 'Public', v: 212, c: '#ABD4FE' },
+  { k: 'Internal', v: 486, c: '#80B3FF' },
+  { k: 'Personal', v: 241, c: '#447DE6' },
+  { k: 'Financial', v: 263, c: '#3A6FCD' },
+  { k: 'Sensitive', v: 82, c: '#143468' },
 ];
 const total = LEVELS.reduce((t, l) => t + l.v, 0);
 
