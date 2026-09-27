@@ -7,6 +7,7 @@ import {
   BY_ID, BY_KEY, KIND_ICON, kindLabel, srcMeta, enrichment, termsFor, columnLineage, upstreamOf, downstreamOf, fmtBytes, pct,
 } from '../catalogue/model.js';
 import LineageSection from '../catalogue/LineageSection.jsx';
+import DataQualitySection from '../catalogue/quality/DataQualitySection.jsx';
 import { Sens } from './Catalogue.jsx';
 
 const TABS = ['overview', 'columns', 'lineage', 'contract', 'quality'];
@@ -171,19 +172,22 @@ export default function AssetDetail() {
   const nav = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const a = BY_ID[assetId];
-  const [tab, setTab] = useState(() => (searchParams.get('lineage') ? 'lineage' : 'overview'));
+  const tabFromUrl = () => (searchParams.get('quality') ? 'quality' : searchParams.get('lineage') ? 'lineage' : 'overview');
+  const [tab, setTab] = useState(tabFromUrl);
   const [starred, setStarred] = useState(false);
   const [copied, setCopied] = useState(false);
   const I = useMemo(() => (a ? KIND_ICON[a.kind] || KIND_ICON.table : null), [a]);
-  // When the asset changes (e.g. picked from the lineage filter bar) honour the
-  // ?lineage= hint in the URL, otherwise start on the overview tab.
-  useEffect(() => { setTab(searchParams.get('lineage') ? 'lineage' : 'overview'); }, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // When the asset changes (e.g. picked from a filter bar) honour the ?lineage=
+  // / ?quality= hint in the URL, otherwise start on the overview tab.
+  useEffect(() => { setTab(tabFromUrl()); }, [assetId, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!a) return <Navigate to="/app/catalogue" replace />;
   const verified = a.trust >= 0.8;
   const go = (t) => {
     setTab(t);
     const sp = new URLSearchParams(searchParams);
-    if (t === 'lineage') { if (!sp.get('lineage')) sp.set('lineage', 'graph'); } else sp.delete('lineage');
+    if (t === 'lineage') { sp.delete('quality'); if (!sp.get('lineage')) sp.set('lineage', 'graph'); }
+    else if (t === 'quality') { sp.delete('lineage'); if (!sp.get('quality')) sp.set('quality', 'profiling'); }
+    else { sp.delete('lineage'); sp.delete('quality'); }
     setSearchParams(sp, { replace: true });
   };
 
@@ -222,13 +226,14 @@ export default function AssetDetail() {
 
       {tab === 'lineage' ? (
         <LineageSection a={a} onOpenAsset={(x) => nav(`/app/catalogue/${x.id}`)} />
+      ) : tab === 'quality' ? (
+        <DataQualitySection a={a} onOpenAsset={(x) => nav(`/app/catalogue/${x.id}?quality=profiling`)} />
       ) : (
         <div className="asset-grid">
           <div className="asset-main">
             {tab === 'overview' && <Overview a={a} go={go} />}
             {tab === 'columns' && <div className="card pad-lg"><h3 className="sec-h">Columns</h3><ColTable a={a} full /></div>}
             {tab === 'contract' && <Contract a={a} />}
-            {tab === 'quality' && <Quality a={a} />}
           </div>
           <SidePanel a={a} />
         </div>
