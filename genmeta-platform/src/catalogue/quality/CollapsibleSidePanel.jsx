@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
-/* Shared "slide-in side panel with a pinned toggle" — the same pattern as the
-   Lineage graph's Asset details. Wraps main content (which narrows when the
-   panel opens) and renders the panel on the right. Open/closed persists in
+/* A card-content area with a collapsible side panel, laid out as a two-column
+   grid (content + 340px panel, 16px gap) that collapses to a single column.
+   A labelled toggle sits in the header row. Open/closed persists in
    localStorage; Esc / × close it; focus moves into the panel on open and back
    to the toggle on close; the toggle pulses when `pulseSignal` changes while
    collapsed; under 900px the panel opens as an overlay drawer (CSS). */
 const read = (k, f) => { try { const v = localStorage.getItem(k); return v == null ? f : v === '1'; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* ignore */ } };
 
-export default function CollapsibleSidePanel({ storageKey, title, tooltip, icon: Icon, panel, pulseSignal, children }) {
+export default function CollapsibleSidePanel({ storageKey, heading, title, tooltip, icon: Icon, panel, pulseSignal, children }) {
   const [open, setOpen] = useState(() => read(storageKey, false));
   const [pulse, setPulse] = useState(false);
   const panelRef = useRef(null);
@@ -35,13 +35,16 @@ export default function CollapsibleSidePanel({ storageKey, title, tooltip, icon:
 
   return (
     <div className={`csp ${open ? 'is-open' : ''}`}>
-      <div className="csp-bar">
-        <button ref={toggleRef} className={`lin-details-toggle csp-toggle ${open ? 'on' : ''} ${pulse ? 'pulse' : ''}`}
-          aria-expanded={open} aria-label={tooltip} title={tooltip} onClick={() => setOpen((o) => !o)}><Icon size={16} /></button>
+      <div className="csp-head">
+        <span className="csp-heading">{heading}</span>
+        <button ref={toggleRef} className={`btn ghost sm dq-panel-toggle ${open ? 'on' : ''} ${pulse ? 'pulse' : ''}`}
+          aria-expanded={open} aria-label={tooltip} title={tooltip} onClick={() => setOpen((o) => !o)}>
+          <Icon size={14} /><span className="dq-panel-toggle-l">{tooltip}</span>
+        </button>
       </div>
-      <div className="csp-main">
+      <div className={`csp-grid ${open ? 'is-open' : ''}`}>
         <div className="csp-content">{children}</div>
-        <aside ref={panelRef} tabIndex={-1} className={`lin-side csp-panel ${open ? 'open' : ''}`} aria-hidden={!open} aria-label={title}>
+        <aside ref={panelRef} tabIndex={-1} className={`card csp-panel ${open ? 'open' : ''}`} aria-hidden={!open} aria-label={title}>
           <div className="ls-top"><h3>{title}</h3><button className="ls-close" aria-label={`Close ${title}`} onClick={() => setOpen(false)}><X size={16} /></button></div>
           {open && panel}
         </aside>

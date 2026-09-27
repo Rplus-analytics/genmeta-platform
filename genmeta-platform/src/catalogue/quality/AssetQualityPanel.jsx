@@ -90,9 +90,9 @@ export default function AssetQualityPanel({ assetKey }) {
       <div className="aqp-sec">
         <h4 className="aqp-h">Recommended actions</h4>
         {actions.length ? actions.map((ac) => (
-          <div key={ac.text} className="aqp-action">
+          <div key={ac.text} className={`aqp-action ${ac.to ? '' : 'is-note'}`}>
             <span>{ac.text}</span>
-            {ac.to ? <button className="rel-link" onClick={() => nav(ac.to)}>{ac.link} <ArrowUpRight size={12} /></button> : <span className="ml-detail">—</span>}
+            {ac.to && <button className="rel-link" onClick={() => nav(ac.to)}>{ac.link} <ArrowUpRight size={12} /></button>}
           </div>
         )) : <p className="ml-detail">No actions outstanding.</p>}
       </div>

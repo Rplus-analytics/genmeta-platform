@@ -33,7 +33,7 @@ export default function Scorecards({ a }) {
   const snaps = getSnapshots();
 
   return (
-    <CollapsibleSidePanel storageKey="quality.assetPanelOpen" title="Asset quality" tooltip="Asset quality"
+    <CollapsibleSidePanel storageKey="quality.assetPanelOpen" heading="Quality scorecards" title="Asset quality" tooltip="Asset quality"
       icon={Gauge} pulseSignal={pulse} panel={<AssetQualityPanel assetKey={selected} />}>
       <div className="dq-body">
         <div className="dq-scorecards-top">
@@ -49,7 +49,7 @@ export default function Scorecards({ a }) {
         <div className="card pad-lg ml-card">
           <div className="dq-statuscounts">
             <div><b>{passing}</b><span>Passing · {Math.round(100 * passing / ASSETS.length)}% of assets</span></div>
-            <div><b>{warnings}</b><span>Warnings</span></div>
+            <div><b>{warnings}</b><span>{warnings === 1 ? 'Warning' : 'Warnings'}</span></div>
             <div><b>{breaking}</b><span>Breaking</span></div>
             <div><b>{ASSETS.length}</b><span>Assets assessed · {sensitiveAssets} with sensitive data</span></div>
           </div>
