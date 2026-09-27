@@ -477,3 +477,67 @@
 
 /* accepted AI-assisted edges in the graph, drawn as inferred (dashed) */
 .ledge.ai path { stroke-dasharray: 5 4; }
+
+/* ---------- Lineage: 10-tab overflow + remaining sub-tabs ---------- */
+.lin-subtabs { overflow-x: auto; overflow-y: hidden; }
+.lin-subtabs button { white-space: nowrap; flex: none; }
+
+/* shared padding for the new tables (scroll sideways in their own container) */
+.da-table, .im-table, .tc-table, .ru-table, .st-table, .pc-table, .rc-table { }
+.da-table :is(th,td):first-child, .im-table :is(th,td):first-child, .tc-table :is(th,td):first-child,
+.ru-table :is(th,td):first-child, .st-table :is(th,td):first-child, .pc-table :is(th,td):first-child,
+.rc-table :is(th,td):first-child { padding-left: 14px; }
+.da-table :is(th,td):last-child, .im-table :is(th,td):last-child, .tc-table :is(th,td):last-child,
+.ru-table :is(th,td):last-child, .st-table :is(th,td):last-child, .pc-table :is(th,td):last-child,
+.rc-table :is(th,td):last-child { padding-right: 14px; }
+.da-table { min-width: 940px; }
+.im-table { min-width: 640px; }
+.tc-table { min-width: 860px; }
+.ru-table { min-width: 780px; }
+.st-table { min-width: 520px; }
+.pc-table { min-width: 980px; }
+.rc-table { min-width: 760px; }
+.da-table .num, .im-table .num, .tc-table .num, .st-table .num, .pc-table .num, .rc-table .num { text-align: right; }
+
+/* Derived assets */
+.da-stage { font-size: 11px; color: var(--faint); text-transform: capitalize; margin-top: 2px; }
+.da-none { color: var(--faint); }
+.da-deps { font-size: 12px; color: var(--muted); min-width: 150px; }
+.da-purpose { font-size: 12.5px; color: var(--text); }
+.da-purpose small, .da-owner { color: var(--faint); }
+.da-owner { font-size: 12.5px; }
+.da-editor textarea { width: 100%; min-width: 220px; border: 1px solid var(--line2); border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 12.5px; color: var(--navy); resize: vertical; }
+.da-editor-btns { display: flex; gap: 6px; margin-top: 6px; }
+.da-act-h, .ml-act-h { text-align: right; }
+
+/* Impact */
+.ml-colinput { max-width: 340px; margin: 0 0 12px; }
+
+/* Trace a column + Root cause forms */
+.tc-form { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.tc-form .search { flex: 1 1 260px; margin: 0; }
+.tc-title { margin: 6px 0 8px; }
+.tc-card-exp { font-size: 12.5px; color: var(--muted); }
+.tc-stages { margin-top: 14px; }
+.tc-what { font-size: 12.5px; color: var(--muted); min-width: 150px; }
+.tc-expr code { font-size: 11.5px; }
+.tc-known { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* Rules */
+.ru-english { font-size: 12px; color: var(--muted); min-width: 260px; line-height: 1.5; }
+.ru-tf { font-size: 12px; color: var(--muted); }
+.ru-list { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text); }
+.ru-list code { font-size: 11.5px; }
+.ru-list .da-none { list-style: none; margin-left: -18px; }
+
+/* Structures */
+.st-paths code { margin-right: 6px; font-size: 11px; }
+.st-subjects { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text); }
+.st-subjects code { font-size: 11.5px; }
+
+/* Parser coverage */
+.pc-lang b { color: var(--navy); }
+.pc-tool { font-size: 12.5px; color: var(--muted); min-width: 150px; }
+
+/* Root cause */
+.rc-failing { color: var(--faint); }
