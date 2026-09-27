@@ -2,10 +2,18 @@ import { useMemo, useState } from 'react';
 import { UsersRound, UserPlus, Plus, Search, ShieldCheck } from 'lucide-react';
 import { USERS, GROUPS, ADMIN_TOTALS as T, membersOf } from '../../admin-data.js';
 import { AdminHead, Pill, USER_STATUS } from './kit.jsx';
+import { Segmented } from '../../components/ui.jsx';
 
 export function UsersPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
+  const counts = useMemo(() => USERS.reduce((m, u) => ({ ...m, [u.status]: (m[u.status] || 0) + 1 }), {}), []);
+  const statusOpts = [
+    { value: 'all', label: `All ${USERS.length}` },
+    { value: 'active', label: `Active ${counts.active || 0}` },
+    { value: 'invited', label: `Invited ${counts.invited || 0}` },
+    { value: 'suspended', label: `Suspended ${counts.suspended || 0}` },
+  ];
   const list = useMemo(() => USERS.filter((u) =>
     (status === 'all' || u.status === status) && (u.name + u.email + u.role).toLowerCase().includes(q.toLowerCase())), [q, status]);
   return (
@@ -15,9 +23,7 @@ export function UsersPage() {
       </AdminHead>
       <div className="filters">
         <label className="search sm"><Search size={16} /><input placeholder="Search users…" value={q} onChange={(e) => setQ(e.target.value)} /></label>
-        <div className="seg">
-          {['all', 'active', 'invited', 'suspended'].map((s) => <button key={s} className={status === s ? 'on' : ''} onClick={() => setStatus(s)}>{s}</button>)}
-        </div>
+        <Segmented options={statusOpts} value={status} onChange={setStatus} ariaLabel="Filter by status" />
       </div>
       <article className="card">
         <div className="table-wrap">

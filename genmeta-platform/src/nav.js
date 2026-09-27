@@ -1,7 +1,18 @@
-/* One list drives the sidebar, the page counter and the breadcrumb. */
+/* Inner-menu links for the Data assets section (like ADMIN_NAV). */
+export const DATA_ASSETS_NAV = [
+  { to: '/app/catalogue', label: 'Data catalogue', icon: 'BookMarked' },
+  { to: '/app/lineage', label: 'Data lineage', icon: 'Waypoints' },
+  { to: '/app/quality', label: 'Data quality', icon: 'Gauge' },
+  { to: '/app/data-governance', label: 'Data governance', icon: 'Landmark' },
+  { to: '/app/data-explorer', label: 'Data explorer', icon: 'Compass' },
+  { to: '/app/metadata-changes', label: 'Metadata changes', icon: 'History' },
+];
+
+/* One list drives the sidebar, the breadcrumb and the routes. "Data assets" is a single
+   sidebar item (opens /app/catalogue) that stays highlighted across all its section routes. */
 export const NAV = [
   { to: '/app', label: 'Data estate', group: 'Discover', icon: 'Building2', end: true },
-  { to: '/app/catalogue', label: 'Data catalogue', group: 'Discover', icon: 'Layers' },
+  { to: '/app/catalogue', label: 'Data assets', group: 'Discover', icon: 'Layers', assets: true },
   { to: '/app/graph', label: 'Knowledge graph', group: 'Discover', icon: 'Network', crumbs: { explorer: 'Graph explorer' } },
   { to: '/app/ask', label: 'Ask GenMeta', group: 'Discover', icon: 'MessagesSquare' },
   { to: '/app/governance', label: 'Governance', group: 'Govern', icon: 'Landmark' },
@@ -37,6 +48,21 @@ export const ADMIN_CRUMBS = {
   'api/tokens': 'API tokens', 'api/oauth': 'OAuth clients',
   'sso/configure': 'SSO configure', 'sso/mapping': 'SSO group mapping',
 };
-NAV[NAV.length - 1].crumbs = ADMIN_CRUMBS;
+NAV.find((n) => n.to === '/app/admin').crumbs = ADMIN_CRUMBS;
+
+/* Is this path part of the Data assets section? */
+export const isDataAssets = (pathname) => DATA_ASSETS_NAV.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));
+
+/* Resolve a pathname to its nav entry (handling the "Data assets" section). */
+export function navMatch(pathname) {
+  const child = DATA_ASSETS_NAV.find((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));
+  if (child) return { group: 'Discover', parent: { label: 'Data assets' }, item: child, rest: pathname.slice(child.to.length + 1) };
+  for (const n of NAV) {
+    if (n.assets || !n.to) continue;
+    const m = n.end ? n.to === pathname : (pathname === n.to || pathname.startsWith(`${n.to}/`));
+    if (m) return { group: n.group, parent: null, item: n, rest: pathname.slice(n.to.length + 1) };
+  }
+  return { group: NAV[0].group, parent: null, item: NAV[0], rest: '' };
+}
 
 export const pad3 = (n) => String(n).padStart(3, '0');

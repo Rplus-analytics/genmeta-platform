@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
-import { Fingerprint, LogIn, CircleAlert, CalendarClock, Plus, Trash2, Copy, Upload, RefreshCw } from 'lucide-react';
+import { Fingerprint, LogIn, CircleAlert, CalendarClock, Plus, Trash2, Copy, Download, Upload, RefreshCw } from 'lucide-react';
 import { SSO, SSO_MAPPINGS, GROUPS } from '../../admin-data.js';
 import { BASE, AdminHead, SubTabs, Stats, Settings, Row, Switch, SaveBar, useForm } from './kit.jsx';
 
@@ -71,7 +71,7 @@ function SsoConfigure() {
       <Settings title="Service provider details" sub="Give these values to your identity provider.">
         <Row label="Entity ID"><CopyField value={SSO.entityId} /></Row>
         <Row label="ACS (reply) URL"><CopyField value={SSO.acsUrl} /></Row>
-        <Row label="Metadata"><button className="btn ghost sm"><Copy size={14} />Download SP metadata</button></Row>
+        <Row label="Metadata"><button className="btn ghost sm"><Download size={14} />Download SP metadata</button></Row>
       </Settings>
 
       <Settings title="Identity provider details" sub="Paste from your identity provider, or upload its metadata file.">

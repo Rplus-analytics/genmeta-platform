@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Play } from 'lucide-react';
 import { ASSETS, BY_KEY } from '../model.js';
 import { DIMENSIONS, dimensions, overallScore, statusOf, profileMethod, readable, vendorOf } from './metrics.js';
 
@@ -14,7 +13,6 @@ export default function Profiling({ a }) {
     <div className="dq-body">
       <div className="card pad-lg ml-card">
         <p className="ml-note">Warehouse tables and views are profiled with one aggregate query each; files in object storage are read and aggregated; APIs and streaming topics have no readable values here, so their structure is profiled and labelled as such. No row values are stored or shown.</p>
-        <button className="btn ghost sm dq-run"><Play size={13} />Profile and check now</button>
         <div className="e2e-hop-wrap">
           <table className="tbl dq-prof">
             <thead>
