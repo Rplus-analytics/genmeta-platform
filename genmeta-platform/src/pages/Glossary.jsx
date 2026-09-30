@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   Book, FileText, ChevronRight, Search, Plus, Star, Link2, Pencil, Bell, MoreHorizontal,
-  Trash2, Send, X, Unlink, Download, Table2, Columns3, File, Radio, BarChart3, Check,
+  Trash2, Send, X, Unlink, Download, Table2, Columns3, File, Radio, BarChart3, Check, Sparkles,
 } from 'lucide-react';
 import { Section } from '../components/Rail.jsx';
 import {
@@ -115,8 +116,7 @@ export function GlossaryMenu({ ui }) {
 
   return (
     <div className="gl-menu-block">
-      <div className="inner-sep" />
-      <div className="gl-msec">Glossaries</div>
+      <div className="gl-msec gl-msec-first">Glossaries</div>
       <div className="gl-msearch">
         <Search size={14} strokeWidth={2} />
         <input value={ui.mq} onChange={(e) => ui.update({ mq: e.target.value })} placeholder="Search terms & glossaries…" aria-label="Search terms and glossaries" />
@@ -392,29 +392,89 @@ function GlossaryPage({ ui, g }) {
 }
 
 /* ------------------------------------------------------------------ term profile */
+/* Demo "AI" draft built from the term's own metadata — no API call. */
+function aiDraftText(field, t) {
+  const domain = t.g.toLowerCase();
+  const assets = t.linked.filter((a) => a.split('.').length === 2);
+  const sample = assets.slice(0, 3).join(', ');
+  const n = t.name;
+  if (field === 'def')
+    return `${n} is a ${domain} concept shared across the estate. It is represented by ${t.linked.length} linked asset(s)${sample ? `, including ${sample}` : ''}, and gives teams a single, agreed meaning for “${n}”.`;
+  if (field === 'rules')
+    return [
+      `${n} must have a unique, stable identifier.`,
+      `Each ${n} is owned by the ${t.g} domain and reviewed by its steward.`,
+      `Changes to ${n} are logged and need governance-lead or product-owner approval.`,
+    ].join('\n');
+  if (field === 'usage')
+    return [
+      `“How many ${n.toLowerCase()} records are in the ${t.g} domain?”`,
+      `Used to join ${sample || 'related assets'} into a single ${n.toLowerCase()} view.`,
+    ].join('\n');
+  if (field === 'notes')
+    return `Draft generated from the ${t.g} glossary and ${t.linked.length} linked asset(s). Review and edit before marking ${n} authoritative.`;
+  return '';
+}
+
 function EditForm({ ui, t }) {
-  const nav = useNav(ui);
-  const init = { def: t.def, owner: t.owner, steward: t.steward, custodian: t.custodian, syn: t.syn.join('; '), rules: t.rules.join('; '), usage: t.usage.join('; '), notes: t.notes };
+  const init = { def: t.def, owner: t.owner, steward: t.steward, custodian: t.custodian, syn: t.syn.join('; '), rules: t.rules.join('\n'), usage: t.usage.join('\n'), notes: t.notes };
   const [f, setF] = useState(init);
+  const [ai, setAi] = useState({});   /* field → value before AI generate, so it can be undone */
+  /* Size the card so its body scrolls and the footer sits at the bottom of the visible
+     area (the .content scroller has 88px of bottom padding, so a sticky footer would float
+     up — a bounded flex column avoids that entirely). */
+  const cardRef = useRef(null);
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const scroller = card.closest('.content');
+    if (scroller) scroller.scrollTop = 0;
+    const fit = () => { const top = card.getBoundingClientRect().top; card.style.maxHeight = `${Math.max(360, window.innerHeight - top - 20)}px`; };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const sp = (s) => s.split(';').map((x) => x.trim()).filter(Boolean);
-  const upd = { def: f.def.trim(), owner: f.owner.trim(), steward: f.steward.trim(), custodian: f.custodian.trim(), syn: sp(f.syn), rules: sp(f.rules), usage: sp(f.usage), notes: f.notes.trim() };
+  const genAI = (k) => { setAi((a) => ({ ...a, [k]: f[k] })); setF((p) => ({ ...p, [k]: aiDraftText(k, t) })); };
+  const undoAI = (k) => { setF((p) => ({ ...p, [k]: ai[k] })); setAi((a) => { const n = { ...a }; delete n[k]; return n; }); };
+  const spNL = (s) => s.split('\n').map((x) => x.trim()).filter(Boolean);
+  const spSemi = (s) => s.split(';').map((x) => x.trim()).filter(Boolean);
+  const upd = { def: f.def.trim(), owner: f.owner.trim(), steward: f.steward.trim(), custodian: f.custodian.trim(), syn: spSemi(f.syn), rules: spNL(f.rules), usage: spNL(f.usage), notes: f.notes.trim() };
   const dirty = JSON.stringify([upd.def, upd.owner, upd.steward, upd.custodian, upd.syn, upd.rules, upd.usage, upd.notes])
     !== JSON.stringify([t.def, t.owner, t.steward, t.custodian, t.syn, t.rules, t.usage, t.notes]);
-  const fld = (k, label, ta) => (
-    <div className="gl-fld"><label htmlFor={`e_${k}`}>{label}</label>
-      {ta ? <textarea className="input" id={`e_${k}`} value={f[k]} onChange={set(k)} /> : <input className="input" id={`e_${k}`} value={f[k]} onChange={set(k)} />}
+  const save = () => { saveTerm(t.id, upd); ui.update({ edit: false }); toast('Changes saved'); };
+
+  const compact = (k, label) => (
+    <div><label htmlFor={`e_${k}`}>{label}</label><input className="input" id={`e_${k}`} value={f[k]} onChange={set(k)} /></div>
+  );
+  const aiField = (k, label, placeholder) => (
+    <div className="gl-fld">
+      <div className="gl-fld-head">
+        <label htmlFor={`e_${k}`}>{label}</label>
+        <div className="gl-fld-tools">
+          {ai[k] !== undefined && <span className="tag gl-ai-tag">AI draft<button type="button" className="gl-undo" onClick={() => undoAI(k)}>Undo</button></span>}
+          <button type="button" className="btn ghost sm" onClick={() => genAI(k)}><Sparkles size={14} strokeWidth={1.7} />AI generate</button>
+        </div>
+      </div>
+      <textarea className="input gl-edit-ta" id={`e_${k}`} rows={5} value={f[k]} onChange={set(k)} placeholder={placeholder} />
     </div>
   );
-  const save = () => { saveTerm(t.id, upd); ui.update({ edit: false }); toast('Changes saved'); };
+
   return (
-    <div className="card pad">
-      <h3>Edit term</h3><p className="sub">Every change is recorded in the term's history.</p>
-      {fld('def', 'Definition', true)}
-      <div className="gl-formgrid">{fld('owner', 'Owner')}{fld('steward', 'Steward')}{fld('custodian', 'Custodian')}</div>
-      <div className="gl-formgrid">{fld('syn', 'Synonyms (; separated)')}{fld('rules', 'Business rules (; separated)')}{fld('usage', 'Usage examples (; separated)')}</div>
-      {fld('notes', 'Notes')}
-      <div className="gl-form-acts"><button className="btn secondary md" onClick={() => ui.update({ edit: false })}>Cancel</button><button className="btn primary md" disabled={!dirty} onClick={save}>Save changes</button></div>
+    <div className="card gl-editcard" ref={cardRef}>
+      <div className="gl-editbody">
+        <h3>Edit term</h3><p className="sub">Every change is recorded in the term's history.</p>
+        {aiField('def', 'Definition')}
+        <div className="gl-formgrid">{compact('owner', 'Owner')}{compact('steward', 'Steward')}{compact('custodian', 'Custodian')}</div>
+        <div className="gl-fld"><label htmlFor="e_syn">Synonyms (; separated)</label><input className="input" id="e_syn" value={f.syn} onChange={set('syn')} /></div>
+        {aiField('rules', 'Business rules', 'One rule per line')}
+        {aiField('usage', 'Usage examples', 'One example per line')}
+        {aiField('notes', 'Notes')}
+      </div>
+      <div className="gl-editfoot">
+        <button className="btn secondary md" onClick={() => ui.update({ edit: false })}>Cancel</button>
+        <button className="btn primary md" disabled={!dirty} onClick={save}>Save changes</button>
+      </div>
     </div>
   );
 }
@@ -634,11 +694,14 @@ function NewTermDrawer({ ui }) {
       <div className="gl-drawer" role="dialog" aria-label="New term">
         <header>New term<button className="ib" aria-label="Close" onClick={close}><X size={16} /></button></header>
         <div className="gl-db">
+          <div className="gl-group-label">Basics</div>
           <div className="gl-fld"><label htmlFor="n_name">Name</label><input className="input" id="n_name" value={f.name} onChange={set('name')} placeholder="e.g. Active Claim" autoFocus /></div>
           <div className="gl-fld"><label htmlFor="n_g">Glossary (domain)</label><select className="input" id="n_g" value={f.g} onChange={set('g')}>{GLOSSARIES.map((x) => <option key={x}>{x}</option>)}</select></div>
           <div className="gl-fld"><label htmlFor="n_p">Parent term (optional)</label><select className="input" id="n_p" value={f.parent} onChange={set('parent')}><option value="">None</option>{TERMS.filter((t) => !t.parent).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+          <div className="gl-group-label">People</div>
           <div className="gl-formgrid"><div><label htmlFor="n_o">Owner</label><input className="input" id="n_o" value={f.owner} onChange={set('owner')} /></div><div><label htmlFor="n_s">Steward</label><input className="input" id="n_s" value={f.steward} onChange={set('steward')} /></div><div><label htmlFor="n_c">Custodian</label><input className="input" id="n_c" value={f.custodian} onChange={set('custodian')} /></div></div>
-          <div className="gl-fld" style={{ marginTop: 12 }}><label htmlFor="n_syn">Synonyms (; separated)</label><input className="input" id="n_syn" value={f.syn} onChange={set('syn')} /></div>
+          <div className="gl-group-label">Details</div>
+          <div className="gl-fld"><label htmlFor="n_syn">Synonyms (; separated)</label><input className="input" id="n_syn" value={f.syn} onChange={set('syn')} /></div>
           <div className="gl-fld"><label htmlFor="n_d">Definition</label><textarea className="input" id="n_d" rows={4} value={f.def} onChange={set('def')} /></div>
           <div className="gl-muted" style={{ fontSize: 12 }}>New terms start as Draft. Submit them for review when ready.</div>
         </div>
@@ -718,13 +781,22 @@ export default function Glossary({ ui }) {
   else if (view === 'glossary') body = <GlossaryPage ui={ui} g={glossary} />;
   else body = <Home ui={ui} />;
 
+  /* Overlays (scrim, drawers, modal, toast) are position:fixed. The page's fade-in
+     animation leaves an identity transform on .gl / .inner-shell, which would make those
+     the containing block and size the drawer to the page, not the viewport — so portal the
+     overlays to <body> where fixed is viewport-relative. */
   return (
     <div className="gl fade-in">
       {body}
-      {ui.overlay?.type === 'new' && <NewTermDrawer ui={ui} />}
-      {ui.overlay?.type === 'delete' && <DeleteModal ui={ui} />}
-      {ui.overlay?.type === 'link' && <LinkDrawer ui={ui} />}
-      <Toast />
+      {createPortal(
+        <div className="gl">
+          {ui.overlay?.type === 'new' && <NewTermDrawer ui={ui} />}
+          {ui.overlay?.type === 'delete' && <DeleteModal ui={ui} />}
+          {ui.overlay?.type === 'link' && <LinkDrawer ui={ui} />}
+          <Toast />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
