@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Business glossary prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0E2A57;--deep:#07111F;--royal:#4D8CFF;--sky:#A9D3FF;--ice:#EDF4FF;--mist:#F6FBFF;--canvas:#F3F6FA;--line:#D7E1EC;--line2:#C9D6E6;--muted:#566A89;--faint:#8694AB;--white:#fff;
+--r-ctl:8px;--r-card:12px;--shadow-1:0 1px 2px rgba(14,42,87,.06),0 1px 1px rgba(14,42,87,.04);--ring:0 0 0 2px #fff,0 0 0 4px var(--royal);--h-sm:28px;--h-md:32px;--h-lg:36px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:14px/1.45 'Hanken Grotesk',system-ui,sans-serif;color:var(--navy);background:var(--canvas)}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:'JetBrains Mono',monospace}
+/* chrome */
+.top{position:fixed;inset:0 0 auto 0;height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 16px;z-index:20}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;width:220px}
+.logo .rp{font-family:Georgia,serif;font-size:20px}
+.logo .sep{width:1px;height:20px;background:var(--line2)}
+.logo .gm{color:var(--navy)}.logo .gm i{font-style:normal;color:var(--royal)}
+.crumbs{font-size:13px;color:var(--muted)}.crumbs b{color:var(--navy);font-weight:600}
+.search{margin-left:auto;margin-right:auto;width:400px;height:34px;border-radius:var(--r-ctl);background:var(--canvas);border:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);font-size:13px}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6FA6FF,#3F7BEA);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+.rail{position:fixed;top:56px;bottom:0;left:0;width:56px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:4px;z-index:10}
+.rail a{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+.rail a.on{background:var(--ice);color:var(--royal)}
+.rail a:hover{background:var(--mist)}
+.inner{position:fixed;top:56px;bottom:0;left:56px;width:268px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:9}
+.inner-h{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 16px;border-bottom:1px solid var(--line);font-weight:600;font-size:15px}
+.inner-b{overflow:auto;padding:10px 10px 24px;flex:1}
+.main{margin-left:324px;padding:72px 32px 40px}
+/* inner menu */
+.msearch{height:32px;display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:var(--r-ctl);padding:0 10px;margin-bottom:8px}
+.msearch input{border:0;outline:0;flex:1;font-size:13px;background:transparent}
+.mlink{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;cursor:pointer;font-size:13.5px;color:var(--navy);user-select:none}
+.mlink:hover{background:var(--mist)}
+.mlink.on{background:var(--ice);font-weight:600}
+.mlink.on svg{color:var(--royal)}
+.mlink .cnt{margin-left:auto;font-size:11.5px;color:var(--faint)}
+.mlink .chev{width:14px;color:var(--faint);transition:transform .15s;flex:none}
+.mlink .chev.open{transform:rotate(90deg)}
+.tchild{padding-left:22px}
+.tchild2{padding-left:40px}
+.sdot{width:7px;height:7px;border-radius:50%;flex:none}
+.sec{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:14px 8px 6px;cursor:pointer}
+.divider{height:1px;background:var(--line);margin:12px 4px}
+.fbox{border:1px solid var(--line);border-radius:var(--r-ctl);padding:4px;margin:0 4px}
+.chk{display:flex;align-items:center;gap:8px;height:28px;padding:0 6px;font-size:13px;border-radius:5px;cursor:pointer}
+.chk:hover{background:var(--mist)}
+.chk input{accent-color:var(--royal)}
+.chk .cnt{margin-left:auto;font-size:11.5px;color:var(--faint)}
+/* shared */
+.eyebrow{font:500 11px 'JetBrains Mono';letter-spacing:.14em;color:var(--royal);text-transform:uppercase}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.phead h1{margin:4px 0 4px;font-size:26px;font-weight:600;letter-spacing:-.01em}
+.phead p{margin:0;color:var(--muted);font-size:13.5px}
+.btn{height:var(--h-lg);padding:0 14px;border-radius:var(--r-ctl);border:1px solid var(--line2);background:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:500;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--mist);border-color:var(--muted)}
+.btn:focus-visible,.mlink:focus-visible,.tab:focus-visible,.ib:focus-visible{outline:0;box-shadow:var(--ring)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--deep)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--ice)}
+.btn.sm{height:var(--h-sm);padding:0 10px;font-size:12.5px}
+.btn.md{height:var(--h-md);padding:0 12px;font-size:13px}
+.btn:disabled{background:var(--ice);border-color:var(--line);color:var(--faint);cursor:not-allowed}
+.ib{width:32px;height:32px;border-radius:var(--r-ctl);border:1px solid transparent;background:transparent;display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.ib:hover{background:var(--ice);color:var(--navy)}
+.ib.on{color:var(--royal)}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1)}
+.card.pad{padding:18px 20px}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.card .sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);margin-bottom:16px}
+.tiles>div{padding:14px 18px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:1px}
+.tiles>div:first-child{border-left:0}
+.tiles b{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.tiles span{font-size:12.5px;font-weight:600}
+.tiles small{font-size:12px;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.badge i{width:6px;height:6px;border-radius:50%}
+.b-approved{background:var(--ice);color:var(--navy)}.b-approved i{background:var(--royal)}
+.b-review{background:#fff;color:var(--royal);border:1px solid rgba(77,140,255,.55)}.b-review i{background:var(--royal)}
+.b-draft{background:#F3F5F8;color:var(--muted);border:1px dashed var(--line2)}.b-draft i{background:var(--faint)}
+.b-deprecated{background:#fff;color:var(--faint);border:1px solid var(--line)}.b-deprecated i{background:#fff;border:1.5px solid var(--faint)}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:var(--mist);border:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--line2);background:#fff;font-size:12.5px;cursor:pointer}
+.chip:hover{background:var(--mist)}
+.chip.on{background:var(--ice);border-color:var(--royal)}
+.chip small{color:var(--faint)}
+.seg2{display:inline-flex;background:#fff;border:1px solid var(--line2);border-radius:var(--r-ctl);padding:2px;gap:2px}
+.seg2 button{height:26px;border:0;background:transparent;border-radius:6px;padding:0 10px;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg2 button:hover{background:var(--mist);color:var(--navy)}
+.seg2 button.on{background:var(--ice);color:var(--navy)}
+.input{height:var(--h-md);border:1px solid var(--line2);border-radius:var(--r-ctl);padding:0 10px;background:#fff;outline:0;font-size:13px}
+.input:focus,textarea:focus{box-shadow:var(--ring);border-color:var(--royal)}
+textarea.input{height:auto;padding:8px 10px;resize:vertical;min-height:72px}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:16px}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover{background:var(--mist)}
+.tbl .tname{display:flex;align-items:center;gap:8px;font-weight:600}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:500}
+.plist>div{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.plist>div:last-child{border-bottom:0}
+.plist small{display:block;font-size:12px;color:var(--muted)}
+.foot{font-size:12px;color:var(--muted);margin-top:10px}
+.tlink{color:var(--royal);font-weight:500;cursor:pointer}
+.tlink:hover{text-decoration:underline;text-underline-offset:3px}
+/* term profile */
+.thead{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px}
+.ticon{width:44px;height:44px;border-radius:10px;background:var(--ice);color:var(--royal);display:grid;place-items:center;flex:none}
+.thead h1{margin:0;font-size:24px;font-weight:600;display:flex;align-items:center;gap:10px}
+.thead .kind{font-size:12.5px;color:var(--muted);margin-top:2px}
+.tools{margin-left:auto;display:flex;align-items:center;gap:2px}
+.banner{display:flex;align-items:center;gap:10px;border:1px solid rgba(77,140,255,.35);background:var(--mist);border-radius:var(--r-ctl);padding:10px 14px;font-size:13px;margin-bottom:14px}
+.banner .btn{margin-left:auto}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;height:44px;align-items:flex-end}
+.tab{height:44px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--muted);border:0;background:none;border-bottom:2px solid transparent;cursor:pointer;padding:0}
+.tab:hover{color:var(--navy)}
+.tab.on{color:var(--navy);border-bottom-color:var(--royal)}
+.tab small{font-size:11.5px;background:var(--ice);border-radius:99px;padding:0 6px;color:var(--muted)}
+.pgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.side{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);padding:6px 18px 12px;position:sticky;top:72px}
+.prop{padding:11px 0;border-bottom:1px solid var(--line)}
+.prop:last-child{border-bottom:0}
+.prop label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.prop .v{font-size:13.5px;font-weight:500;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.person{display:inline-flex;align-items:center;gap:6px}
+.person i{width:20px;height:20px;border-radius:50%;background:var(--ice);color:var(--royal);font-style:normal;font-size:10px;font-weight:700;display:grid;place-items:center}
+.cert{background:var(--ice);border-radius:var(--r-ctl);padding:8px 10px;font-size:12.5px}
+.cert b{display:flex;align-items:center;gap:6px}
+ul.clean{margin:0;padding-left:18px}ul.clean li{margin:4px 0}
+.arow{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.arow:last-child{border-bottom:0}
+.arow:hover{background:var(--mist)}
+.aico{width:30px;height:30px;border-radius:8px;background:var(--ice);color:var(--royal);display:grid;place-items:center;flex:none}
+.arow .an{font-family:'JetBrains Mono';font-size:12.5px;font-weight:500;color:var(--royal);cursor:pointer}
+.arow .am{font-size:12px;color:var(--muted);display:flex;gap:8px;margin-top:2px}
+.arow .ib{margin-left:auto}
+.hist>div{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.hist>div:last-child{border-bottom:0}
+.hist .dot{width:9px;height:9px;border-radius:50%;background:var(--royal);margin-top:5px;flex:none;box-shadow:0 0 0 3px var(--ice)}
+.hist small{display:block;color:var(--muted);font-size:12px}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.formgrid label,.fld label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+.fld{margin-bottom:12px}
+.fld .input{width:100%}
+/* drawer & modal */
+.scrim{position:fixed;inset:0;background:rgba(7,17,31,.35);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:440px;background:#fff;z-index:41;box-shadow:-20px 0 40px -20px rgba(14,42,87,.3);display:flex;flex-direction:column}
+.drawer header{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 20px;border-bottom:1px solid var(--line);font-weight:600;font-size:16px}
+.drawer .db{padding:18px 20px;overflow:auto;flex:1}
+.drawer footer{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.modal{position:fixed;left:50%;top:30%;transform:translate(-50%,-30%);width:420px;background:#fff;border-radius:14px;z-index:41;padding:20px;box-shadow:0 20px 50px -20px rgba(14,42,87,.4)}
+.modal h3{margin:0 0 6px;font-size:17px}
+.menu{position:absolute;right:0;top:36px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px -10px rgba(14,42,87,.3);padding:4px;min-width:200px;z-index:30}
+.menu button{display:flex;width:100%;align-items:center;gap:8px;height:32px;border:0;background:none;border-radius:6px;padding:0 10px;font-size:13px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--mist)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:60;box-shadow:0 10px 30px -10px rgba(7,17,31,.5)}
+.proto{position:fixed;left:340px;bottom:16px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);box-shadow:var(--shadow-1)}
+.graph svg{display:block;width:100%;height:auto}
+.gnode{cursor:pointer}
+.gnode:hover rect{stroke:var(--royal)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><span class="rp">r<sup style="color:var(--royal)">+</sup></span><span class="sep"></span><span class="gm">Gen<i>meta</i></span></div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search data, systems, or ask a question…</div>
+  <span class="tag" style="margin-right:8px">Prototype · demo data</span><div class="av">A</div>
+</header>
+<nav class="rail" aria-label="Main">
+  <a title="Data estate"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="10" height="18"/><path d="M14 9h6v12h-6M7 7h4M7 11h4M7 15h4"/></svg></a>
+  <a class="on" title="Data assets"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 17.5l9 5 9-5"/></svg></a>
+  <a title="Knowledge graph"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="2" width="6" height="6"/><rect x="2" y="16" width="6" height="6"/><rect x="16" y="16" width="6" height="6"/><path d="M12 8v4M5 16v-4h14v4"/></svg></a>
+  <a title="Ask GenMeta"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h11v8H8l-4 3V5Z"/><path d="M15 9h5v10l-3-2h-6v-4"/></svg></a>
+  <a title="Governance"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21h18M5 18V10M9 18V10M15 18V10M19 18V10M2 10l10-6 10 6Z"/></svg></a>
+  <a title="Stewardship"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg></a>
+  <a title="Admin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/></svg></a>
+</nav>
+<aside class="inner" aria-label="Data assets">
+  <div class="inner-h">Data assets</div>
+  <div class="inner-b" id="menu"></div>
+</aside>
+<main class="main" id="main"></main>
+<div id="overlay"></div>
+
+
+<script>
+/* ------------------------------------------------------------------ data (from docs/business-glossary-old-ui.md + catalogue-data.json) */
+const ASSET={"INT.CUSTOMER":["Rplus_DWH","view"],"INT.LINEITEM":["Rplus_DWH","view"],"INT.NATION":["Rplus_DWH","view"],"INT.ORDERS":["Rplus_DWH","view"],"INT.PART":["Rplus_DWH","view"],"INT.SUPPLIER":["Rplus_DWH","view"],"PRL.ORDER_MASTER":["Rplus_DWH","view"],"SRC.CUSTOMER":["Rplus_DWH","table"],"SRC.LINEITEM":["Rplus_DWH","table"],"SRC.NATION":["Rplus_DWH","table"],"SRC.ORDERS":["Rplus_DWH","table"],"SRC.PART":["Rplus_DWH","table"],"SRC.SUPPLIER":["Rplus_DWH","table"],"STG.CUSTOMER_ORDER":["Rplus_DWH","view"],"STG.CUSTOMER_ORDER_LIVE_RPLUS":["Rplus_DWH","view"],"STG.ORDER_ITEM_SUMMARY":["Rplus_DWH","view"],"STREAMING.customer-value":["Rplus Streaming (Confluent)","topic"],"S3_RAW.CUSTOMER":["Rplus Amazon S3","file"],"S3_RAW.ORDERS":["Rplus Amazon S3","file"],"S3_CLN.CUSTOMER":["Rplus Amazon S3","file"],"S3_CLN.ORDERS":["Rplus Amazon S3","file"],"S3_ENR.CUSTOMER_ORDERS":["Rplus Amazon S3","file"],"S3_ENR.CUSTOMER_SUMMARY":["Rplus Amazon S3","file"],"BI.Customer 360 Dashboard":["Rplus Reports (Power BI)","dashboard"],"BI.Order Revenue Report":["Rplus Reports (Power BI)","report"],"BI.Supplier Performance":["Rplus Reports (Power BI)","report"],"BI.Customer Churn Analysis":["Rplus Reports (Power BI)","report"],"API.GET_customers":["Rplus API (Rest API)","api"],"API.GET_orders":["Rplus API (Rest API)","api"]};
+function assetInfo(fqn){
+  if(ASSET[fqn])return {src:ASSET[fqn][0],type:ASSET[fqn][1]};
+  const p=fqn.split('.');
+  if(p.length===3){const t=ASSET[p[0]+'.'+p[1]];return {src:t?t[0]:(p[0].startsWith('SQL')?'Rplus SQL Server':'Rplus_DWH'),type:'column'};}
+  if(p[0].startsWith('SQL'))return {src:'Rplus SQL Server',type:p[0]==='SQL_SRC'?'table':'view'};
+  return {src:'Rplus_DWH',type:'table'};
+}
+const CUST20=['INT.CUSTOMER','SRC.CUSTOMER','STG.CUSTOMER_ORDER','STG.CUSTOMER_ORDER_LIVE_RPLUS','STREAMING.customer-value','S3_RAW.CUSTOMER','S3_CLN.CUSTOMER','S3_ENR.CUSTOMER_ORDERS','S3_ENR.CUSTOMER_SUMMARY','SQL_CLN.CUSTOMER','SQL_ENR.CUSTOMER_ORDERS','SQL_ENR.CUSTOMER_SUMMARY','INT.CUSTOMER.CUSTOMER_ID','INT.CUSTOMER.CUSTOMER_NAME','SRC.CUSTOMER.CUSTOMER_ID','SRC.CUSTOMER.CUSTOMER_NAME','STG.CUSTOMER_ORDER.ORDER_ID','STG.CUSTOMER_ORDER.CUSTOMER_ID','STG.CUSTOMER_ORDER_LIVE_RPLUS.ORDER_ID','STG.CUSTOMER_ORDER_LIVE_RPLUS.CUSTOMER_ID'];
+const WD=n=>`Working definition for ${n}, pending review.`;
+const HIST_SYS=n=>[{t:'17/09/2026, 20:17:09',who:'system',what:`Derived from ${n} harvested asset(s)`}];
+let TERMS=[
+ {id:'compliance-check-20306',name:'Compliance Check 20306',status:'approved',g:'Customer',parent:null,def:'Edited during requirement testing to prove terms can be managed.',owner:'Rajesh',steward:'Priya',custodian:'Platform Ops',syn:['Verification term'],rules:[],usage:[],notes:'',
+  linked:['BI.Customer 360 Dashboard','INT.CUSTOMER','INT.CUSTOMER.CUSTOMER_ID'],
+  hist:[{t:'18/09/2026, 09:31:47',who:'tester',what:'Changed assets, columns, reports'},{t:'18/09/2026, 09:31:47',who:'jane',what:'in_review → approved'},{t:'18/09/2026, 09:31:47',who:'tester',what:'draft → in_review'}]},
+ {id:'customer',name:'Customer',status:'approved',g:'Customer',parent:null,def:'A person or organisation that holds a relationship with the department and can be identified across systems.',owner:'Rajesh',steward:'Rajesh',custodian:'',syn:[],
+  rules:['A customer must have a unique customer identifier.','Customer name and contact details are personal data and are restricted.'],
+  usage:['“How many customers are in the Restricted tier?”','Used by the customer 360 view to join orders to a single customer record.'],
+  notes:'Seeded from the harvested catalogue; edit to make it authoritative.',linked:CUST20.slice(),hist:HIST_SYS(12)},
+ {id:'customer-order',name:'Customer Order',status:'draft',g:'Customer',parent:'customer',def:WD('Customer Order'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['STG.CUSTOMER_ORDER'],hist:HIST_SYS(1)},
+ {id:'customer-order-live-rplus',name:'Customer Order Live Rplus',status:'draft',g:'Customer',parent:'customer',def:WD('Customer Order Live Rplus'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['STG.CUSTOMER_ORDER_LIVE_RPLUS'],hist:HIST_SYS(1)},
+ {id:'customer-orders',name:'Customer Orders',status:'draft',g:'Customer',parent:'customer',def:WD('Customer Orders'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['S3_ENR.CUSTOMER_ORDERS','SQL_ENR.CUSTOMER_ORDERS'],hist:HIST_SYS(2)},
+ {id:'orders',name:'Orders',status:'approved',g:'Orders',parent:null,def:'A request placed by a customer that is recorded, priced and fulfilled through the order pipeline.',owner:'PK',steward:'PK',custodian:'',syn:[],rules:[],usage:[],notes:'',
+  linked:['INT.LINEITEM','INT.ORDERS','PRL.ORDER_MASTER','SRC.LINEITEM','SRC.ORDERS','STG.ORDER_ITEM_SUMMARY','S3_RAW.ORDERS','S3_CLN.ORDERS','SQL_CLN.ORDERS','INT.LINEITEM.LINEITEM_ID','INT.ORDERS.ORDER_ID','INT.ORDERS.CUSTOMER_ID','SRC.ORDERS.ORDER_ID','SRC.ORDERS.ORDER_DATE','PRL.ORDER_MASTER.ORDER_ID','PRL.ORDER_MASTER.ORDER_TOTAL_AMOUNT','STG.ORDER_ITEM_SUMMARY.ORDER_ID','INT.LINEITEM.ORDER_ID'],hist:HIST_SYS(10)},
+ {id:'lineitem',name:'Lineitem',status:'draft',g:'Orders',parent:'orders',def:WD('Lineitem'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['INT.LINEITEM','SRC.LINEITEM'],hist:HIST_SYS(2)},
+ {id:'order-item-summary',name:'Order Item Summary',status:'draft',g:'Orders',parent:'orders',def:WD('Order Item Summary'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['STG.ORDER_ITEM_SUMMARY'],hist:HIST_SYS(1)},
+ {id:'order-master',name:'Order Master',status:'draft',g:'Orders',parent:'orders',def:WD('Order Master'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['PRL.ORDER_MASTER'],hist:HIST_SYS(1)},
+ {id:'product',name:'Product',status:'approved',g:'Product',parent:null,def:'A distinct item or service that can be ordered, priced and supplied.',owner:'Raghav',steward:'Raghav',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['INT.PART','SRC.PART','INT.PART.PART_ID','INT.PART.PART_NAME','SRC.PART.PART_ID','SRC.PART.PART_NAME'],hist:HIST_SYS(2)},
+ {id:'part',name:'Part',status:'draft',g:'Product',parent:'product',def:WD('Part'),owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['INT.PART','SRC.PART'],hist:HIST_SYS(2)},
+ {id:'reference',name:'Reference',status:'approved',g:'Reference',parent:null,def:'Shared lookup data used to standardise values across systems, such as country or nation codes.',owner:'Raghav',steward:'Raghav',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['INT.NATION','SRC.NATION','INT.NATION.NATION_ID','INT.NATION.NATION_NAME','SRC.NATION.NATION_ID','SRC.NATION.NATION_NAME'],hist:HIST_SYS(2)},
+ {id:'nation',name:'Nation',status:'draft',g:'Reference',parent:'reference',def:'The country reference used to locate a customer or supplier.',owner:'',steward:'',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['INT.NATION','SRC.NATION'],hist:HIST_SYS(2)},
+ {id:'supplier',name:'Supplier',status:'approved',g:'Supplier',parent:null,def:'An organisation that provides goods or services and is paid against agreed terms.',owner:'Raghav',steward:'Raghav',custodian:'',syn:[],rules:[],usage:[],notes:'',linked:['INT.SUPPLIER','SRC.SUPPLIER','INT.SUPPLIER.SUPPLIER_ID','INT.SUPPLIER.SUPPLIER_NAME','SRC.SUPPLIER.SUPPLIER_ID','SRC.SUPPLIER.SUPPLIER_NAME'],hist:HIST_SYS(2)},
+ {id:'taxpayer-reference',name:'Taxpayer Reference',status:'approved',g:'Customer',parent:null,def:'The unique reference used to identify a taxpayer record.',owner:'Rajesh',steward:'Priya',custodian:'Platform Ops',syn:['UTR'],rules:[],usage:[],notes:'',linked:[],
+  hist:[{t:'17/09/2026, 20:21:09',who:'jane',what:'in_review → approved'},{t:'17/09/2026, 20:21:08',who:'tester',what:'draft → in_review'},{t:'17/09/2026, 20:21:08',who:'tester',what:'Changed business_rules, usage_examples'}]}
+];
+let ACTIVITY=[
+ {term:'compliance-check-20306',what:'Changed assets, columns, reports',t:'18/09/2026, 09:31:47',who:'tester'},
+ {term:'compliance-check-20306',what:'in_review → approved',t:'18/09/2026, 09:31:47',who:'jane'},
+ {term:'compliance-check-20306',what:'draft → in_review',t:'18/09/2026, 09:31:47',who:'tester'},
+ {term:'taxpayer-reference',what:'in_review → approved',t:'17/09/2026, 20:21:09',who:'jane'},
+ {term:'taxpayer-reference',what:'draft → in_review',t:'17/09/2026, 20:21:08',who:'tester'},
+ {term:'taxpayer-reference',what:'Changed business_rules, usage_examples',t:'17/09/2026, 20:21:08',who:'tester'}
+];
+const GLOSSARIES=['Customer','Orders','Product','Reference','Supplier'];
+const ROLE='governance-lead', ME='Admin';
+const STATUS={approved:['Approved','b-approved'],review:['In review','b-review'],draft:['Draft','b-draft'],deprecated:['Deprecated','b-deprecated']};
+const SDOT={approved:'#4D8CFF',review:'#A9D3FF',draft:'#C9D6E6',deprecated:'#fff'};
+let ui={view:'home',glossary:null,term:null,tab:'overview',list:'list',q:'',mq:'',fstatus:new Set(),fgloss:new Set(),seg:'all',open:new Set(['Customer','Orders']),openTerm:new Set(['customer','orders']),edit:false,atype:'all',aq:'',star:new Set(),menu:false};
+/* ------------------------------------------------------------------ helpers */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const T=id=>TERMS.find(t=>t.id===id);
+const kids=id=>TERMS.filter(t=>t.parent===id);
+const now=()=>{const d=new Date();return d.toLocaleDateString('en-GB')+', '+d.toLocaleTimeString('en-GB');};
+const badge=s=>`<span class="badge ${STATUS[s][1]}"><i></i>${STATUS[s][0]}</span>`;
+const ini=n=>n?n.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase():'';
+const person=n=>n?`<span class="person"><i>${esc(ini(n))}</i>${esc(n)}</span>`:'<span class="faint">—</span>';
+const I={
+ book:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></svg>',
+ term:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+ chev:'<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
+ search:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+ plus:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+ star:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+ starf:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+ link:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+ edit:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/></svg>',
+ bell:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7M10 20a2 2 0 0 0 4 0"/></svg>',
+ more:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+ trash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+ send:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg>',
+ x:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ unlink:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7M4 4l16 16"/></svg>',
+ dl:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+ table:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+ col:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="3" width="8" height="18" rx="1.5"/></svg>',
+ file:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"/></svg>',
+ topic:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12h4l3-7 3 14 3-7h3"/></svg>',
+ dash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+ check:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 12 5 5 9-10"/></svg>'
+};
+const TICON={table:I.table,view:I.table,column:I.col,file:I.file,topic:I.topic,dashboard:I.dash,report:I.dash,api:I.link};
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2200);}
+function log(term,what){const e={term,what,t:now(),who:ME};ACTIVITY.unshift(e);T(term)?.hist.unshift({t:e.t,who:ME,what});}
+function counts(list=TERMS){const c={approved:0,review:0,draft:0,deprecated:0};list.forEach(t=>c[t.status]++);return c;}
+const uniqAssets=()=>new Set(TERMS.flatMap(t=>t.linked.filter(a=>a.split('.').length===2)));
+function allLinks(){return TERMS.flatMap(t=>t.linked.map(a=>({term:t,a,...assetInfo(a)})));}
+function go(v){Object.assign(ui,v);ui.edit=false;ui.menu=false;render();window.scrollTo(0,0);}
+function matchQ(t,q){if(!q)return true;q=q.toLowerCase();return t.name.toLowerCase().includes(q)||t.def.toLowerCase().includes(q)||t.syn.join(' ').toLowerCase().includes(q);}
+/* ------------------------------------------------------------------ inner menu (Atlan-style tree + filters) */
+function renderMenu(){
+  const c=counts();
+  const q=ui.mq;
+  const termRow=(t,depth)=>{const k=kids(t.id);const open=ui.openTerm.has(t.id)||!!q;const on=ui.view==='term'&&ui.term===t.id;
+    return `<div class="mlink ${depth?'tchild2':'tchild'} ${on?'on':''}" data-term="${t.id}" tabindex="0">
+      ${k.length?`<span data-tt="${t.id}">${I.chev.replace('class="chev"',`class="chev ${open?'open':''}"`)}</span>`:'<span style="width:14px"></span>'}
+      <span class="sdot" style="background:${SDOT[t.status]};${t.status==='deprecated'?'border:1.5px solid #8694AB':''}"></span>${esc(t.name)}</div>
+      ${k.length&&open?k.filter(x=>matchQ(x,q)||!q).map(x=>termRow(x,1)).join(''):''}`;};
+  const tree=GLOSSARIES.map(g=>{const ts=TERMS.filter(t=>t.g===g&&!t.parent&&(matchQ(t,q)||kids(t.id).some(k=>matchQ(k,q))));const n=TERMS.filter(t=>t.g===g).length;
+    if(q&&!ts.length)return '';const open=ui.open.has(g)||!!q;const on=ui.view==='glossary'&&ui.glossary===g;
+    return `<div class="mlink ${on?'on':''}" data-gl="${g}" tabindex="0"><span data-tg="${g}">${I.chev.replace('class="chev"',`class="chev ${open?'open':''}"`)}</span>${I.book}${g}<span class="cnt">${n}</span></div>
+      ${open?ts.map(t=>termRow(t,0)).join(''):''}`;}).join('');
+  $('#menu').innerHTML=`
+   ${[['Data catalogue'],['Business glossary',1],['Data lineage'],['Data quality'],['Data governance'],['Data explorer'],['Metadata changes']].map(([n,on])=>`<div class="mlink ${on?'on':''}" ${on?'data-home="1"':''} tabindex="0">${on?I.book:I.table}${n}${on?`<span class="cnt">${TERMS.length}</span>`:''}</div>`).join('')}
+   <div class="divider"></div>
+   <div class="sec" style="cursor:default">Glossaries</div>
+   <div class="msearch">${I.search}<input id="mq" placeholder="Search terms & glossaries…" value="${esc(q)}"></div>
+   <div class="mlink ${ui.view==='home'?'on':''}" data-home="1" tabindex="0">${I.book}All glossaries<span class="cnt">${GLOSSARIES.length}</span></div>
+   ${tree}
+   <div class="divider"></div>
+   <div class="sec" style="cursor:default">Filters</div>
+   <div class="sec" style="margin-top:6px">Status</div>
+   <div class="fbox">${Object.entries(STATUS).map(([k,[n]])=>`<label class="chk"><input type="checkbox" data-fs="${k}" ${ui.fstatus.has(k)?'checked':''}>${n}<span class="cnt">${c[k]}</span></label>`).join('')}</div>
+   <div class="sec">Glossary</div>
+   <div class="fbox">${GLOSSARIES.map(g=>`<label class="chk"><input type="checkbox" data-fg="${g}" ${ui.fgloss.has(g)?'checked':''}>${g}<span class="cnt">${TERMS.filter(t=>t.g===g).length}</span></label>`).join('')}</div>`;
+}
+/* ------------------------------------------------------------------ right-column cards (all from the old UI) */
+function sideCards(){
+  const c=counts();const drafts=TERMS.filter(t=>t.status==='draft');const reviews=TERMS.filter(t=>t.status==='review');
+  const links=allLinks();const srcs=new Set(links.map(l=>l.src));const unlinked=TERMS.filter(t=>!t.linked.length);
+  return `<div class="card pad"><h3>Glossary</h3><dl class="kv" style="margin:10px 0 0">
+     <dt>Approved</dt><dd class="num">${c.approved}</dd><dt>In review</dt><dd>${c.review}</dd><dt>Draft</dt><dd>${c.draft}</dd><dt>Deprecated</dt><dd>${c.deprecated}</dd><dt>Linked assets</dt><dd>${uniqAssets().size}</dd></dl>
+     <div class="foot">Stored in Amazon S3.</div></div>
+   <div class="card pad"><h3>Approvals &amp; notifications</h3>
+     <div class="plist">${reviews.map(t=>`<div><div style="flex:1"><span class="tlink" data-term="${t.id}">${esc(t.name)}</span><small>In review · awaiting approval</small></div>
+        <button class="btn sm" data-approve="${t.id}">${I.check}Approve</button><button class="btn sm ghost" data-reject="${t.id}">Reject</button></div>`).join('')}
+      ${drafts.map(t=>`<div><div style="flex:1"><span class="tlink" data-term="${t.id}">${esc(t.name)}</span><small>Draft awaiting submission</small></div><button class="ib" title="Submit for review" aria-label="Submit ${esc(t.name)} for review" data-submit="${t.id}">${I.send}</button></div>`).join('')}
+      ${!reviews.length&&!drafts.length?'<div class="muted">Nothing waiting.</div>':''}</div>
+     <div class="foot">Approval needs: governance-lead or product-owner. You are ${ROLE}.</div></div>
+   <div class="card pad"><h3>Traceability</h3><p class="sub">${links.length} term-to-asset links across ${srcs.size} source systems.</p>
+     <div class="plist">${links.slice(0,8).map(l=>`<div style="display:block"><span class="tlink" data-term="${l.term.id}">${esc(l.term.name)}</span> → <span class="mono" style="font-size:12px">${esc(l.a)}</span><small>${esc(l.src)}</small></div>`).join('')}</div>
+     <div class="foot">Unlinked terms: ${unlinked.length?unlinked.map(t=>`<span class="tlink" data-term="${t.id}">${esc(t.name)}</span>`).join(', '):'none'}</div></div>
+   <div class="card pad"><h3>Recent activity</h3><div class="plist">${ACTIVITY.slice(0,6).map(a=>`<div style="display:block"><span class="tlink" data-term="${a.term}">${esc(T(a.term)?.name||a.term)}</span> <span class="muted">${esc(a.what)}</span><small>${a.t} · ${esc(a.who)}</small></div>`).join('')}</div></div>`;
+}
+/* ------------------------------------------------------------------ home: all glossaries */
+function filtered(){return TERMS.filter(t=>matchQ(t,ui.q)&&(ui.seg==='all'||t.status===ui.seg)&&(!ui.fstatus.size||ui.fstatus.has(t.status))&&(!ui.fgloss.size||ui.fgloss.has(t.g)));}
+function termTable(list,showGloss=true){
+  if(!list.length)return '<div class="empty">No terms match these filters.</div>';
+  if(ui.list==='tree'){
+    const byG=GLOSSARIES.filter(g=>showGloss||g===ui.glossary);
+    return `<div style="padding:6px 8px">${byG.map(g=>{const top=list.filter(t=>t.g===g&&(!t.parent||!list.includes(T(t.parent))));if(!top.length)return '';
+      const row=(t,d)=>`<div class="mlink" data-term="${t.id}" style="padding-left:${12+d*20}px">${I.term}<b style="font-weight:600">${esc(t.name)}</b>${badge(t.status)}<span class="cnt">${t.linked.length} linked</span></div>${list.filter(k=>k.parent===t.id).map(k=>row(k,d+1)).join('')}`;
+      return `${showGloss?`<div class="mlink" data-gl="${g}" style="font-weight:600">${I.book}${g}</div>`:''}${top.map(t=>row(t,showGloss?1:0)).join('')}`;}).join('')}</div>`;}
+  return `<table class="tbl"><thead><tr><th>Term</th><th>Status</th>${showGloss?'<th>Glossary</th>':''}<th>Owner</th><th class="num">Linked</th><th></th></tr></thead><tbody>
+   ${list.map(t=>`<tr data-term="${t.id}"><td><div class="tname">${I.term}${esc(t.name)}${t.parent?`<span class="faint" style="font-weight:400;font-size:12px">in ${esc(T(t.parent).name)}</span>`:''}</div><div class="muted" style="font-size:12px;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.def)}</div></td>
+     <td>${badge(t.status)}</td>${showGloss?`<td><span class="tag">${t.g}</span></td>`:''}<td>${person(t.owner)}</td><td class="num">${t.linked.length}</td>
+     <td style="width:76px"><div style="display:flex;gap:2px;justify-content:flex-end">${t.status==='draft'?`<button class="ib" title="Submit for review" aria-label="Submit ${esc(t.name)} for review" data-submit="${t.id}">${I.send}</button>`:''}<button class="ib" title="Delete term" aria-label="Delete ${esc(t.name)}" data-del="${t.id}">${I.trash}</button></div></td></tr>`).join('')}</tbody></table>`;
+}
+function renderHome(){
+  const c=counts();const unl=TERMS.filter(t=>!t.linked.length).length;const list=filtered();
+  return `<div class="phead"><div><span class="eyebrow">Data assets</span><h1>Business glossary</h1><p>The shared vocabulary for the estate: terms, their owners and the assets they describe.</p></div>
+    <button class="btn primary" data-new="1">${I.plus}New term</button></div>
+   <div class="tiles"><div><b>${TERMS.length}</b><span>Terms</span><small>${GLOSSARIES.length} glossaries</small></div><div><b>${c.approved}</b><span>Approved</span><small>published to everyone</small></div>
+    <div><b>${c.review}</b><span>In review</span><small>waiting for approval</small></div><div><b>${c.draft}</b><span>Draft</span><small>awaiting submission</small></div>
+    <div><b>${uniqAssets().size}</b><span>Linked assets</span><small>${allLinks().length} term-to-asset links</small></div><div><b>${unl}</b><span>Unlinked terms</span><small>no asset yet</small></div></div>
+   <div class="grid2"><div class="card">
+     <div class="toolbar" style="padding:14px 14px 0">
+      <div class="msearch" style="margin:0;width:300px;height:32px">${I.search}<input id="q" placeholder="Search terms, definitions or synonyms…" value="${esc(ui.q)}"></div>
+      <div class="seg2" role="group" aria-label="Status">${[['all','All'],['approved','Approved'],['review','In review'],['draft','Draft'],['deprecated','Deprecated']].map(([k,n])=>`<button class="${ui.seg===k?'on':''}" data-seg="${k}">${n}</button>`).join('')}</div>
+      <div class="seg2" role="group" aria-label="View" style="margin-left:auto"><button class="${ui.list==='list'?'on':''}" data-lv="list">List</button><button class="${ui.list==='tree'?'on':''}" data-lv="tree">Tree</button></div>
+     </div>
+     <div class="muted" style="font-size:12px;padding:10px 14px 4px">${list.length} of ${TERMS.length} terms</div>
+     ${termTable(list)}</div>
+    <div class="stack">${sideCards()}</div></div>`;
+}
+/* ------------------------------------------------------------------ glossary page */
+function renderGlossary(g){
+  const ts=TERMS.filter(t=>t.g===g);const c=counts(ts);const owners=[...new Set(ts.map(t=>t.owner).filter(Boolean))];
+  const links=ts.flatMap(t=>t.linked);const list=ts.filter(t=>matchQ(t,ui.q)&&(ui.seg==='all'||t.status===ui.seg)&&(!ui.fstatus.size||ui.fstatus.has(t.status)));
+  return `<div class="thead"><div class="ticon">${I.book}</div><div><h1>${g}</h1><div class="kind">Glossary · ${ts.length} terms</div></div>
+     <div class="tools"><button class="btn primary md" data-new="${g}">${I.plus}New term</button></div></div>
+   <div class="pgrid"><div class="stack">
+     <div class="card pad"><h3>Glossary summary</h3><dl class="kv" style="margin-top:10px"><dt>Terms</dt><dd>${ts.length} (${c.approved} approved · ${c.review} in review · ${c.draft} draft)</dd><dt>Owners</dt><dd>${owners.map(person).join(' ')||'—'}</dd><dt>Linked assets</dt><dd>${new Set(links).size} assets · ${links.length} links</dd><dt>Top-level terms</dt><dd>${ts.filter(t=>!t.parent).map(t=>`<span class="tlink" data-term="${t.id}">${esc(t.name)}</span>`).join(', ')}</dd></dl></div>
+     <div class="card"><div class="toolbar" style="padding:14px 14px 0"><div class="msearch" style="margin:0;width:260px">${I.search}<input id="q" placeholder="Search in ${g}…" value="${esc(ui.q)}"></div>
+       <div class="seg2" style="margin-left:auto"><button class="${ui.list==='list'?'on':''}" data-lv="list">List</button><button class="${ui.list==='tree'?'on':''}" data-lv="tree">Tree</button></div></div>
+       <div style="height:8px"></div>${termTable(list,false)}</div></div>
+     <aside class="side"><div class="prop"><label>Name</label><div class="v">${g}</div></div><div class="prop"><label>Description</label><div class="v muted" style="font-weight:400">Business terms for the ${g.toLowerCase()} domain.</div></div>
+      <div class="prop"><label>Owners</label><div class="v">${owners.map(person).join(' ')||'—'}</div></div><div class="prop"><label>Status</label><div class="v">${Object.entries(c).filter(([,n])=>n).map(([k,n])=>badge(k)+`<span class="muted">${n}</span>`).join(' ')}</div></div></aside></div>`;
+}
+/* ------------------------------------------------------------------ term profile */
+function termActions(t){
+  if(t.status==='draft')return `<div class="banner">${I.send}<div><b>Draft.</b> This term is waiting to be submitted for review.</div><button class="btn primary md" data-submit="${t.id}">Submit for review</button></div>`;
+  if(t.status==='review')return `<div class="banner">${I.bell}<div><b>In review.</b> Needs approval by governance-lead or product-owner. You are ${ROLE}.</div><button class="btn md ghost" data-reject="${t.id}">Reject</button><button class="btn primary md" style="margin-left:0" data-approve="${t.id}">${I.check}Approve</button></div>`;
+  if(t.status==='deprecated')return `<div class="banner" style="border-color:var(--line)">${I.x}<div><b>Deprecated.</b> Kept for history; don't use this term for new work.</div><button class="btn md" data-restore="${t.id}">Restore as draft</button></div>`;
+  return '';
+}
+function overviewTab(t){
+  if(ui.edit){const f=(k,l,v,ta)=>`<div class="fld"><label for="e_${k}">${l}</label>${ta?`<textarea class="input" id="e_${k}" data-ef="${k}">${esc(v)}</textarea>`:`<input class="input" id="e_${k}" data-ef="${k}" value="${esc(v)}">`}</div>`;
+    return `<div class="card pad"><h3>Edit term</h3><p class="sub">Every change is recorded in the term's history.</p>
+      ${f('def','Definition',t.def,1)}
+      <div class="formgrid">${f('owner','Owner',t.owner)}${f('steward','Steward',t.steward)}${f('custodian','Custodian',t.custodian)}</div>
+      <div class="formgrid">${f('syn','Synonyms (; separated)',t.syn.join('; '))}${f('rules','Business rules (; separated)',t.rules.join('; '))}${f('usage','Usage examples (; separated)',t.usage.join('; '))}</div>
+      ${f('notes','Notes',t.notes)}
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn md" data-cancel="1">Cancel</button><button class="btn primary md" id="save" disabled data-save="${t.id}">Save changes</button></div></div>`;}
+  const list=(a,empty)=>a.length?`<ul class="clean">${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:`<div class="muted">${empty}</div>`;
+  return `<div class="card pad"><h3>Term summary</h3><dl class="kv" style="margin-top:10px">
+      <dt>Glossary</dt><dd><span class="tlink" data-gl="${t.g}">${t.g}</span></dd><dt>Parent term</dt><dd>${t.parent?`<span class="tlink" data-term="${t.parent}">${esc(T(t.parent).name)}</span>`:'—'}</dd>
+      <dt>Definition</dt><dd style="font-weight:400">${esc(t.def)}</dd><dt>Status</dt><dd>${badge(t.status)}</dd><dt>Linked</dt><dd>${t.linked.length} assets and columns</dd></dl></div>
+    <div class="card pad"><h3>Business rules</h3>${list(t.rules,'No business rules yet. Edit the term to add them.')}</div>
+    <div class="card pad"><h3>Usage examples</h3>${list(t.usage,'No usage examples yet.')}</div>
+    <div class="card pad"><h3>Notes</h3><div class="${t.notes?'':'muted'}">${esc(t.notes)||'No notes.'}</div></div>`;
+}
+function linkedTab(t){
+  const rows=t.linked.map(a=>({a,...assetInfo(a)}));const types={};rows.forEach(r=>types[r.type]=(types[r.type]||0)+1);
+  const shown=rows.filter(r=>(ui.atype==='all'||r.type===ui.atype)&&(!ui.aq||r.a.toLowerCase().includes(ui.aq.toLowerCase())));
+  return `<div class="card"><div class="toolbar" style="padding:14px 14px 4px">
+     <div class="msearch" style="margin:0;width:260px">${I.search}<input id="aq" placeholder="Search linked assets…" value="${esc(ui.aq)}"></div>
+     <span class="chip ${ui.atype==='all'?'on':''}" data-at="all">All <small>${rows.length}</small></span>
+     ${Object.entries(types).map(([k,n])=>`<span class="chip ${ui.atype===k?'on':''}" data-at="${k}">${k[0].toUpperCase()+k.slice(1)} <small>${n}</small></span>`).join('')}
+     <div style="margin-left:auto;display:flex;gap:8px"><button class="btn md" data-export="${t.id}">${I.dl}Export</button><button class="btn primary md" data-linkadd="${t.id}">${I.plus}Link assets</button></div></div>
+    ${shown.length?shown.map(r=>`<div class="arow"><div class="aico">${TICON[r.type]||I.table}</div><div><div class="an">${esc(r.a)}</div><div class="am"><span>${r.type[0].toUpperCase()+r.type.slice(1)}</span><span>·</span><span>${esc(r.src)}</span></div></div>
+      <button class="ib" title="Unlink asset" aria-label="Unlink ${esc(r.a)}" data-unlink="${esc(r.a)}">${I.unlink}</button></div>`).join(''):'<div class="empty">No linked assets yet. Link an asset so people can find this term from the data.</div>'}</div>`;
+}
+function relTab(t){
+  const par=t.parent?T(t.parent):null;const ch=kids(t.id);const syn=t.syn;const sib=par?kids(par.id).filter(x=>x.id!==t.id):[];
+  const W=760,H=par?320:230,cx=380,cy=par?160:70;const box=(x,y,label,sub,id,hl)=>`<g class="gnode" ${id?`data-term="${id}"`:''}><rect x="${x-80}" y="${y-22}" width="160" height="44" rx="10" fill="${hl?'#EDF4FF':'#fff'}" stroke="${hl?'#4D8CFF':'#C9D6E6'}" stroke-width="${hl?1.6:1}"/><text x="${x}" y="${y-2}" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0E2A57">${esc(label.length>20?label.slice(0,19)+'…':label)}</text><text x="${x}" y="${y+13}" text-anchor="middle" font-size="10.5" fill="#566A89">${sub}</text></g>`;
+  let s='';
+  if(par){s+=`<path d="M${cx} ${cy-22}V${70+22}" stroke="#A9C6EF" stroke-width="1.5"/>`+box(cx,70,par.name,'Parent term',par.id);}
+  ch.forEach((k,i)=>{const x=cx+(i-(ch.length-1)/2)*180;s+=`<path d="M${cx} ${cy+22}C${cx} ${cy+50} ${x} ${cy+50} ${x} ${cy+102-22}" fill="none" stroke="#A9C6EF" stroke-width="1.5"/>`+box(x,cy+102,k.name,'Child term',k.id);});
+  syn.forEach((n,i)=>{const y=cy+(i-(syn.length-1)/2)*56;s+=`<path d="M${cx+80} ${cy}L${620-80} ${y}" stroke="#A9C6EF" stroke-dasharray="4 4" stroke-width="1.5"/>`+box(620,y,n,'Synonym');});
+  sib.slice(0,3).forEach((k,i)=>{const y=cy+(i-(Math.min(3,sib.length)-1)/2)*56;s+=`<path d="M${cx-80} ${cy}L${140+80} ${y}" stroke="#E1E8F1" stroke-width="1.5"/>`+box(140,y,k.name,'Sibling term',k.id);});
+  s+=box(cx,cy,t.name,STATUS[t.status][0],null,true);
+  const none=!par&&!ch.length&&!syn.length;
+  return `<div class="card pad graph"><h3>Relationships</h3><p class="sub">Parent, child and sibling terms and synonyms. Select a term to open it.</p>${none?'<div class="empty">No related terms or synonyms yet.</div>':`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Relationships of ${esc(t.name)}">${s}</svg>`}</div>`;
+}
+function histTab(t){return `<div class="card pad"><h3>History</h3><p class="sub">Every status change and edit to this term.</p><div class="hist">${t.hist.map(h=>`<div><span class="dot"></span><div><b style="font-weight:500">${esc(h.what)}</b><small>${h.t} · ${esc(h.who)}</small></div></div>`).join('')}</div></div>`;}
+function renderTerm(t){
+  const srcs=[...new Set(t.linked.map(a=>assetInfo(a).src))];const ch=kids(t.id);
+  return `<div class="thead"><div class="ticon">${I.term}</div><div><h1>${esc(t.name)} ${badge(t.status)}</h1><div class="kind">Term · <span class="tlink" data-gl="${t.g}">${t.g}</span>${t.parent?` / <span class="tlink" data-term="${t.parent}">${esc(T(t.parent).name)}</span>`:''}</div></div>
+     <div class="tools" style="position:relative">
+      <button class="ib ${ui.star.has(t.id)?'on':''}" title="Star" aria-label="Star" data-star="${t.id}">${ui.star.has(t.id)?I.starf:I.star}</button>
+      <button class="ib" title="Copy link" aria-label="Copy link" data-copy="${t.id}">${I.link}</button>
+      <button class="ib" title="Edit" aria-label="Edit term" data-edit="${t.id}">${I.edit}</button>
+      <button class="ib" title="Notify me of changes" aria-label="Notify me" data-bell="${t.id}">${I.bell}</button>
+      <button class="ib" title="More" aria-label="More actions" data-more="1">${I.more}</button>
+      ${ui.menu?`<div class="menu">${t.status==='approved'?`<button data-deprecate="${t.id}">${I.x}Deprecate term</button>`:''}<button data-export="${t.id}">${I.dl}Export linked assets</button><button data-new="${t.g}" data-parent="${t.id}">${I.plus}Add child term</button><button data-del="${t.id}" style="color:#0E2A57">${I.trash}Delete term</button></div>`:''}
+     </div></div>
+   ${termActions(t)}
+   <div class="tabs" role="tablist">${[['overview','Overview'],['linked','Linked assets',t.linked.length],['rel','Relationships'],['hist','History',t.hist.length]].map(([k,n,c])=>`<button class="tab ${ui.tab===k?'on':''}" data-tab="${k}" role="tab">${n}${c!=null?`<small>${c}</small>`:''}</button>`).join('')}</div>
+   <div class="pgrid"><div class="stack">${ui.tab==='overview'?overviewTab(t):ui.tab==='linked'?linkedTab(t):ui.tab==='rel'?relTab(t):histTab(t)}</div>
+    <aside class="side">
+     <div class="prop"><label>Name</label><div class="v">${esc(t.name)}</div></div>
+     <div class="prop"><label>Definition</label><div class="v" style="font-weight:400">${esc(t.def)}</div></div>
+     <div class="prop"><label>Glossary</label><div class="v"><span class="tlink" data-gl="${t.g}">${I.book} ${t.g}</span></div></div>
+     <div class="prop"><label>Status</label><div class="v"><div class="cert" style="width:100%"><b>${badge(t.status)}</b><span class="muted">${esc(t.hist[0]?.who||'')} · ${esc((t.hist[0]?.t||'').split(',')[0])}</span></div></div></div>
+     <div class="prop"><label>Owner</label><div class="v">${person(t.owner)}</div></div>
+     <div class="prop"><label>Steward</label><div class="v">${person(t.steward)}</div></div>
+     <div class="prop"><label>Custodian</label><div class="v">${person(t.custodian)}</div></div>
+     <div class="prop"><label>Synonyms</label><div class="v">${t.syn.length?t.syn.map(s=>`<span class="tag">${esc(s)}</span>`).join(''):'<span class="faint">—</span>'}</div></div>
+     <div class="prop"><label>Child terms</label><div class="v">${ch.length?ch.map(k=>`<span class="tlink" data-term="${k.id}">${esc(k.name)}</span>`).join(', '):'<span class="faint">—</span>'}</div></div>
+     <div class="prop"><label>Linked sources</label><div class="v">${srcs.length?srcs.map(s=>`<span class="tag">${esc(s)}</span>`).join(''):'<span class="faint">None yet</span>'}</div></div>
+    </aside></div>`;
+}
+/* ------------------------------------------------------------------ drawers & modals */
+function newTermDrawer(g,parent){
+  $('#overlay').innerHTML=`<div class="scrim" data-close="1"></div><div class="drawer" role="dialog" aria-label="New term"><header>New term<button class="ib" data-close="1" aria-label="Close">${I.x}</button></header>
+   <div class="db"><div class="fld"><label for="n_name">Name</label><input class="input" id="n_name" placeholder="e.g. Active Claim"></div>
+    <div class="fld"><label for="n_g">Glossary (domain)</label><select class="input" id="n_g">${GLOSSARIES.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="fld"><label for="n_p">Parent term (optional)</label><select class="input" id="n_p"><option value="">None</option>${TERMS.filter(t=>!t.parent).map(t=>`<option value="${t.id}" ${t.id===parent?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div>
+    <div class="formgrid"><div><label for="n_o">Owner</label><input class="input" id="n_o" style="width:100%"></div><div><label for="n_s">Steward</label><input class="input" id="n_s" style="width:100%"></div><div><label for="n_c">Custodian</label><input class="input" id="n_c" style="width:100%"></div></div>
+    <div class="fld" style="margin-top:12px"><label for="n_syn">Synonyms (; separated)</label><input class="input" id="n_syn"></div>
+    <div class="fld"><label for="n_d">Definition</label><textarea class="input" id="n_d" rows="4"></textarea></div>
+    <div class="muted" style="font-size:12px">New terms start as Draft. Submit them for review when ready.</div></div>
+   <footer><button class="btn md" data-close="1">Cancel</button><button class="btn primary md" id="create">Create term</button></footer></div>`;
+  $('#n_name').focus();
+  $('#create').onclick=()=>{const n=$('#n_name').value.trim();if(!n){$('#n_name').focus();return;}
+    const id=n.toLowerCase().replace(/[^a-z0-9]+/g,'-');const t={id,name:n,status:'draft',g:$('#n_g').value,parent:$('#n_p').value||null,def:$('#n_d').value.trim()||WD(n),owner:$('#n_o').value.trim(),steward:$('#n_s').value.trim(),custodian:$('#n_c').value.trim(),syn:$('#n_syn').value.split(';').map(s=>s.trim()).filter(Boolean),rules:[],usage:[],notes:'',linked:[],hist:[]};
+    TERMS.push(t);log(id,'Created as draft');closeOverlay();toast(`Created "${n}" as a draft`);go({view:'term',term:id,tab:'overview'});};
+}
+function confirmDelete(id){const t=T(id);
+  $('#overlay').innerHTML=`<div class="scrim" data-close="1"></div><div class="modal" role="alertdialog" aria-label="Delete term"><h3>Delete "${esc(t.name)}"?</h3><p class="muted" style="margin:0 0 16px;font-size:13px">This removes the term and its ${t.linked.length} asset links${kids(id).length?`, and makes its ${kids(id).length} child terms top-level`:''}. Consider deprecating it instead.</p>
+   <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn md" data-close="1">Cancel</button><button class="btn md" data-deprecate="${id}">Deprecate instead</button><button class="btn primary md" id="dodel">Delete term</button></div></div>`;
+  $('#dodel').onclick=()=>{kids(id).forEach(k=>k.parent=null);TERMS=TERMS.filter(x=>x.id!==id);ACTIVITY.unshift({term:id,what:`Deleted "${t.name}"`,t:now(),who:ME});closeOverlay();toast(`Deleted "${t.name}"`);go({view:'home'});};
+}
+function linkPicker(id){const t=T(id);const opts=Object.keys(ASSET).filter(a=>!t.linked.includes(a));
+  $('#overlay').innerHTML=`<div class="scrim" data-close="1"></div><div class="drawer" role="dialog" aria-label="Link assets"><header>Link assets to ${esc(t.name)}<button class="ib" data-close="1" aria-label="Close">${I.x}</button></header>
+   <div class="db"><div class="msearch">${I.search}<input id="lq" placeholder="Search assets…"></div><div id="lopts">${opts.map(a=>{const i=assetInfo(a);return `<label class="chk" data-lo="${esc(a.toLowerCase())}"><input type="checkbox" value="${esc(a)}"><span class="mono" style="font-size:12px">${esc(a)}</span><span class="cnt">${i.type}</span></label>`;}).join('')}</div></div>
+   <footer><button class="btn md" data-close="1">Cancel</button><button class="btn primary md" id="dolink">Link selected</button></footer></div>`;
+  $('#lq').oninput=e=>document.querySelectorAll('[data-lo]').forEach(l=>l.style.display=l.dataset.lo.includes(e.target.value.toLowerCase())?'':'none');
+  $('#dolink').onclick=()=>{const sel=[...document.querySelectorAll('#lopts input:checked')].map(i=>i.value);if(!sel.length){closeOverlay();return;}t.linked.push(...sel);log(id,`Linked ${sel.length} asset(s)`);closeOverlay();toast(`Linked ${sel.length} asset(s)`);render();};
+}
+function closeOverlay(){$('#overlay').innerHTML='';}
+/* ------------------------------------------------------------------ workflow */
+function setStatus(id,to,verb){const t=T(id);const map={draft:'draft',review:'in_review',approved:'approved',deprecated:'deprecated'};log(id,`${map[t.status]} → ${map[to]}`);t.status=to;toast(`${t.name}: ${verb}`);render();}
+/* ------------------------------------------------------------------ render + events */
+function render(){
+  renderMenu();
+  let crumb='Discover / Data assets / <b>Business glossary</b>';
+  if(ui.view==='glossary')crumb=`Discover / Data assets / Business glossary / <b>${ui.glossary}</b>`;
+  if(ui.view==='term'){const t=T(ui.term);if(!t){ui.view='home';return render();}crumb=`Discover / Data assets / Business glossary / ${t.g} / <b>${esc(t.name)}</b>`;}
+  $('#crumbs').innerHTML=crumb;
+  $('#main').innerHTML=ui.view==='home'?renderHome():ui.view==='glossary'?renderGlossary(ui.glossary):renderTerm(T(ui.term));
+  const q=$('#q');if(q){q.oninput=e=>{ui.q=e.target.value;const p=e.target.selectionStart;render();const n=$('#q');n.focus();n.setSelectionRange(p,p);};}
+  const aq=$('#aq');if(aq){aq.oninput=e=>{ui.aq=e.target.value;const p=e.target.selectionStart;render();const n=$('#aq');n.focus();n.setSelectionRange(p,p);};}
+  const mq=$('#mq');if(mq){mq.oninput=e=>{ui.mq=e.target.value;const p=e.target.selectionStart;renderMenu();const n=$('#mq');n.focus();n.setSelectionRange(p,p);};}
+  if(ui.edit){const t=T(ui.term);const orig=JSON.stringify([t.def,t.owner,t.steward,t.custodian,t.syn.join('; '),t.rules.join('; '),t.usage.join('; '),t.notes]);
+    document.querySelectorAll('[data-ef]').forEach(el=>el.oninput=()=>{const v=['def','owner','steward','custodian','syn','rules','usage','notes'].map(k=>$('#e_'+k).value);$('#save').disabled=JSON.stringify(v)===orig;});}
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-tg],[data-tt],[data-term],[data-gl],[data-home],[data-seg],[data-lv],[data-new],[data-submit],[data-approve],[data-reject],[data-del],[data-tab],[data-edit],[data-cancel],[data-save],[data-star],[data-copy],[data-bell],[data-more],[data-deprecate],[data-restore],[data-export],[data-linkadd],[data-unlink],[data-at],[data-close]');
+  if(!el){if(ui.menu){ui.menu=false;render();}return;}
+  const d=el.dataset;
+  if(d.tg){e.stopPropagation();ui.open.has(d.tg)?ui.open.delete(d.tg):ui.open.add(d.tg);renderMenu();return;}
+  if(d.tt){e.stopPropagation();ui.openTerm.has(d.tt)?ui.openTerm.delete(d.tt):ui.openTerm.add(d.tt);renderMenu();return;}
+  if(d.close){closeOverlay();return;}
+  if(d.new!==undefined&&d.new!==''){newTermDrawer(d.new==='1'?GLOSSARIES[0]:d.new,d.parent);ui.menu=false;return;}
+  if(d.submit){e.stopPropagation();setStatus(d.submit,'review','submitted for review');return;}
+  if(d.approve){e.stopPropagation();setStatus(d.approve,'approved','approved');return;}
+  if(d.reject){e.stopPropagation();setStatus(d.reject,'draft','sent back to draft');return;}
+  if(d.deprecate){closeOverlay();ui.menu=false;setStatus(d.deprecate,'deprecated','deprecated');return;}
+  if(d.restore){setStatus(d.restore,'draft','restored as draft');return;}
+  if(d.del){e.stopPropagation();ui.menu=false;confirmDelete(d.del);return;}
+  if(d.term){go({view:'term',term:d.term,tab:'overview',atype:'all',aq:''});return;}
+  if(d.gl){go({view:'glossary',glossary:d.gl,q:'',seg:'all'});ui.open.add(d.gl);renderMenu();return;}
+  if(d.home){go({view:'home'});return;}
+  if(d.seg){ui.seg=d.seg;render();return;}
+  if(d.lv){ui.list=d.lv;render();return;}
+  if(d.tab){ui.tab=d.tab;ui.edit=false;render();return;}
+  if(d.edit){ui.tab='overview';ui.edit=true;render();return;}
+  if(d.cancel){ui.edit=false;render();return;}
+  if(d.save){const t=T(d.save);const v=k=>$('#e_'+k).value;const sp=k=>v(k).split(';').map(s=>s.trim()).filter(Boolean);
+    const changed=[];const upd={def:v('def').trim(),owner:v('owner').trim(),steward:v('steward').trim(),custodian:v('custodian').trim(),syn:sp('syn'),rules:sp('rules'),usage:sp('usage'),notes:v('notes').trim()};
+    Object.entries(upd).forEach(([k,val])=>{if(JSON.stringify(val)!==JSON.stringify(t[k]))changed.push({def:'definition',syn:'synonyms',rules:'business_rules',usage:'usage_examples'}[k]||k);});
+    Object.assign(t,upd);if(changed.length)log(t.id,'Changed '+changed.join(', '));ui.edit=false;toast('Changes saved');render();return;}
+  if(d.star){ui.star.has(d.star)?ui.star.delete(d.star):ui.star.add(d.star);toast(ui.star.has(d.star)?'Starred':'Removed from starred');render();return;}
+  if(d.copy){navigator.clipboard?.writeText(location.href.split('#')[0]+'#/glossary/'+d.copy).catch(()=>{});toast('Link copied');return;}
+  if(d.bell){toast("You'll be notified when this term changes");return;}
+  if(d.more){e.stopPropagation();ui.menu=!ui.menu;render();return;}
+  if(d.export){const t=T(d.export);const csv='asset,type,source\n'+t.linked.map(a=>{const i=assetInfo(a);return `${a},${i.type},${i.src}`;}).join('\n');const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`${t.id}-linked-assets.csv`;a.click();ui.menu=false;toast('Exported linked assets');render();return;}
+  if(d.linkadd){linkPicker(d.linkadd);return;}
+  if(d.unlink){const t=T(ui.term);t.linked=t.linked.filter(a=>a!==d.unlink);log(t.id,`Unlinked ${d.unlink}`);toast('Asset unlinked');render();return;}
+  if(d.at){ui.atype=d.at;render();return;}
+});
+document.addEventListener('change',e=>{const d=e.target.dataset;if(d.fs){e.target.checked?ui.fstatus.add(d.fs):ui.fstatus.delete(d.fs);if(ui.view==='term')ui.view='home';render();}if(d.fg){e.target.checked?ui.fgloss.add(d.fg):ui.fgloss.delete(d.fg);if(ui.view!=='home')ui.view='home';render();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeOverlay();if(ui.menu){ui.menu=false;render();}}
+  if((e.key==='Enter'||e.key===' ')&&e.target.classList?.contains('mlink')){e.preventDefault();e.target.click();}});
+render();
+</script>
+</body>
+</html>

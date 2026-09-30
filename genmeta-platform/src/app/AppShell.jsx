@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2,
   LogOut, Search, Bell, CircleHelp, Server,
 } from 'lucide-react';
 import { NAV, pad3, navMatch, isDataAssets } from '../nav.js';
+import { glossaryCrumbs } from '../glossary-data.js';
 import { BRAND } from '../brand.js';
 import { useAuth } from '../auth.jsx';
 import { Burst } from '../components/Loader.jsx';
@@ -69,8 +70,11 @@ function Sidebar() {
 function Topbar({ loading }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const nav = useNavigate();
   const { group, parent, item, rest } = navMatch(pathname);
   const sub = rest && (item.crumbs ? item.crumbs[rest] : 'Asset');
+  /* The Business glossary has its own deep breadcrumb (glossary / term). */
+  const glossCrumbs = pathname.startsWith('/app/glossary') ? glossaryCrumbs(pathname) : [];
   /* don't repeat the group when it already matches the page label (e.g. Admin) */
   const showGroup = !!parent || group !== item.label;
   const topIdx = Math.max(0, NAV.findIndex((n) => n === parent || n === item));
@@ -78,7 +82,15 @@ function Topbar({ loading }) {
     <header className="topbar">
       <i className={`route-bar ${loading ? 'on' : ''}`} />
       <img className="topbar-logo" src={BRAND.lockup} alt="Rplus | GenMeta" />
-      <div className="crumbs"><span className="counter">{pad3(topIdx + 1)} — {pad3(NAV.length)}</span><span>{showGroup && `${group} / `}{parent && `${parent.label} / `}{sub ? <><span className="crumb-link">{item.label}</span> / <b>{sub}</b></> : <b>{item.label}</b>}</span></div>
+      <div className="crumbs"><span className="counter">{pad3(topIdx + 1)} — {pad3(NAV.length)}</span><span>{showGroup && `${group} / `}{parent && `${parent.label} / `}
+        {glossCrumbs.length ? (
+          <>
+            <span className="crumb-link" role="link" tabIndex={0} onClick={() => nav(item.to)}>{item.label}</span>
+            {glossCrumbs.map((c, i) => (
+              <Fragment key={i}>{' / '}{(i === glossCrumbs.length - 1 || !c.to) ? <b>{c.label}</b> : <span className="crumb-link" role="link" tabIndex={0} onClick={() => nav(c.to)}>{c.label}</span>}</Fragment>
+            ))}
+          </>
+        ) : sub ? <><span className="crumb-link">{item.label}</span> / <b>{sub}</b></> : <b>{item.label}</b>}</span></div>
       <label className="top-search"><Search size={15} strokeWidth={1.5} /><input placeholder="Search data, systems, or ask a question…" aria-label="Search" /><kbd>⌘K</kbd></label>
       <div className="top-actions">
         <span className={`top-burst ${loading ? 'on' : ''}`}><Burst size={20} /></span>
@@ -120,6 +132,9 @@ export default function AppShell() {
             {/* The Data assets section shares one InnerLayout across all its routes */}
             <Route path="catalogue" element={<DataAssets />} />
             <Route path="catalogue/:assetId" element={<DataAssets />} />
+            <Route path="glossary" element={<DataAssets />} />
+            <Route path="glossary/g/:glossary" element={<DataAssets />} />
+            <Route path="glossary/:term" element={<DataAssets />} />
             <Route path="lineage" element={<DataAssets />} />
             <Route path="quality" element={<DataAssets />} />
             <Route path="data-governance" element={<DataAssets />} />

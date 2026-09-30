@@ -1,6 +1,7 @@
 /* Inner-menu links for the Data assets section (like ADMIN_NAV). */
 export const DATA_ASSETS_NAV = [
   { to: '/app/catalogue', label: 'Data catalogue', icon: 'BookMarked' },
+  { to: '/app/glossary', label: 'Business glossary', icon: 'BookA' },
   { to: '/app/lineage', label: 'Data lineage', icon: 'Waypoints' },
   { to: '/app/quality', label: 'Data quality', icon: 'Gauge' },
   { to: '/app/data-governance', label: 'Data governance', icon: 'Landmark' },
