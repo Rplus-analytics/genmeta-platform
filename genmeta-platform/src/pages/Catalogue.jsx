@@ -195,7 +195,11 @@ export function CatalogueResults({ state }) {
     <div className="cat fade-in">
       <div className="tiles-sm">
         {tiles(results).map((t) => (
-          <div key={t.k}><b>{t.v.toLocaleString('en-GB')}</b><span>{t.k}</span><small>{t.s}</small></div>
+          t.k === 'Linked to terms'
+            ? <div key={t.k} className="tile-link" role="link" tabIndex={0} title="Open the business glossary"
+                onClick={() => nav('/app/glossary')} onKeyDown={(e) => e.key === 'Enter' && nav('/app/glossary')}>
+                <b>{t.v.toLocaleString('en-GB')}</b><span>{t.k}</span><small>{t.s}</small></div>
+            : <div key={t.k}><b>{t.v.toLocaleString('en-GB')}</b><span>{t.k}</span><small>{t.s}</small></div>
         ))}
       </div>
 
