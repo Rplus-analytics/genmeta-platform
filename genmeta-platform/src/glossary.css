@@ -39,6 +39,7 @@
 .gl-tchild2 { padding-left: 40px; }
 .gl-sdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .gl-msec { flex: none; font-size: 11.5px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin: 14px 8px 6px; }
+.gl-msec-first { margin-top: 6px; }
 
 /* ---------- shared page bits ---------- */
 .gl .gl-phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
@@ -162,6 +163,27 @@ ul.gl-clean { margin: 0; padding-left: 18px; } ul.gl-clean li { margin: 4px 0; f
 .gl textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 72px; width: 100%; }
 .gl-form-acts { display: flex; gap: 8px; justify-content: flex-end; }
 .gl-icon-royal { color: var(--royal); }
+
+/* grouped form sections (New term drawer) */
+.gl-group-label { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 18px 0 10px; }
+.gl-db > .gl-group-label:first-child { margin-top: 0; }
+
+/* edit-term boxes: label + "AI generate" on one line, tall growable textarea */
+.gl-fld-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; margin-bottom: 6px; }
+.gl-fld-head label { margin-bottom: 0; }
+.gl-fld-tools { display: flex; align-items: center; gap: 8px; }
+.gl-ai-tag { gap: 6px; color: var(--royal); }
+.gl-undo { background: none; border: 0; padding: 0; font: inherit; font-size: 11px; font-weight: 600; color: var(--royal); cursor: pointer; }
+.gl-undo:hover { text-decoration: underline; text-underline-offset: 2px; }
+.gl textarea.gl-edit-ta { min-height: 120px; }
+
+/* Edit form: a bounded column — the fields scroll in the body, the footer stays outside
+   the scroll, pinned to the bottom of the visible area. max-height is refined in JS. */
+.gl-editcard { display: flex; flex-direction: column; overflow: hidden; position: sticky; top: 12px; max-height: calc(100vh - 240px); }
+.gl-editbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 20px; }
+.gl-editbody .gl-formgrid { margin-bottom: 12px; }   /* gap between Owner/Steward/Custodian and Synonyms */
+.gl-editfoot { flex: none; display: flex; gap: 8px; justify-content: flex-end; padding: 14px 20px;
+  background: var(--white); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-card) var(--r-card); }
 
 /* ---------- icon buttons (32px) ---------- */
 .gl .ib, .gl-drawer .ib, .gl-menu .ib { width: 32px; height: 32px; border-radius: var(--r-ctl); border: 1px solid transparent; background: transparent; display: grid; place-items: center; color: var(--muted); cursor: pointer; }

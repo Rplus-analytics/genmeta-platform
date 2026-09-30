@@ -1,7 +1,6 @@
 /* Inner-menu links for the Data assets section (like ADMIN_NAV). */
 export const DATA_ASSETS_NAV = [
   { to: '/app/catalogue', label: 'Data catalogue', icon: 'BookMarked' },
-  { to: '/app/glossary', label: 'Business glossary', icon: 'BookA' },
   { to: '/app/lineage', label: 'Data lineage', icon: 'Waypoints' },
   { to: '/app/quality', label: 'Data quality', icon: 'Gauge' },
   { to: '/app/data-governance', label: 'Data governance', icon: 'Landmark' },
@@ -14,6 +13,7 @@ export const DATA_ASSETS_NAV = [
 export const NAV = [
   { to: '/app', label: 'Data estate', group: 'Discover', icon: 'Building2', end: true },
   { to: '/app/catalogue', label: 'Data assets', group: 'Discover', icon: 'Layers', assets: true },
+  { to: '/app/glossary', label: 'Business glossary', group: 'Discover', icon: 'BookA' },
   { to: '/app/graph', label: 'Knowledge graph', group: 'Discover', icon: 'Network', crumbs: { explorer: 'Graph explorer' } },
   { to: '/app/ask', label: 'Ask GenMeta', group: 'Discover', icon: 'MessagesSquare' },
   { to: '/app/governance', label: 'Governance', group: 'Govern', icon: 'Landmark' },

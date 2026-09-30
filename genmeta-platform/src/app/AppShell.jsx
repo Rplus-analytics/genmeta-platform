@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2,
-  LogOut, Search, Bell, CircleHelp, Server,
+  BookA, LogOut, Search, Bell, CircleHelp, Server,
 } from 'lucide-react';
 import { NAV, pad3, navMatch, isDataAssets } from '../nav.js';
 import { glossaryCrumbs } from '../glossary-data.js';
@@ -21,7 +21,7 @@ import DataProducts from '../pages/DataProducts.jsx';
 import Stewardship from '../pages/Stewardship.jsx';
 import Admin from '../pages/Admin.jsx';
 
-const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2 };
+const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2, BookA };
 
 /* Collapsed to icons by default; hovering the sidebar expands it (see .sidebar in styles.css),
    overlaying the page so the content never shifts. No manual collapse control. */
