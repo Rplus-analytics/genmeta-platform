@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { ASSETS, BY_KEY } from '../model.js';
-import { DIMENSIONS, dimensions, overallScore, statusOf, profileMethod, readable, vendorOf } from './metrics.js';
+import { DIMENSIONS, dimensions, overallScore, statusOf, profileMethod, readable, vendorOf, dimensionReason } from './metrics.js';
 
 const DIM_KEYS = DIMENSIONS;
+const DIM_LABEL = { completeness: 'Completeness', uniqueness: 'Uniqueness', validity: 'Validity', consistency: 'Consistency', timeliness: 'Timeliness', accuracy: 'Accuracy' };
 
 export default function Profiling({ a }) {
   const [profileKey, setProfileKey] = useState(a.key);
@@ -26,7 +27,7 @@ export default function Profiling({ a }) {
                   <tr key={x.key} className={`static dq-row ${x.key === profileKey ? 'sel' : ''} ${x.key === a.key ? 'is-current' : ''}`} onClick={() => setProfileKey(x.key)}>
                     <td><code className="mono">{x.key}</code><div className="da-stage">{vendorOf(x)} · {profileMethod(x)}</div></td>
                     <td className="num">{x.rows != null ? x.rows.toLocaleString('en-GB') : '—'}</td>
-                    {DIM_KEYS.map((d) => <td key={d} className="num">{ok ? dm[d] : '—'}</td>)}
+                    {DIM_KEYS.map((d) => <td key={d} className={`num ${ok ? '' : 'dq-na'}`}>{ok ? dm[d] : 'not measured'}</td>)}
                     <td className="num"><b>{overallScore(x)}</b></td>
                   </tr>
                 );
@@ -35,6 +36,28 @@ export default function Profiling({ a }) {
           </table>
         </div>
       </div>
+
+      {pa && (
+        <div className="card pad-lg ml-card">
+          <h3 className="sec-h">Dimension detail — {pa.key}</h3>
+          <p className="ml-note">Why each dimension scored what it did. Dimensions with no readable signal show as not measured.</p>
+          {(() => { const dm = dimensions(pa); const why = dimensionReason(pa); const ok = readable(pa); return (
+            <div className="dq-dimrows">
+              {DIM_KEYS.map((d) => {
+                const v = ok ? dm[d] : null;
+                return (
+                  <div key={d} className="dq-dimrow">
+                    <span className="dq-dimrow-l">{DIM_LABEL[d]}</span>
+                    <span className="dq-bar-track"><span className="dq-bar-fill" style={{ width: `${v ?? 0}%`, ...(v != null && v < 60 ? { background: 'var(--navy)' } : {}) }} /></span>
+                    <span className="dq-dimrow-n">{v != null ? v : <span className="dq-na">not measured</span>}</span>
+                    <span className="dq-dimrow-why">{why[d]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ); })()}
+        </div>
+      )}
 
       <div className="card pad-lg ml-card">
         <h3 className="sec-h">Column profile — {pa ? pa.key : ''}</h3>
