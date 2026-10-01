@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Data products prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0E2A57;--deep:#07111F;--royal:#4D8CFF;--sky:#A9D3FF;--ice:#EDF4FF;--mist:#F6FBFF;--canvas:#F3F6FA;--line:#D7E1EC;--line2:#C9D6E6;--muted:#566A89;--faint:#8694AB;--white:#fff;
+--r-ctl:8px;--r-card:12px;--shadow-1:0 1px 2px rgba(14,42,87,.06),0 1px 1px rgba(14,42,87,.04);--ring:0 0 0 2px #fff,0 0 0 4px var(--royal);--h-sm:28px;--h-md:32px;--h-lg:36px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:14px/1.45 'Hanken Grotesk',system-ui,sans-serif;color:var(--navy);background:var(--canvas)}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:'JetBrains Mono',monospace}
+/* chrome */
+.top{position:fixed;inset:0 0 auto 0;height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 16px;z-index:20}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;width:220px}
+.logo .rp{font-family:Georgia,serif;font-size:20px}
+.logo .sep{width:1px;height:20px;background:var(--line2)}
+.logo .gm{color:var(--navy)}.logo .gm i{font-style:normal;color:var(--royal)}
+.crumbs{font-size:13px;color:var(--muted)}.crumbs b{color:var(--navy);font-weight:600}
+.search{margin-left:auto;margin-right:auto;width:400px;height:34px;border-radius:var(--r-ctl);background:var(--canvas);border:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);font-size:13px}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6FA6FF,#3F7BEA);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+.rail{position:fixed;top:56px;bottom:0;left:0;width:56px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:4px;z-index:10}
+.rail a{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+.rail a.on{background:var(--ice);color:var(--royal)}
+.rail a:hover{background:var(--mist)}
+.inner{position:fixed;top:56px;bottom:0;left:56px;width:268px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:9}
+.inner-h{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 16px;border-bottom:1px solid var(--line);font-weight:600;font-size:15px}
+.inner-b{overflow:auto;padding:10px 10px 24px;flex:1}
+.main{margin-left:324px;padding:72px 32px 40px}
+/* inner menu */
+.msearch{height:32px;display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:var(--r-ctl);padding:0 10px;margin-bottom:8px}
+.msearch input{border:0;outline:0;flex:1;font-size:13px;background:transparent}
+.mlink{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;cursor:pointer;font-size:13.5px;color:var(--navy);user-select:none}
+.mlink:hover{background:var(--mist)}
+.mlink.on{background:var(--ice);font-weight:600}
+.mlink.on svg{color:var(--royal)}
+.mlink .cnt{margin-left:auto;font-size:11.5px;color:var(--faint)}
+.mlink .chev{width:14px;color:var(--faint);transition:transform .15s;flex:none}
+.mlink .chev.open{transform:rotate(90deg)}
+.tchild{padding-left:22px}
+.tchild2{padding-left:40px}
+.sdot{width:7px;height:7px;border-radius:50%;flex:none}
+.sec{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:14px 8px 6px;cursor:pointer}
+.divider{height:1px;background:var(--line);margin:12px 4px}
+.fbox{border:1px solid var(--line);border-radius:var(--r-ctl);padding:4px;margin:0 4px}
+.chk{display:flex;align-items:center;gap:8px;height:28px;padding:0 6px;font-size:13px;border-radius:5px;cursor:pointer}
+.chk:hover{background:var(--mist)}
+.chk input{accent-color:var(--royal)}
+.chk .cnt{margin-left:auto;font-size:11.5px;color:var(--faint)}
+/* shared */
+.eyebrow{font:500 11px 'JetBrains Mono';letter-spacing:.14em;color:var(--royal);text-transform:uppercase}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.phead h1{margin:4px 0 4px;font-size:26px;font-weight:600;letter-spacing:-.01em}
+.phead p{margin:0;color:var(--muted);font-size:13.5px}
+.btn{height:var(--h-lg);padding:0 14px;border-radius:var(--r-ctl);border:1px solid var(--line2);background:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:500;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--mist);border-color:var(--muted)}
+.btn:focus-visible,.mlink:focus-visible,.tab:focus-visible,.ib:focus-visible{outline:0;box-shadow:var(--ring)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--deep)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--ice)}
+.btn.sm{height:var(--h-sm);padding:0 10px;font-size:12.5px}
+.btn.md{height:var(--h-md);padding:0 12px;font-size:13px}
+.btn:disabled{background:var(--ice);border-color:var(--line);color:var(--faint);cursor:not-allowed}
+.ib{width:32px;height:32px;border-radius:var(--r-ctl);border:1px solid transparent;background:transparent;display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.ib:hover{background:var(--ice);color:var(--navy)}
+.ib.on{color:var(--royal)}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1)}
+.card.pad{padding:18px 20px}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.card .sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);margin-bottom:16px}
+.tiles>div{padding:14px 18px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:1px}
+.tiles>div:first-child{border-left:0}
+.tiles b{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.tiles span{font-size:12.5px;font-weight:600}
+.tiles small{font-size:12px;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.badge i{width:6px;height:6px;border-radius:50%}
+.b-approved{background:var(--ice);color:var(--navy)}.b-approved i{background:var(--royal)}
+.b-review{background:#fff;color:var(--royal);border:1px solid rgba(77,140,255,.55)}.b-review i{background:var(--royal)}
+.b-draft{background:#F3F5F8;color:var(--muted);border:1px dashed var(--line2)}.b-draft i{background:var(--faint)}
+.b-deprecated{background:#fff;color:var(--faint);border:1px solid var(--line)}.b-deprecated i{background:#fff;border:1.5px solid var(--faint)}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:var(--mist);border:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--line2);background:#fff;font-size:12.5px;cursor:pointer}
+.chip:hover{background:var(--mist)}
+.chip.on{background:var(--ice);border-color:var(--royal)}
+.chip small{color:var(--faint)}
+.seg2{display:inline-flex;background:#fff;border:1px solid var(--line2);border-radius:var(--r-ctl);padding:2px;gap:2px}
+.seg2 button{height:26px;border:0;background:transparent;border-radius:6px;padding:0 10px;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg2 button:hover{background:var(--mist);color:var(--navy)}
+.seg2 button.on{background:var(--ice);color:var(--navy)}
+.input{height:var(--h-md);border:1px solid var(--line2);border-radius:var(--r-ctl);padding:0 10px;background:#fff;outline:0;font-size:13px}
+.input:focus,textarea:focus{box-shadow:var(--ring);border-color:var(--royal)}
+textarea.input{height:auto;padding:8px 10px;resize:vertical;min-height:72px}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:16px}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover{background:var(--mist)}
+.tbl .tname{display:flex;align-items:center;gap:8px;font-weight:600}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:500}
+.plist>div{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.plist>div:last-child{border-bottom:0}
+.plist small{display:block;font-size:12px;color:var(--muted)}
+.foot{font-size:12px;color:var(--muted);margin-top:10px}
+.tlink{color:var(--royal);font-weight:500;cursor:pointer}
+.tlink:hover{text-decoration:underline;text-underline-offset:3px}
+/* term profile */
+.thead{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px}
+.ticon{width:44px;height:44px;border-radius:10px;background:var(--ice);color:var(--royal);display:grid;place-items:center;flex:none}
+.thead h1{margin:0;font-size:24px;font-weight:600;display:flex;align-items:center;gap:10px}
+.thead .kind{font-size:12.5px;color:var(--muted);margin-top:2px}
+.tools{margin-left:auto;display:flex;align-items:center;gap:2px}
+.banner{display:flex;align-items:center;gap:10px;border:1px solid rgba(77,140,255,.35);background:var(--mist);border-radius:var(--r-ctl);padding:10px 14px;font-size:13px;margin-bottom:14px}
+.banner .btn{margin-left:auto}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;height:44px;align-items:flex-end}
+.tab{height:44px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--muted);border:0;background:none;border-bottom:2px solid transparent;cursor:pointer;padding:0}
+.tab:hover{color:var(--navy)}
+.tab.on{color:var(--navy);border-bottom-color:var(--royal)}
+.tab small{font-size:11.5px;background:var(--ice);border-radius:99px;padding:0 6px;color:var(--muted)}
+.pgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.side{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);padding:6px 18px 12px;position:sticky;top:72px}
+.prop{padding:11px 0;border-bottom:1px solid var(--line)}
+.prop:last-child{border-bottom:0}
+.prop label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.prop .v{font-size:13.5px;font-weight:500;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.person{display:inline-flex;align-items:center;gap:6px}
+.person i{width:20px;height:20px;border-radius:50%;background:var(--ice);color:var(--royal);font-style:normal;font-size:10px;font-weight:700;display:grid;place-items:center}
+.cert{background:var(--ice);border-radius:var(--r-ctl);padding:8px 10px;font-size:12.5px}
+.cert b{display:flex;align-items:center;gap:6px}
+ul.clean{margin:0;padding-left:18px}ul.clean li{margin:4px 0}
+.arow{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.arow:last-child{border-bottom:0}
+.arow:hover{background:var(--mist)}
+.aico{width:30px;height:30px;border-radius:8px;background:var(--ice);color:var(--royal);display:grid;place-items:center;flex:none}
+.arow .an{font-family:'JetBrains Mono';font-size:12.5px;font-weight:500;color:var(--royal);cursor:pointer}
+.arow .am{font-size:12px;color:var(--muted);display:flex;gap:8px;margin-top:2px}
+.arow .ib{margin-left:auto}
+.hist>div{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.hist>div:last-child{border-bottom:0}
+.hist .dot{width:9px;height:9px;border-radius:50%;background:var(--royal);margin-top:5px;flex:none;box-shadow:0 0 0 3px var(--ice)}
+.hist small{display:block;color:var(--muted);font-size:12px}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.formgrid label,.fld label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+.fld{margin-bottom:12px}
+.fld .input{width:100%}
+/* drawer & modal */
+.scrim{position:fixed;inset:0;background:rgba(7,17,31,.35);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:440px;background:#fff;z-index:41;box-shadow:-20px 0 40px -20px rgba(14,42,87,.3);display:flex;flex-direction:column}
+.drawer header{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 20px;border-bottom:1px solid var(--line);font-weight:600;font-size:16px}
+.drawer .db{padding:18px 20px;overflow:auto;flex:1}
+.drawer footer{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.modal{position:fixed;left:50%;top:30%;transform:translate(-50%,-30%);width:420px;background:#fff;border-radius:14px;z-index:41;padding:20px;box-shadow:0 20px 50px -20px rgba(14,42,87,.4)}
+.modal h3{margin:0 0 6px;font-size:17px}
+.menu{position:absolute;right:0;top:36px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px -10px rgba(14,42,87,.3);padding:4px;min-width:200px;z-index:30}
+.menu button{display:flex;width:100%;align-items:center;gap:8px;height:32px;border:0;background:none;border-radius:6px;padding:0 10px;font-size:13px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--mist)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:60;box-shadow:0 10px 30px -10px rgba(7,17,31,.5)}
+.proto{position:fixed;left:340px;bottom:16px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);box-shadow:var(--shadow-1)}
+.graph svg{display:block;width:100%;height:auto}
+.gnode{cursor:pointer}
+.gnode:hover rect{stroke:var(--royal)}
+/* ---- data products additions ---- */
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);padding:16px 18px;display:flex;flex-direction:column;gap:8px;cursor:pointer;position:relative}
+.pcard:hover{border-color:var(--royal)}
+.pcard h4{margin:0;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px}
+.pcard .desc{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px}
+.pcard .meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.pcard .meta span{display:inline-flex;align-items:center;gap:4px}
+.pcard .foot2{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.pcard .tip{display:none;position:absolute;left:18px;right:18px;top:70px;background:var(--navy);color:#fff;font-size:12.5px;padding:10px 12px;border-radius:8px;z-index:5;box-shadow:0 10px 30px -10px rgba(7,17,31,.5)}
+.pcard .desc:hover + .tip{display:block}
+.dchip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;font-size:11.5px;font-weight:500;background:var(--ice);color:var(--navy)}
+.dchip i{width:8px;height:8px;border-radius:2px}
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:22px;padding:0 6px;border-radius:6px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.s-hi{background:#E6F0FF;color:#1E4FA8}.s-mid{background:#FFF4DE;color:#8A5A00}.s-lo{background:#FDEBEC;color:#9F2D2D}
+.b-published{background:var(--ice);color:var(--navy)}.b-published i{background:var(--royal)}
+.b-sunset{background:#FFF7EA;color:#8A5A00;border:1px solid #F1D9A8}.b-sunset i{background:#E3A008}
+.b-archived{background:#fff;color:var(--faint);border:1px solid var(--line)}.b-archived i{background:#fff;border:1.5px solid var(--faint)}
+.lvl{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500}
+.lvl i{width:8px;height:8px;border-radius:50%}
+.bars{display:flex;flex-direction:column;gap:10px}
+.barrow{display:grid;grid-template-columns:120px 1fr 36px;gap:10px;align-items:center;font-size:13px}
+.bar{height:8px;background:var(--ice);border-radius:99px;overflow:hidden}
+.bar>b{display:block;height:100%;background:var(--royal);border-radius:99px}
+.bigscore{display:flex;align-items:baseline;gap:6px}
+.bigscore b{font-size:34px;font-weight:700;letter-spacing:-.02em}
+.enr{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.enr>div{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.enr b{font-size:22px;font-weight:600}
+.enr .rem{font-size:12px;color:var(--royal);cursor:pointer;margin-top:6px}
+.statgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 20px}
+.statgrid b{font-size:22px;font-weight:600;display:block}
+.chart{display:flex;align-items:flex-end;gap:6px;height:120px;border-bottom:1px solid var(--line);padding-top:8px}
+.chart>div{flex:1;background:var(--sky);border-radius:4px 4px 0 0;position:relative;min-height:2px}
+.chart>div.hi{background:var(--royal)}
+.chartx{display:flex;gap:6px;font-size:11px;color:var(--faint);margin-top:4px}.chartx span{flex:1;text-align:center}
+.port{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.port:last-child{border-bottom:0}
+.flow{display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr;align-items:center;gap:0}
+.flow .col{display:flex;flex-direction:column;gap:8px}
+.flow .node{border:1px solid var(--line2);border-radius:8px;padding:8px 10px;background:#fff;font-size:12.5px}
+.flow .node.p{background:var(--navy);color:#fff;border-color:var(--navy);text-align:center;padding:16px}
+.flow .arr{height:2px;background:var(--line2);position:relative}
+.flow .arr:after{content:'';position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left-color:var(--line2)}
+.collapse h4{margin:0;font-size:13.5px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.collapse .cb{padding:8px 0 4px 22px;display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;font-size:13px}
+.collapse .cb label{display:block;font-size:12px;color:var(--muted)}
+.readme h2{font-size:18px;margin:0 0 8px}.readme p{margin:0 0 8px;font-size:13.5px;color:var(--navy)}
+.steps{display:flex;gap:6px;margin-bottom:16px}
+.steps span{flex:1;height:4px;border-radius:99px;background:var(--ice)}
+.steps span.on{background:var(--royal)}
+.radio{display:flex;gap:8px;flex-wrap:wrap}
+.radio label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;color:var(--navy)}
+.radio input{accent-color:var(--royal)}
+.pick{border:1px solid var(--line);border-radius:10px;max-height:300px;overflow:auto}
+.pick label{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;font-family:'JetBrains Mono';cursor:pointer;color:var(--navy)}
+.pick label small{margin-left:auto;font-family:'Hanken Grotesk';color:var(--faint)}
+.slarow{display:grid;grid-template-columns:1fr 120px 120px 100px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.ok{color:#1E4FA8;font-weight:600}.warn{color:#9A5B00;font-weight:600}
+.annc{display:flex;gap:10px;align-items:center;background:#FFF7EA;border:1px solid #F1D9A8;border-radius:var(--r-ctl);padding:10px 14px;font-size:13px;margin-bottom:14px}
+.cand{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.cand:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><span class="rp">r<sup style="color:var(--royal)">+</sup></span><span class="sep"></span><span class="gm">Gen<i>meta</i></span></div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search data, systems, or ask a question…</div>
+  <span class="tag" style="margin-right:8px">Prototype · demo data</span><div class="av">A</div>
+</header>
+<nav class="rail" aria-label="Main">
+  <a title="Data estate"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="10" height="18"/><path d="M14 9h6v12h-6M7 7h4M7 11h4M7 15h4"/></svg></a>
+  <a title="Data assets"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 17.5l9 5 9-5"/></svg></a>
+  <a title="Business glossary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m9 15 3-7 3 7M10 13h4"/></svg></a>
+  <a title="Governance"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21h18M5 18V10M9 18V10M15 18V10M19 18V10M2 10l10-6 10 6Z"/></svg></a>
+  <a class="on" title="Data products"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></a>
+  <a title="Stewardship"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg></a>
+  <a title="Admin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/></svg></a>
+</nav>
+<aside class="inner" aria-label="Data products">
+  <div class="inner-h">Data products</div>
+  <div class="inner-b" id="menu"></div>
+</aside>
+<main class="main" id="main"></main>
+<div id="overlay"></div>
+<script>
+/* ---------------- data: the 6 existing products are kept exactly; domains, ports, scores and the rest are added */
+const ASSET={"INT.CUSTOMER":["Rplus_DWH","view"],"INT.ORDERS":["Rplus_DWH","view"],"INT.LINEITEM":["Rplus_DWH","view"],"PRL.ORDER_MASTER":["Rplus_DWH","view"],"SRC.CUSTOMER":["Rplus_DWH","table"],"SRC.ORDERS":["Rplus_DWH","table"],"SRC.LINEITEM":["Rplus_DWH","table"],"STG.CUSTOMER_ORDER":["Rplus_DWH","view"],"STG.ORDER_ITEM_SUMMARY":["Rplus_DWH","view"],"STREAMING.customer-value":["Rplus Streaming (Confluent)","topic"],"STREAMING.order-events":["Rplus Streaming (Confluent)","topic"],"S3_RAW.CUSTOMER":["Rplus Amazon S3","file"],"S3_RAW.ORDERS":["Rplus Amazon S3","file"],"S3_CLN.CUSTOMER":["Rplus Amazon S3","file"],"S3_CLN.ORDERS":["Rplus Amazon S3","file"],"S3_ENR.CUSTOMER_ORDERS":["Rplus Amazon S3","file"],"S3_ENR.CUSTOMER_SUMMARY":["Rplus Amazon S3","file"],"S3_DOCS.FORMS_INDEX":["Rplus Amazon S3","file"],"SQL_CLN.CUSTOMER":["Rplus SQL Server","view"],"SQL_ENR.CUSTOMER_ORDERS":["Rplus SQL Server","view"],"SQL_FIN.GENERAL_LEDGER":["Rplus SQL Server","table"],"SQL_FIN.PAYMENTS":["Rplus SQL Server","table"],"SQL_OPS.CASES":["Rplus SQL Server","table"],"SQL_OPS.CASE_SLA":["Rplus SQL Server","view"],"WEB.SESSIONS":["Rplus_DWH","table"],"WEB.CAMPAIGN_EVENTS":["Rplus_DWH","table"],"BI.Customer 360 Dashboard":["Rplus Reports (Power BI)","dashboard"],"BI.Order Revenue Report":["Rplus Reports (Power BI)","report"],"BI.Customer Churn Analysis":["Rplus Reports (Power BI)","report"],"BI.Month End Close":["Rplus Reports (Power BI)","report"],"BI.Casework SLA":["Rplus Reports (Power BI)","dashboard"],"BI.Fulfilment Live":["Rplus Reports (Power BI)","dashboard"],"API.GET_customers":["Rplus API (Rest API)","api"],"API.GET_orders":["Rplus API (Rest API)","api"]};
+const DOMAINS=[
+ {id:'customer',name:'Customer',color:'#4D8CFF',parent:null,owners:['Raghav'],desc:'Everything about the people and organisations we serve.',readme:'Welcome to the Customer domain. Here you will find curated data products about customers, their profiles and how they engage with the department.'},
+ {id:'digital',name:'Digital engagement',color:'#7FB2FF',parent:'customer',owners:['Raghav'],desc:'Web and campaign behaviour.'},
+ {id:'finance',name:'Finance',color:'#0E2A57',parent:null,owners:['Madhavi'],desc:'Ledger, payments and month-end reporting.',readme:'Welcome to the Finance domain. Certified finance data products for month-end close, payments and revenue reporting.'},
+ {id:'operations',name:'Operations',color:'#2F6BD8',parent:null,owners:['Rajesh'],desc:'Casework, documents and service levels.',readme:'Welcome to the Operations domain. Data products that support casework, document handling and operational reporting.'},
+ {id:'documents',name:'Documents',color:'#A9D3FF',parent:'operations',owners:['PK'],desc:'Scanned forms and document indexes.'},
+ {id:'orders',name:'Orders',color:'#5B7FB8',parent:null,owners:['Rajesh'],desc:'Orders, items and fulfilment.',readme:'Welcome to the Orders domain. Data products covering orders from placement to fulfilment.'},
+ {id:'fulfilment',name:'Fulfilment',color:'#9BB7E0',parent:'orders',owners:['Rajesh'],desc:'Real-time order events.'}
+];
+const P=[
+ {id:'customer-360',name:'Customer 360',owner:'Raghav',domain:'customer',desc:'Unified customer profile across orders, events and casework.',consumers:128,sources:3,quality:96,status:'published',crit:'high',sens:'confidential',vis:'Public',cert:'Verified',terms:['Customer','Customer Orders'],tags:['PII','Restricted'],experts:['Rajesh'],
+  inputs:['INT.CUSTOMER','STREAMING.customer-value','S3_ENR.CUSTOMER_SUMMARY'],outputs:['BI.Customer 360 Dashboard','API.GET_customers'],assets:['INT.CUSTOMER','SRC.CUSTOMER','S3_CLN.CUSTOMER','S3_ENR.CUSTOMER_SUMMARY','SQL_CLN.CUSTOMER','STREAMING.customer-value','BI.Customer 360 Dashboard','API.GET_customers'],
+  sc:[5,5,5,4,4,5],created:'Apr 2026',fresh:'12 min ago',sla:{fresh:['Every 30 min','12 min ago',1],avail:['99.5%','99.9%',1],qual:['≥ 90%','96%',1]},users:[42,51,48,60,64,72]},
+ {id:'finance-ledger',name:'Finance Ledger',owner:'Madhavi',domain:'finance',desc:'Certified general ledger and payments for month-end reporting.',consumers:64,sources:2,quality:98,status:'published',crit:'high',sens:'confidential',vis:'Private to domain members',cert:'Verified',terms:['Supplier'],tags:['Finance'],experts:['PK'],
+  inputs:['SQL_FIN.GENERAL_LEDGER','SQL_FIN.PAYMENTS'],outputs:['BI.Month End Close'],assets:['SQL_FIN.GENERAL_LEDGER','SQL_FIN.PAYMENTS','BI.Month End Close','BI.Order Revenue Report'],
+  sc:[4,5,5,5,4,5],created:'Feb 2026',fresh:'1 h ago',sla:{fresh:['Daily 06:00','Today 05:52',1],avail:['99%','99.7%',1],qual:['≥ 95%','98%',1]},users:[20,22,30,25,28,31]},
+ {id:'casework-insights',name:'Casework Insights',owner:'Rajesh',domain:'operations',desc:'Case volumes, SLAs and outcomes for operational reporting.',consumers:91,sources:2,quality:92,status:'published',crit:'medium',sens:'internal',vis:'Public',cert:'Verified',terms:['Customer'],tags:['Operations'],experts:['Priya'],
+  inputs:['SQL_OPS.CASES','SQL_OPS.CASE_SLA'],outputs:['BI.Casework SLA'],assets:['SQL_OPS.CASES','SQL_OPS.CASE_SLA','BI.Casework SLA'],
+  sc:[4,4,5,4,3,4],created:'Jan 2026',fresh:'3 h ago',sla:{fresh:['Every 4 h','3 h ago',1],avail:['99%','99.2%',1],qual:['≥ 90%','92%',1]},users:[30,35,33,38,40,44]},
+ {id:'web-engagement',name:'Web Engagement',owner:'Raghav',domain:'digital',desc:'Sessionised web and campaign events for product analytics.',consumers:47,sources:2,quality:89,status:'published',crit:'medium',sens:'internal',vis:'Public',cert:'Draft',terms:[],tags:['Marketing'],experts:[],
+  inputs:['WEB.SESSIONS','WEB.CAMPAIGN_EVENTS'],outputs:['BI.Customer Churn Analysis'],assets:['WEB.SESSIONS','WEB.CAMPAIGN_EVENTS','BI.Customer Churn Analysis'],
+  sc:[2,4,5,3,3,3],created:'May 2026',fresh:'45 min ago',sla:{fresh:['Hourly','45 min ago',1],avail:['99%','98.6%',0],qual:['≥ 90%','89%',0]},users:[12,15,14,18,17,19]},
+ {id:'document-index',name:'Document Index',owner:'PK',domain:'documents',desc:'Searchable index of scanned forms and documents in S3.',consumers:23,sources:1,quality:85,status:'sunset',crit:'low',sens:'confidential',vis:'Private to selected members',cert:'Deprecated',terms:[],tags:['PII'],experts:[],
+  inputs:['S3_DOCS.FORMS_INDEX'],outputs:['S3_DOCS.FORMS_INDEX'],assets:['S3_DOCS.FORMS_INDEX'],announce:'Being replaced by the new Document Search product on 31 Dec 2026.',
+  sc:[1,3,5,4,2,2],created:'Oct 2025',fresh:'2 days ago',sla:{fresh:['Daily','2 days ago',0],avail:['99%','99.1%',1],qual:['≥ 85%','85%',1]},users:[9,8,7,6,5,4]},
+ {id:'streaming-orders',name:'Streaming Orders',owner:'Rajesh',domain:'fulfilment',desc:'Real-time order events for fulfilment dashboards.',consumers:36,sources:2,quality:90,status:'published',crit:'high',sens:'internal',vis:'Public',cert:'Verified',terms:['Orders','Lineitem'],tags:['Real-time'],experts:['PK'],
+  inputs:['STREAMING.order-events','INT.ORDERS'],outputs:['BI.Fulfilment Live','API.GET_orders'],assets:['STREAMING.order-events','INT.ORDERS','S3_RAW.ORDERS','S3_CLN.ORDERS','BI.Fulfilment Live','API.GET_orders'],
+  sc:[4,4,5,4,5,4],created:'Jun 2026',fresh:'1 min ago',sla:{fresh:['Under 5 min','1 min ago',1],avail:['99.9%','99.95%',1],qual:['≥ 90%','90%',1]},users:[18,20,25,27,30,33]},
+ {id:'order-master',name:'Order Master',owner:'PK',domain:'orders',desc:'One record per order with totals, ready for revenue and fulfilment reporting.',consumers:0,sources:1,quality:59,status:'draft',crit:'medium',sens:'internal',vis:'Private to domain members',cert:'Draft',terms:['Order Master','Orders'],tags:[],experts:[],
+  inputs:['PRL.ORDER_MASTER'],outputs:['PRL.ORDER_MASTER'],assets:['PRL.ORDER_MASTER','INT.ORDERS','INT.LINEITEM'],
+  sc:[3,2,4,2,3,1],created:'Sep 2026',fresh:'19 Sep 2026',sla:null,users:[0,0,0,0,0,0]}
+];
+const CANDS=[{a:'PRL.ORDER_MASTER',n:'Order Master',q:32,s:59,why:'Queried 32 times in 30 days'},{a:'STG.CUSTOMER_ORDER',n:'Customer Order',q:20,s:52,why:'Queried 20 times in 30 days'},{a:'STG.ORDER_ITEM_SUMMARY',n:'Order Item Summary',q:14,s:44,why:'Queried 14 times in 30 days'},{a:'INT.CUSTOMER',n:'Customer',q:9,s:43,why:'High value: 2 downstream consumers'}];
+const PRINC=['Discoverable','Understandable','Addressable','Secure','Interoperable','Trustworthy'];
+const PRINC_WHY=['Glossary terms linked to the product and its output ports','Descriptions and readme on the product and output ports','Owners assigned to the product and output ports','Sensitivity and tags set on output ports','Lineage complete across output ports','Certificates and service levels (contracts) attached'];
+const PST={draft:['Draft','b-draft'],published:['Published','b-published'],sunset:['Sunset','b-sunset'],archived:['Archived','b-archived']};
+const CRIT={high:['High','#9F2D2D'],medium:['Medium','#E3A008'],low:['Low','#8694AB']};
+const SENS={public:['Public','#4D8CFF'],internal:['Internal','#2F6BD8'],confidential:['Confidential','#0E2A57']};
+let ACT=[{p:'customer-360',what:'Output port API.GET_customers added',t:'29/09/2026, 10:12',who:'Raghav'},{p:'document-index',what:'Status published → sunset',t:'28/09/2026, 16:40',who:'PK'},{p:'order-master',what:'Created as draft from usage candidate',t:'19/09/2026, 14:07',who:'PK'},{p:'finance-ledger',what:'Certificate set to Verified',t:'15/09/2026, 09:03',who:'Madhavi'}];
+let REQS=[{p:'finance-ledger',who:'Venkat',why:'Quarterly revenue reconciliation',t:'30/09/2026',st:'pending'}];
+let ui={view:'home',domain:null,product:null,tab:'overview',mq:'',q:'',seg:'all',fcrit:'all',fsens:'all',layout:'grid',open:new Set(['customer','operations','orders']),star:new Set(),menu:false,drawer:null,dtab:'overview',sort:'score'};
+/* ---------------- helpers */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const D=id=>DOMAINS.find(d=>d.id===id);
+const PR=id=>P.find(p=>p.id===id);
+const subs=id=>DOMAINS.filter(d=>d.parent===id);
+const inDomain=id=>P.filter(p=>p.domain===id||D(p.domain).parent===id);
+const score=p=>Math.round(p.sc.reduce((a,b)=>a+b,0)/p.sc.length*10)/10;
+const sclass=v=>v>=4?'s-hi':v>=3?'s-mid':'s-lo';
+const badge=s=>`<span class="badge ${PST[s][1]}"><i></i>${PST[s][0]}</span>`;
+const ini=n=>n?n.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase():'';
+const person=n=>n?`<span class="person"><i>${esc(ini(n))}</i>${esc(n)}</span>`:'<span class="faint">—</span>';
+const dchip=id=>{const d=D(id);return `<span class="dchip"><i style="background:${d.color}"></i>${esc(d.name)}</span>`};
+const lvl=(m,k)=>`<span class="lvl"><i style="background:${m[k][1]}"></i>${m[k][0]}</span>`;
+const ainfo=a=>{const x=ASSET[a]||['Rplus_DWH','table'];return {src:x[0],type:x[1]}};
+const now=()=>{const d=new Date();return d.toLocaleDateString('en-GB')+', '+d.toLocaleTimeString('en-GB').slice(0,5)};
+const I={
+ box:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>',
+ dom:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+ chev:'<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
+ users:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7"/></svg>',
+ db:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>',
+ star:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>',
+ port:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h10M10 7l5 5-5 5"/><rect x="16" y="5" width="4" height="14" rx="1"/></svg>',
+ check:'<svg width="14" height="14" viewBox="0 0 24 24" fill="#4D8CFF"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.3 14.2-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7Z"/></svg>',
+ search:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+ plus:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+ x:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ dots:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+ link:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+ bell:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg>',
+ starL:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>',
+ starF:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#4D8CFF" stroke="#4D8CFF" stroke-width="1.8"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>',
+ spark:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
+ mega:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="1.8"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1ZM17 9a4 4 0 0 1 0 6"/></svg>',
+ lock:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
+};
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+function go(o){Object.assign(ui,o);ui.menu=false;render();window.scrollTo(0,0)}
+/* ---------------- inner menu: domain tree like Atlan */
+function renderMenu(){
+ const q=ui.mq.toLowerCase();
+ const prodLink=(p,depth)=>`<div class="mlink ${depth}${ui.view==='product'&&ui.product===p.id?' on':''}" data-p="${p.id}" tabindex="0"><span style="color:var(--faint)">${I.box}</span>${esc(p.name)}${p.status!=='published'?`<span class="cnt">${PST[p.status][0]}</span>`:''}</div>`;
+ const domBlock=(d,depth)=>{
+  const ps=P.filter(p=>p.domain===d.id&&(!q||p.name.toLowerCase().includes(q)));
+  const ss=subs(d.id);
+  const open=ui.open.has(d.id)||!!q;
+  let h=`<div class="mlink ${depth}${ui.view==='domain'&&ui.domain===d.id?' on':''}" data-d="${d.id}" tabindex="0"><span data-tog="${d.id}">${I.chev.replace('class="chev"','class="chev'+(open?' open':'')+'"')}</span><i class="sdot" style="background:${d.color};border-radius:2px"></i>${esc(d.name)}<span class="cnt">${inDomain(d.id).length}</span></div>`;
+  if(open){ss.forEach(s=>h+=domBlock(s,depth?'tchild2':'tchild'));ps.forEach(p=>h+=prodLink(p,depth?'tchild2':'tchild'))}
+  return h;
+ };
+ const drafts=P.filter(p=>p.status==='draft').length;
+ $('#menu').innerHTML=`
+  <div class="mlink${ui.view==='home'?' on':''}" data-home tabindex="0">${I.dom} Overview<span class="cnt">${P.length}</span></div>
+  <div class="mlink" data-drafts tabindex="0"><span class="sdot" style="background:var(--line2)"></span>Draft products<span class="cnt">${drafts}</span></div>
+  <div class="divider"></div>
+  <div class="msearch">${I.search}<input id="mq" placeholder="Search domains & products…" value="${esc(ui.mq)}"></div>
+  <div class="sec">Domains</div>
+  ${DOMAINS.filter(d=>!d.parent).map(d=>domBlock(d,'')).join('')}`;
+ $('#mq').oninput=e=>{ui.mq=e.target.value;renderMenu();const i=$('#mq');i.focus();i.setSelectionRange(i.value.length,i.value.length)};
+ document.querySelectorAll('#menu [data-tog]').forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.tog;ui.open.has(id)?ui.open.delete(id):ui.open.add(id);renderMenu()});
+ document.querySelectorAll('#menu [data-d]').forEach(el=>el.onclick=()=>go({view:'domain',domain:el.dataset.d,tab:'overview'}));
+ document.querySelectorAll('#menu [data-p]').forEach(el=>el.onclick=()=>go({view:'product',product:el.dataset.p,tab:'overview'}));
+ $('#menu [data-home]').onclick=()=>go({view:'home',seg:'all'});
+ $('#menu [data-drafts]').onclick=()=>go({view:'home',seg:'draft'});
+}
+/* ---------------- product card (keeps every field of today's card, adds Atlan ones) */
+function card(p){
+ const s=score(p);
+ return `<div class="pcard" data-open="${p.id}" tabindex="0">
+  <div style="display:flex;align-items:center;gap:8px"><div class="aico">${I.box}</div><div style="flex:1;min-width:0"><h4>${esc(p.name)}${p.cert==='Verified'?I.check:''}</h4><div class="faint" style="font-size:12px">Owner · ${esc(p.owner)}</div></div>${p.status!=='published'?badge(p.status):''}</div>
+  <div>${dchip(p.domain)}</div>
+  <div class="desc">${esc(p.desc)}</div><div class="tip">${esc(p.desc)}</div>
+  <div class="meta"><span>${I.users}${p.consumers} consumers</span><span>${p.sources} sources</span><span>${I.star}${p.quality}% quality</span></div>
+  <div class="foot2"><span class="meta"><span>${I.port}${p.outputs.length} output port${p.outputs.length>1?'s':''}</span><span>${lvl(CRIT,p.crit)}</span></span><span class="score ${sclass(s)}" title="Product score out of 5">${s.toFixed(1)}</span></div>
+ </div>`;
+}
+function bindCards(){document.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>go({view:'product',product:el.dataset.open,tab:'overview'}))}
+function filtered(list){
+ const q=ui.q.toLowerCase();
+ let r=list.filter(p=>(ui.seg==='all'||p.status===ui.seg)&&(ui.fcrit==='all'||p.crit===ui.fcrit)&&(ui.fsens==='all'||p.sens===ui.fsens)&&(!q||(p.name+' '+p.desc+' '+p.owner).toLowerCase().includes(q)));
+ const k={score:p=>-score(p),consumers:p=>-p.consumers,name:p=>p.name,quality:p=>-p.quality}[ui.sort];
+ return r.sort((a,b)=>{const x=k(a),y=k(b);return x<y?-1:x>y?1:0});
+}
+function toolbar(){
+ return `<div class="toolbar">
+  <div class="msearch" style="margin:0;width:280px;height:34px;background:#fff">${I.search}<input id="q" placeholder="Search products, owners or descriptions" value="${esc(ui.q)}"></div>
+  <div class="seg2" id="seg">${['all','published','draft','sunset','archived'].map(s=>`<button data-s="${s}" class="${ui.seg===s?'on':''}">${s==='all'?'All':PST[s][0]}</button>`).join('')}</div>
+  <select class="input" id="fcrit" style="width:150px"><option value="all">Criticality: all</option>${Object.keys(CRIT).map(k=>`<option value="${k}" ${ui.fcrit===k?'selected':''}>${CRIT[k][0]}</option>`).join('')}</select>
+  <select class="input" id="fsens" style="width:160px"><option value="all">Sensitivity: all</option>${Object.keys(SENS).map(k=>`<option value="${k}" ${ui.fsens===k?'selected':''}>${SENS[k][0]}</option>`).join('')}</select>
+  <select class="input" id="sort" style="width:150px">${[['score','Sort: score'],['consumers','Sort: consumers'],['quality','Sort: quality'],['name','Sort: name']].map(([v,l])=>`<option value="${v}" ${ui.sort===v?'selected':''}>${l}</option>`).join('')}</select>
+  <div class="seg2" style="margin-left:auto" id="lay"><button data-l="grid" class="${ui.layout==='grid'?'on':''}">Grid</button><button data-l="list" class="${ui.layout==='list'?'on':''}">List</button></div>
+ </div>`;
+}
+function bindToolbar(){
+ $('#q').oninput=e=>{ui.q=e.target.value;render();const i=$('#q');i.focus();i.setSelectionRange(i.value.length,i.value.length)};
+ document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{ui.seg=b.dataset.s;render()});
+ document.querySelectorAll('#lay button').forEach(b=>b.onclick=()=>{ui.layout=b.dataset.l;render()});
+ $('#fcrit').onchange=e=>{ui.fcrit=e.target.value;render()};$('#fsens').onchange=e=>{ui.fsens=e.target.value;render()};$('#sort').onchange=e=>{ui.sort=e.target.value;render()};
+}
+function productList(list){
+ if(!list.length)return '<div class="card empty">No products match these filters.</div>';
+ if(ui.layout==='grid')return `<div class="pcards">${list.map(card).join('')}</div>`;
+ return `<div class="card"><table class="tbl"><thead><tr><th>Product</th><th>Domain</th><th>Status</th><th>Owner</th><th>Criticality</th><th>Sensitivity</th><th class="num">Consumers</th><th class="num">Quality</th><th class="num">Score</th></tr></thead><tbody>${list.map(p=>`<tr data-open="${p.id}"><td><div class="tname">${I.box}${esc(p.name)}${p.cert==='Verified'?I.check:''}</div></td><td>${dchip(p.domain)}</td><td>${badge(p.status)}</td><td>${person(p.owner)}</td><td>${lvl(CRIT,p.crit)}</td><td>${lvl(SENS,p.sens)}</td><td class="num">${p.consumers}</td><td class="num">${p.quality}%</td><td class="num"><span class="score ${sclass(score(p))}">${score(p).toFixed(1)}</span></td></tr>`).join('')}</tbody></table></div>`;
+}
+/* ---------------- statistics block (Atlan "Statistics" tab), reused for overview and domains */
+function stats(list,title){
+ const by=s=>list.filter(p=>p.status===s).length;
+ const withCert=list.filter(p=>p.cert==='Verified').length, withDesc=list.filter(p=>p.desc&&p.sc[1]>=3).length, withOwner=list.filter(p=>p.owner).length, withTerms=list.filter(p=>p.terms.length).length;
+ const assets=new Set(list.flatMap(p=>p.assets)).size;
+ const months=['Apr','May','Jun','Jul','Aug','Sep'];const counts=[1,1,1,0,0,1];
+ return `<div class="grid2" style="grid-template-columns:minmax(0,1fr) 340px;margin-bottom:16px">
+  <div class="card pad"><h3>${title||'Summary'}</h3><p class="sub">Products, domains and the data they are built from.</p>
+   <div class="statgrid"><div><b>${list.length}</b><span class="muted">Total products</span></div><div><b>${new Set(list.map(p=>p.domain)).size}</b><span class="muted">Domains and sub-domains</span></div><div><b>${assets}</b><span class="muted">Total assets</span></div><div><b>${list.reduce((a,p)=>a+p.consumers,0)}</b><span class="muted">Consumers</span></div></div></div>
+  <div class="card pad"><h3>Products by status</h3><p class="sub">Click a status to filter.</p>
+   <div class="statgrid">${['published','draft','sunset','archived'].map(s=>`<div style="cursor:pointer" data-st="${s}">${badge(s)}<b style="margin-top:6px">${by(s)}</b></div>`).join('')}</div></div>
+ </div>
+ <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-bottom:16px">
+  <div class="card pad"><h3>Products by enrichment</h3><p class="sub">How well products are described. "Remaining" opens the products that still need work.</p>
+   <div class="enr">${[['Certified',withCert],['Described',withDesc],['With terms',withTerms]].map(([l,n])=>`<div><span class="muted" style="font-size:12.5px">${l}</span><b>${n}</b><span class="rem" data-rem="${l}">${list.length-n} remaining →</span></div>`).join('')}</div></div>
+  <div class="card pad"><h3>Products created over time</h3><p class="sub">${list.length} products · last 6 months</p>
+   <div class="chart">${counts.map((c,i)=>`<div class="${i===5?'hi':''}" style="height:${c?c*60:2}px" title="${months[i]}: ${c}"></div>`).join('')}</div><div class="chartx">${months.map(m=>`<span>${m}</span>`).join('')}</div></div>
+ </div>`;
+}
+function bindStats(){
+ document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>{ui.seg=el.dataset.st;if(ui.view==='domain')ui.tab='products';render()});
+ document.querySelectorAll('[data-rem]').forEach(el=>el.onclick=()=>toast('Showing products still missing: '+el.dataset.rem.toLowerCase()));
+}
+/* ---------------- home: all domains */
+function renderHome(){
+ const all=P;
+ const pub=all.filter(p=>p.status==='published').length;
+ const avg=(all.reduce((a,p)=>a+score(p),0)/all.length).toFixed(1);
+ $('#crumbs').innerHTML='Govern / <b>Data products</b>';
+ $('#main').innerHTML=`
+ <div class="phead"><div><div class="eyebrow">Govern</div><h1>Data products</h1><p>Curated, owned and certified datasets ready for reuse.</p></div><button class="btn primary" id="newp">${I.plus} New product</button></div>
+ <div class="tiles"><div><b>${all.length}</b><span>Products</span><small>${DOMAINS.filter(d=>!d.parent).length} domains, ${DOMAINS.filter(d=>d.parent).length} sub-domains</small></div><div><b>${pub}</b><span>Published</span><small>in the marketplace</small></div><div><b>${all.filter(p=>p.status==='draft').length}</b><span>Draft</span><small>visible to owners only</small></div><div><b>${all.filter(p=>p.status==='sunset').length}</b><span>Sunset</span><small>being retired</small></div><div><b>${avg}</b><span>Average score</span><small>out of 5</small></div><div><b>${all.reduce((a,p)=>a+p.consumers,0)}</b><span>Consumers</span><small>${REQS.filter(r=>r.st==='pending').length} access request pending</small></div></div>
+ <div class="grid2">
+  <div>${toolbar()}<p class="muted" style="font-size:12.5px;margin:0 0 10px">${filtered(all).length} of ${all.length} products</p>${productList(filtered(all))}
+   <h2 style="font-size:16px;margin:26px 0 10px">Statistics</h2>${stats(all,'Summary')}</div>
+  <div class="stack">
+   <div class="card pad"><h3>Recommended candidates</h3><p class="sub">Ranked from real usage in Rplus_DWH (GenMeta's own queries excluded).</p>
+    ${CANDS.map(c=>`<div class="cand"><div style="flex:1"><div style="font-weight:600">${esc(c.n)}</div><small class="mono faint">${esc(c.a)}</small><div class="muted" style="font-size:12px">${esc(c.why)}</div></div><span class="score ${c.s>=55?'s-mid':'s-lo'}" title="Candidate score /100">${c.s}</span><button class="btn sm" data-cand="${esc(c.a)}">Create</button></div>`).join('')}</div>
+   <div class="card pad"><h3>Access requests</h3><p class="sub">Consumers asking owners for access.</p>
+    ${REQS.map((r,i)=>`<div class="cand"><div style="flex:1"><b>${esc(r.who)}</b> → ${esc(PR(r.p).name)}<div class="muted" style="font-size:12px">${esc(r.why)} · ${r.t}</div></div>${r.st==='pending'?`<button class="btn sm" data-rq="${i}" data-ok="1">Approve</button><button class="btn sm ghost" data-rq="${i}">Decline</button>`:`<span class="tag">${r.st}</span>`}</div>`).join('')||'<div class="muted">No requests.</div>'}</div>
+   <div class="card pad"><h3>Recent activity</h3>${ACT.map(a=>`<div class="cand"><div><span class="tlink" data-open="${a.p}">${esc(PR(a.p).name)}</span> ${esc(a.what)}<div class="muted" style="font-size:12px">${a.t} · ${esc(a.who)}</div></div></div>`).join('')}</div>
+  </div>
+ </div>`;
+ bindToolbar();bindCards();bindStats();
+ $('#newp').onclick=()=>openNew();
+ document.querySelectorAll('[data-cand]').forEach(b=>b.onclick=()=>{const c=CANDS.find(x=>x.a===b.dataset.cand);openNew({name:c.n,assets:[c.a],outputs:[c.a],domain:c.a.includes('CUSTOMER')?'customer':'orders'})});
+ document.querySelectorAll('[data-rq]').forEach(b=>b.onclick=e=>{e.stopPropagation();const r=REQS[+b.dataset.rq];r.st=b.dataset.ok?'approved':'declined';ACT.unshift({p:r.p,what:`Access ${r.st} for ${r.who}`,t:now(),who:'Admin'});toast(`Access ${r.st} for ${r.who}`);render()});
+}
+/* ---------------- domain page: Overview / Assets and Products / Statistics / Lineage */
+function renderDomain(){
+ const d=D(ui.domain), list=inDomain(d.id), par=d.parent?D(d.parent):null;
+ $('#crumbs').innerHTML=`Govern / Data products / ${par?esc(par.name)+' / ':''}<b>${esc(d.name)}</b>`;
+ const tabs=[['overview','Overview'],['products','Assets and Products',list.length],['stats','Statistics'],['lineage','Lineage']];
+ let body='';
+ if(ui.tab==='overview'){
+  const rd=d.readme||(par?par.readme:'')||d.desc;
+  body=`<div class="pgrid"><div class="stack">
+   <div class="card pad"><h3>About this domain</h3><p class="sub">${esc(d.desc)}</p>
+    <dl class="kv"><dt>Products</dt><dd>${list.length}</dd><dt>Sub-domains</dt><dd>${subs(d.id).map(s=>`<span class="tlink" data-d2="${s.id}">${esc(s.name)}</span>`).join(', ')||'—'}</dd><dt>Domain owners</dt><dd>${d.owners.map(person).join(' ')}</dd></dl></div>
+   <div class="card pad"><h3>Custom metadata</h3><p class="sub">Extra fields this domain tracks. <span class="tlink" id="mng">Manage all</span></p>
+    <div class="collapse"><h4 data-c="c1">${I.chev.replace('class="chev"','class="chev open"')} Data mesh details</h4><div class="cb" id="c1"><div><label>Business unit</label>${esc(d.name)}</div><div><label>Cost centre</label>—</div><div><label>Region</label>United Kingdom</div><div><label>Review cycle</label>Quarterly</div></div></div>
+    <div class="collapse" style="margin-top:10px"><h4 data-c="c2">${I.chev.replace('class="chev"','class="chev open"')} AI model lifecycle</h4><div class="cb" id="c2"><div><label>Questions</label>—</div><div><label>AI agent name</label>—</div></div></div></div>
+   <div class="card pad readme"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Readme</h3><button class="btn sm ghost" id="aird">${I.spark} AI generate</button></div><h2>${esc(d.name)} domain</h2><p id="rdtext">${esc(rd)}</p></div>
+  </div>
+  <div class="side"><div class="prop"><label>Domain</label><div class="v">${dchip(d.id)}</div></div><div class="prop"><label>Parent</label><div class="v">${par?esc(par.name):'—'}</div></div><div class="prop"><label>Owners</label><div class="v">${d.owners.map(person).join(' ')}</div></div><div class="prop"><label>Stakeholders</label><div class="v">${[...new Set(list.flatMap(p=>[p.owner,...p.experts]))].map(person).join(' ')}</div></div><div class="prop"><label>Average score</label><div class="v">${list.length?`<span class="score ${sclass(list.reduce((a,p)=>a+score(p),0)/list.length)}">${(list.reduce((a,p)=>a+score(p),0)/list.length).toFixed(1)}</span>`:'—'}</div></div></div></div>`;
+ } else if(ui.tab==='products'){
+  body=`${toolbar()}<p class="muted" style="font-size:12.5px;margin:0 0 10px">Products ${filtered(list).length} · includes products added across all sub-domains within this domain.</p>${productList(filtered(list))}`;
+ } else if(ui.tab==='stats'){
+  body=stats(list,'Summary')+`<div class="card pad"><h3>Usage</h3><p class="sub">Consumers per product, last 30 days.</p><div class="bars">${list.map(p=>`<div class="barrow"><span>${esc(p.name)}</span><div class="bar"><b style="width:${Math.max(2,p.consumers/1.28)}%"></b></div><span class="num">${p.consumers}</span></div>`).join('')}</div></div>`;
+ } else {
+  body=lineageCard(list);
+ }
+ $('#main').innerHTML=`
+  <div class="thead"><div class="ticon" style="background:${d.color};color:#fff">${I.dom}</div><div><h1>${esc(d.name)}</h1><div class="kind">${par?'Sub-domain of '+esc(par.name):'Domain'} · ${list.length} products</div></div>
+   <div class="tools"><button class="btn primary md" id="newp">${I.plus} New product</button></div></div>
+  <div class="tabs">${tabs.map(([k,l,n])=>`<button class="tab ${ui.tab===k?'on':''}" data-t="${k}">${l}${n!=null?` <small>${n}</small>`:''}</button>`).join('')}</div>${body}`;
+ document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ui.tab=b.dataset.t;render()});
+ document.querySelectorAll('[data-d2]').forEach(b=>b.onclick=()=>go({view:'domain',domain:b.dataset.d2,tab:'overview'}));
+ document.querySelectorAll('[data-c]').forEach(h=>h.onclick=()=>{const b=$('#'+h.dataset.c);b.style.display=b.style.display==='none'?'':'none';h.querySelector('.chev').classList.toggle('open')});
+ $('#newp').onclick=()=>openNew({domain:d.id});
+ if($('#aird'))$('#aird').onclick=()=>{$('#rdtext').innerHTML=esc(`${d.name} holds ${list.length} data products owned by ${[...new Set(list.map(p=>p.owner))].join(', ')}. Start with ${list[0]?list[0].name:'the products below'} for the most-used, certified view. Ask the domain owner for access to confidential products.`)+' <span class="tag">AI draft</span>';toast('AI draft added to the readme')};
+ if($('#mng'))$('#mng').onclick=()=>toast('Custom metadata is managed in Admin');
+ if(ui.tab==='products'){bindToolbar();bindCards()} if(ui.tab==='stats')bindStats(); if(ui.tab==='lineage')bindCards();
+}
+function lineageCard(list){
+ const ins=[...new Set(list.flatMap(p=>p.inputs))], outs=[...new Set(list.flatMap(p=>p.outputs))];
+ return `<div class="card pad"><h3>Lineage</h3><p class="sub">Where the data comes from (input ports), the product, and where people consume it (output ports).</p>
+  <div class="flow"><div class="col">${ins.map(a=>`<div class="node"><span class="mono">${esc(a)}</span><div class="faint" style="font-size:11.5px">${esc(ainfo(a).src)}</div></div>`).join('')}</div><div class="arr"></div>
+  <div class="col">${list.map(p=>`<div class="node p" data-open="${p.id}" style="cursor:pointer">${I.box} ${esc(p.name)}</div>`).join('')}</div><div class="arr"></div>
+  <div class="col">${outs.map(a=>`<div class="node"><span class="mono">${esc(a)}</span><div class="faint" style="font-size:11.5px">${esc(ainfo(a).type)} · ${esc(ainfo(a).src)}</div></div>`).join('')}</div></div></div>`;
+}
+/* ---------------- product profile */
+function renderProduct(){
+ const p=PR(ui.product), d=D(p.domain), s=score(p);
+ $('#crumbs').innerHTML=`Govern / Data products / ${esc(d.name)} / <b>${esc(p.name)}</b>`;
+ const tabs=[['overview','Overview'],['assets','Assets',p.assets.length],['lineage','Lineage'],['sla','Service levels'],['access','Access'],['history','History',ACT.filter(a=>a.p===p.id).length]];
+ let body='';
+ if(ui.tab==='overview'){
+  body=`<div class="stack">
+   <div class="grid2" style="grid-template-columns:minmax(0,1fr) 340px">
+    <div class="card pad"><h3>Summary</h3><p class="sub">${esc(p.desc)}</p>
+     <dl class="kv"><dt>Domain</dt><dd>${dchip(p.domain)}</dd><dt>Criticality</dt><dd>${lvl(CRIT,p.crit)}</dd><dt>Sensitivity</dt><dd>${lvl(SENS,p.sens)}</dd><dt>Freshness</dt><dd>Updated ${esc(p.fresh)}</dd><dt>Built from</dt><dd>${p.sources} sources · ${p.assets.length} assets</dd><dt>Used by</dt><dd>${p.consumers} consumers</dd><dt>Quality</dt><dd>${p.quality}%</dd></dl></div>
+    <div class="card pad"><h3>Product score</h3><p class="sub">How well it follows the six principles of data as a product.</p>
+     <div class="bigscore"><b>${s.toFixed(1)}</b><span class="muted">/ 5</span></div>
+     <div class="bars" style="margin-top:10px">${PRINC.map((n,i)=>`<div class="barrow" title="${esc(PRINC_WHY[i])}"><span>${n}</span><div class="bar"><b style="width:${p.sc[i]*20}%"></b></div><span class="num">${p.sc[i]}</span></div>`).join('')}</div>
+     <span class="tlink" id="whys" style="display:inline-block;margin-top:10px;font-size:12.5px">View details</span><div id="whyd" style="display:none;font-size:12.5px;margin-top:8px" class="muted">${PRINC.map((n,i)=>`<div><b style="color:var(--navy)">${n}:</b> ${PRINC_WHY[i]}</div>`).join('')}</div></div>
+   </div>
+   <div class="card pad"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Output ports</h3><button class="btn sm" id="addport">${I.plus} Add port</button></div><p class="sub">The assets consumers should use when working with this product.</p>
+    ${p.outputs.map((a,i)=>`<div class="port"><div class="aico">${I.port}</div><div style="flex:1"><div class="mono" style="color:var(--royal);font-size:12.5px">${esc(a)}</div><div class="muted" style="font-size:12px">${esc(ainfo(a).type)} · ${esc(ainfo(a).src)}</div></div><button class="btn sm ghost" data-rmport="${i}">Remove</button></div>`).join('')}</div>
+   <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+    <div class="card pad readme"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Readme</h3><button class="btn sm ghost" id="aird">${I.spark} AI generate</button></div><p id="rdtext">${esc(p.readme||'No readme yet. Add one or let AI draft it from the product details.')}</p></div>
+    <div class="card pad"><h3>Resources</h3><p class="sub">Links, documents and where the team talks about this product.</p>
+     <div class="plist"><div>${I.link}<div>Runbook<small>Confluence · how this product is built</small></div></div><div>${I.link}<div>#data-${esc(p.domain)}<small>Slack channel</small></div></div><div>${I.link}<div>Open issues<small>Jira · 0 open</small></div></div></div><button class="btn sm" style="margin-top:8px" id="addres">${I.plus} Add resource</button></div>
+   </div></div>`;
+ } else if(ui.tab==='assets'){
+  const types=[...new Set(p.assets.map(a=>ainfo(a).type))];
+  body=`<div class="card"><div style="padding:12px 14px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)"><span class="chip on">All <small>${p.assets.length}</small></span>${types.map(t=>`<span class="chip">${t} <small>${p.assets.filter(a=>ainfo(a).type===t).length}</small></span>`).join('')}<button class="btn sm" style="margin-left:auto" id="addas">${I.plus} Add assets</button></div>
+   ${p.assets.map(a=>`<div class="arow"><div class="aico">${I.db}</div><div><div class="an">${esc(a)}</div><div class="am"><span>${esc(ainfo(a).type)}</span>·<span>${esc(ainfo(a).src)}</span></div></div><span style="margin-left:auto">${p.outputs.includes(a)?'<span class="tag" style="color:var(--royal)">Output port</span>':''}${p.inputs.includes(a)?' <span class="tag">Input port</span>':''}</span></div>`).join('')}</div>`;
+ } else if(ui.tab==='lineage'){
+  body=lineageCard([p]);
+ } else if(ui.tab==='sla'){
+  body=p.sla?`<div class="card pad"><h3>Service levels</h3><p class="sub">Promises to consumers. Owners and approved consumers are alerted in-app and by email when one is breached.</p>
+   <div class="slarow" style="color:var(--muted);font-size:12px"><span>Promise</span><span>Target</span><span>Last check</span><span>Status</span></div>
+   ${[['Freshness','fresh'],['Availability','avail'],['Quality','qual']].map(([l,k])=>`<div class="slarow"><span>${l}</span><span>${p.sla[k][0]}</span><span>${p.sla[k][1]}</span><span class="${p.sla[k][2]?'ok':'warn'}">${p.sla[k][2]?'Meeting':'Breaching'}</span></div>`).join('')}</div>`:`<div class="card empty">No service levels yet. Publish the product, then set freshness, availability and quality targets.<br><br><button class="btn" id="setsla">Set service levels</button></div>`;
+ } else if(ui.tab==='access'){
+  const rq=REQS.filter(r=>r.p===p.id);
+  body=`<div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)"><div class="card pad"><h3>Visibility</h3><p class="sub">Who can find this product in the marketplace.</p>
+   <div class="radio" id="vis">${['Public','Private to domain members','Private to selected members'].map(v=>`<label><input type="radio" name="vis" value="${v}" ${p.vis===v?'checked':''}>${v}</label>`).join('')}</div></div>
+   <div class="card pad"><h3>Access requests</h3><p class="sub">The owner approves or declines.</p>${rq.map(r=>`<div class="cand"><div style="flex:1"><b>${esc(r.who)}</b><div class="muted" style="font-size:12px">${esc(r.why)} · ${r.t}</div></div><span class="tag">${r.st}</span></div>`).join('')||'<div class="muted" style="font-size:13px">No requests yet.</div>'}<button class="btn sm" style="margin-top:10px" id="reqa">${I.lock} Request access</button></div></div>`;
+ } else {
+  const h=ACT.filter(a=>a.p===p.id);
+  body=`<div class="card pad"><h3>History</h3><p class="sub">Every status change and edit to this product.</p><div class="hist">${h.map(a=>`<div><span class="dot"></span><div>${esc(a.what)}<small>${a.t} · ${esc(a.who)}</small></div></div>`).join('')||'<div class="muted">No changes yet.</div>'}</div></div>`;
+ }
+ const st=PST[p.status];
+ $('#main').innerHTML=`
+  <div class="thead"><div class="ticon">${I.box}</div><div><h1>${esc(p.name)} ${badge(p.status)} ${p.cert==='Verified'?I.check:''}</h1><div class="kind">Data product · <span class="tlink" data-gd="${d.id}">${esc(d.name)}</span></div></div>
+   <div class="tools" style="position:relative">
+    <select class="input" id="stsel" style="width:130px;height:32px" title="Change status">${Object.keys(PST).map(k=>`<option value="${k}" ${p.status===k?'selected':''}>${PST[k][0]}</option>`).join('')}</select>
+    <button class="ib ${ui.star.has(p.id)?'on':''}" id="star" title="Star">${ui.star.has(p.id)?I.starF:I.starL}</button><button class="ib" id="copy" title="Copy link">${I.link}</button><button class="ib" id="notify" title="Notify me">${I.bell}</button><button class="ib" id="more" title="More actions">${I.dots}</button>
+    ${ui.menu?`<div class="menu"><button data-m="announce">${I.mega} Add announcement</button><button data-m="request">${I.lock} Request access</button><button data-m="export">Export assets</button><button data-m="archive">Archive product</button></div>`:''}
+   </div></div>
+  ${p.status==='draft'?`<div class="banner">${I.box}<span><b>Draft.</b> Only owners can see this product. Publish it to list it in the marketplace.</span><button class="btn primary sm" id="publish">Publish</button></div>`:''}
+  ${p.announce?`<div class="annc">${I.mega}<span><b>Announcement.</b> ${esc(p.announce)}</span></div>`:''}
+  <div class="tabs">${tabs.map(([k,l,n])=>`<button class="tab ${ui.tab===k?'on':''}" data-t="${k}">${l}${n!=null?` <small>${n}</small>`:''}</button>`).join('')}</div>
+  <div class="pgrid"><div>${body}</div>
+   <div class="side">
+    <div class="prop"><label>Status</label><div class="v">${badge(p.status)}</div></div>
+    <div class="prop"><label>Certificate</label><div class="v">${p.cert==='Verified'?'<div class="cert"><b>'+I.check+' Verified</b>by '+esc(p.owner)+'</div>':esc(p.cert)}</div></div>
+    <div class="prop"><label>Owner</label><div class="v">${person(p.owner)}</div></div>
+    <div class="prop"><label>Experts</label><div class="v">${p.experts.map(person).join(' ')||'<span class="faint">—</span>'}</div></div>
+    <div class="prop"><label>Visibility</label><div class="v">${esc(p.vis)}</div></div>
+    <div class="prop"><label>Criticality · Sensitivity</label><div class="v">${lvl(CRIT,p.crit)} ${lvl(SENS,p.sens)}</div></div>
+    <div class="prop"><label>Glossary terms</label><div class="v">${p.terms.map(t=>`<span class="tlink">${esc(t)}</span>`).join(', ')||'<span class="faint">—</span>'}</div></div>
+    <div class="prop"><label>Tags</label><div class="v">${p.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')||'<span class="faint">—</span>'}</div></div>
+    <div class="prop"><label>Consumers</label><div class="v">${p.consumers}</div></div>
+    <div class="prop"><label>Created</label><div class="v">${esc(p.created)}</div></div>
+   </div></div>`;
+ document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ui.tab=b.dataset.t;render()});
+ $('[data-gd]').onclick=()=>go({view:'domain',domain:d.id,tab:'overview'});
+ $('#stsel').onchange=e=>setStatus(p,e.target.value);
+ $('#star').onclick=()=>{ui.star.has(p.id)?ui.star.delete(p.id):ui.star.add(p.id);render()};
+ $('#copy').onclick=()=>toast('Link copied');$('#notify').onclick=()=>toast('You will be notified of changes to '+p.name);
+ $('#more').onclick=e=>{e.stopPropagation();ui.menu=!ui.menu;render()};
+ document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ui.menu=false;const m=b.dataset.m;if(m==='announce')announce(p);else if(m==='request')requestAccess(p);else if(m==='export')toast('Exported '+p.assets.length+' assets');else setStatus(p,'archived')});
+ if($('#publish'))$('#publish').onclick=()=>setStatus(p,'published');
+ if($('#whys'))$('#whys').onclick=()=>{const w=$('#whyd');w.style.display=w.style.display==='none'?'':'none'};
+ if($('#aird'))$('#aird').onclick=()=>{p.readme=`${p.name} is the ${d.name} domain's product for ${p.desc.charAt(0).toLowerCase()+p.desc.slice(1)} Use the output port ${p.outputs[0]} for reporting. It is built from ${p.sources} source systems and refreshed ${p.sla?p.sla.fresh[0].toLowerCase():'on demand'}. Contact ${p.owner} for access.`;render();toast('AI draft added to the readme')};
+ if($('#addport'))$('#addport').onclick=()=>{const c=p.assets.find(a=>!p.outputs.includes(a));if(c){p.outputs.push(c);log(p,'Output port '+c+' added');render()}else toast('All assets are already output ports')};
+ document.querySelectorAll('[data-rmport]').forEach(b=>b.onclick=()=>{if(p.outputs.length<2)return toast('A product needs at least one output port');const a=p.outputs.splice(+b.dataset.rmport,1)[0];log(p,'Output port '+a+' removed');render()});
+ if($('#addres'))$('#addres').onclick=()=>toast('Add a link, document or channel');
+ if($('#addas'))$('#addas').onclick=()=>openNew({edit:p.id,step:1});
+ if($('#setsla'))$('#setsla').onclick=()=>toast('Publish the product first');
+ if($('#reqa'))$('#reqa').onclick=()=>requestAccess(p);
+ document.querySelectorAll('#vis input').forEach(r=>r.onchange=()=>{p.vis=r.value;log(p,'Visibility set to '+r.value);render()});
+ if(ui.tab==='lineage')bindCards();
+}
+function log(p,what){ACT.unshift({p:p.id,what,t:now(),who:'Admin'})}
+function setStatus(p,s){if(p.status===s)return;const o=p.status;p.status=s;log(p,`Status ${o} → ${s}`);toast(`${p.name} is now ${PST[s][0].toLowerCase()}`);render()}
+function modal(html,bind){$('#overlay').innerHTML=`<div class="scrim" id="scrim"></div><div class="modal">${html}</div>`;$('#scrim').onclick=close;bind&&bind()}
+function close(){$('#overlay').innerHTML='';ui.drawer=null}
+function announce(p){modal(`<h3>Add announcement</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Shown at the top of the product for every consumer.</p><textarea class="input" id="an" style="width:100%" placeholder="e.g. Schema change on 1 Nov">${esc(p.announce||'')}</textarea><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn" id="c">Cancel</button><button class="btn primary" id="s">Post</button></div>`,()=>{$('#c').onclick=close;$('#s').onclick=()=>{p.announce=$('#an').value.trim();log(p,'Announcement updated');close();render()}})}
+function requestAccess(p){modal(`<h3>Request access to ${esc(p.name)}</h3><p class="muted" style="font-size:13px;margin:0 0 10px">${esc(p.owner)} (owner) will be asked to approve.</p><div class="fld"><label>Why do you need it?</label><textarea class="input" id="why" style="width:100%"></textarea></div><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" id="c">Cancel</button><button class="btn primary" id="s">Send request</button></div>`,()=>{$('#c').onclick=close;$('#s').onclick=()=>{REQS.push({p:p.id,who:'Admin',why:$('#why').value||'Not given',t:new Date().toLocaleDateString('en-GB'),st:'pending'});log(p,'Access requested by Admin');close();toast('Request sent to '+p.owner);render()}})}
+/* ---------------- New product drawer: Details → Assets → Output ports → Review (Atlan flow) */
+let NP=null;
+function openNew(pre={}){
+ if(pre.edit){const p=PR(pre.edit);NP={edit:p.id,step:1,name:p.name,desc:p.desc,domain:p.domain,crit:p.crit,sens:p.sens,owner:p.owner,vis:p.vis,assets:p.assets.slice(),outputs:p.outputs.slice()}}
+ else NP=Object.assign({step:0,name:'',desc:'',domain:pre.domain||'customer',crit:'medium',sens:'internal',owner:'Admin',vis:'Private to domain members',assets:[],outputs:[]},pre);
+ drawNew();
+}
+function drawNew(){
+ const st=NP.step, labels=['Details','Assets','Output ports','Review'];
+ let b='';
+ if(st===0)b=`<div class="fld"><label>Name <span class="faint">(${NP.name.length}/80)</span></label><input class="input" id="n" maxlength="80" value="${esc(NP.name)}" placeholder="e.g. Customer 360"></div>
+  <div class="fld"><label>Description</label><textarea class="input" id="ds" style="width:100%">${esc(NP.desc)}</textarea></div>
+  <div class="fld"><label>Domain or sub-domain</label><select class="input" id="dm" style="width:100%">${DOMAINS.map(d=>`<option value="${d.id}" ${NP.domain===d.id?'selected':''}>${d.parent?'— ':''}${esc(d.name)}</option>`).join('')}</select></div>
+  <div class="fld"><label>Criticality</label><div class="radio">${Object.keys(CRIT).map(k=>`<label><input type="radio" name="cr" value="${k}" ${NP.crit===k?'checked':''}>${CRIT[k][0]}</label>`).join('')}</div></div>
+  <div class="fld"><label>Sensitivity</label><div class="radio">${Object.keys(SENS).map(k=>`<label><input type="radio" name="se" value="${k}" ${NP.sens===k?'checked':''}>${SENS[k][0]}</label>`).join('')}</div></div>
+  <div class="fld"><label>Owner</label><input class="input" id="ow" value="${esc(NP.owner)}"></div>
+  <div class="fld"><label>Visibility</label><select class="input" id="vi" style="width:100%">${['Private to domain members','Private to selected members','Public'].map(v=>`<option ${NP.vis===v?'selected':''}>${v}</option>`).join('')}</select></div>`;
+ if(st===1)b=`<p class="muted" style="font-size:13px;margin:0 0 10px">Pick the assets that make up this product. <b id="selc">${NP.assets.length}</b> selected.</p><div class="pick">${Object.keys(ASSET).map(a=>`<label><input type="checkbox" data-a="${esc(a)}" ${NP.assets.includes(a)?'checked':''}>${esc(a)}<small>${ASSET[a][1]} · ${esc(ASSET[a][0])}</small></label>`).join('')}</div><p class="muted" style="font-size:12px;margin-top:10px">Tip: in the full build, assets can also be added by rules (connection, type, certificate, tags, terms).</p>`;
+ if(st===2)b=NP.assets.length?`<p class="muted" style="font-size:13px;margin:0 0 10px">Which assets should consumers use? These become the output ports.</p><div class="pick">${NP.assets.map(a=>`<label><input type="checkbox" data-o="${esc(a)}" ${NP.outputs.includes(a)?'checked':''}>${esc(a)}<small>${ainfo(a).type}</small></label>`).join('')}</div>`:'<div class="empty">Add at least one asset first.</div>';
+ if(st===3)b=`<dl class="kv"><dt>Name</dt><dd>${esc(NP.name)||'<span class="warn">Missing</span>'}</dd><dt>Domain</dt><dd>${dchip(NP.domain)}</dd><dt>Criticality</dt><dd>${lvl(CRIT,NP.crit)}</dd><dt>Sensitivity</dt><dd>${lvl(SENS,NP.sens)}</dd><dt>Owner</dt><dd>${person(NP.owner)}</dd><dt>Visibility</dt><dd>${esc(NP.vis)}</dd><dt>Assets</dt><dd>${NP.assets.length}</dd><dt>Output ports</dt><dd>${NP.outputs.map(esc).join(', ')||'<span class="warn">None</span>'}</dd></dl><p class="muted" style="font-size:12.5px;margin-top:14px">Save as draft keeps it visible to owners only. Create and publish lists it in the marketplace.</p>`;
+ $('#overlay').innerHTML=`<div class="scrim" id="scrim"></div><div class="drawer"><header>${NP.edit?'Edit product assets':'New data product'}<button class="ib" id="cx">${I.x}</button></header>
+  <div class="db"><div class="steps">${labels.map((l,i)=>`<span class="${i<=st?'on':''}"></span>`).join('')}</div><div style="font-size:12px;color:var(--muted);margin:-8px 0 14px">Step ${st+1} of 4 · <b style="color:var(--navy)">${labels[st]}</b></div>${b}</div>
+  <footer>${st>0?'<button class="btn" id="bk">Back</button>':'<button class="btn" id="cn">Cancel</button>'}<span style="flex:1"></span>${st<3?'<button class="btn primary" id="nx">Next</button>':`<button class="btn" id="dr">Save as draft</button><button class="btn primary" id="pb">Create and publish</button>`}</footer></div>`;
+ const save=()=>{if(st===0){NP.name=$('#n').value.trim();NP.desc=$('#ds').value.trim();NP.domain=$('#dm').value;NP.crit=document.querySelector('[name=cr]:checked').value;NP.sens=document.querySelector('[name=se]:checked').value;NP.owner=$('#ow').value.trim();NP.vis=$('#vi').value}
+  if(st===1)NP.assets=[...document.querySelectorAll('[data-a]:checked')].map(x=>x.dataset.a);
+  if(st===2){NP.outputs=[...document.querySelectorAll('[data-o]:checked')].map(x=>x.dataset.o);}
+  NP.outputs=NP.outputs.filter(a=>NP.assets.includes(a))};
+ $('#scrim').onclick=close;$('#cx').onclick=close;if($('#cn'))$('#cn').onclick=close;
+ document.querySelectorAll('[data-a]').forEach(x=>x.onchange=()=>{$('#selc').textContent=document.querySelectorAll('[data-a]:checked').length});
+ if($('#n'))$('#n').oninput=e=>{e.target.previousElementSibling.querySelector('span').textContent=`(${e.target.value.length}/80)`};
+ if($('#bk'))$('#bk').onclick=()=>{save();NP.step--;drawNew()};
+ if($('#nx'))$('#nx').onclick=()=>{save();if(st===0&&!NP.name)return toast('Give the product a name');if(st===2&&!NP.outputs.length)return toast('Pick at least one output port');NP.step++;drawNew()};
+ const finish=status=>{if(!NP.name||!NP.outputs.length)return toast('Name and an output port are needed');
+  if(NP.edit){const p=PR(NP.edit);p.assets=NP.assets;p.outputs=NP.outputs;log(p,'Assets updated');close();render();return}
+  const id=NP.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  if(PR(id))return toast('A product with this name already exists');
+  P.push({id,name:NP.name,owner:NP.owner,domain:NP.domain,desc:NP.desc||'No description yet.',consumers:0,sources:new Set(NP.assets.map(a=>ainfo(a).src)).size,quality:70,status,crit:NP.crit,sens:NP.sens,vis:NP.vis,cert:'Draft',terms:[],tags:[],experts:[],inputs:NP.assets.filter(a=>!NP.outputs.includes(a)),outputs:NP.outputs,assets:NP.assets,sc:[1,NP.desc?3:1,NP.owner?5:0,2,2,1],created:'Oct 2026',fresh:'just now',sla:null,users:[0,0,0,0,0,0]});
+  ACT.unshift({p:id,what:status==='draft'?'Created as draft':'Created and published',t:now(),who:'Admin'});
+  close();go({view:'product',product:id,tab:'overview'});toast(status==='draft'?'Saved as draft':'Published to the marketplace')};
+ if($('#dr'))$('#dr').onclick=()=>finish('draft');if($('#pb'))$('#pb').onclick=()=>finish('published');
+}
+/* ---------------- router */
+function render(){renderMenu();if(ui.view==='home')renderHome();else if(ui.view==='domain')renderDomain();else renderProduct()}
+document.addEventListener('click',e=>{if(ui.menu&&!e.target.closest('.menu')&&!e.target.closest('#more')){ui.menu=false;render()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#overlay').innerHTML)close();if(e.key==='Enter'&&e.target.matches('.mlink,.pcard'))e.target.click()});
+render();
+</script>
+</body>
+</html>
