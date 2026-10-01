@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookMarked, Waypoints, Gauge, Landmark, Compass, History } from 'lucide-react';
+import { BookMarked, Waypoints, Gauge, Landmark, Compass, History, ChevronDown } from 'lucide-react';
 import { DATA_ASSETS_NAV } from '../nav.js';
 import InnerLayout from '../components/InnerLayout.jsx';
 import { PageHead } from '../components/ui.jsx';
@@ -26,6 +27,7 @@ export default function DataAssets() {
   const state = useCatalogueState();
   const onQuality = pathname === '/app/quality';
   const curSub = sp.get('quality') || 'overview';
+  const [dqOpen, setDqOpen] = useState(true);
   const glossary = useGlossaryUI();
   const onList = pathname === '/app/catalogue';
   const onGlossary = pathname === '/app/glossary' || pathname.startsWith('/app/glossary/');
@@ -39,15 +41,26 @@ export default function DataAssets() {
       {DATA_ASSETS_NAV.map((n) => {
         const I = ICONS[n.icon];
         return (
-          <div key={n.to}>
-            <NavLink to={n.to} title={n.label} className={({ isActive }) => `admin-link ${isActive ? 'on' : ''}`}>
+          <div key={n.to} className={n.to === '/app/quality' ? 'dq-qrow' : undefined}>
+            <NavLink to={n.to} title={n.label}
+              className={({ isActive }) => (n.to === '/app/quality' && onQuality ? 'admin-link dq-parent' : `admin-link ${isActive ? 'on' : ''}`)}>
               <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
             </NavLink>
-            {n.to === '/app/quality' && onQuality && SUBTABS.map(([key, label]) => (
-              <Link key={key} to={`/app/quality?quality=${key}`} title={label} className={`admin-link admin-subitem ${curSub === key ? 'on' : ''}`}>
-                <span>{label}</span>
-              </Link>
-            ))}
+            {n.to === '/app/quality' && onQuality && (
+              <button type="button" className={`dq-chev ${dqOpen ? 'open' : ''}`} aria-label={dqOpen ? 'Collapse Data quality' : 'Expand Data quality'} aria-expanded={dqOpen}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDqOpen((o) => !o); }}>
+                <ChevronDown size={14} strokeWidth={1.8} />
+              </button>
+            )}
+            {n.to === '/app/quality' && onQuality && dqOpen && (
+              <div className="dq-submenu">
+                {SUBTABS.map(([key, label]) => (
+                  <Link key={key} to={`/app/quality?quality=${key}`} title={label} className={`admin-link admin-subitem ${curSub === key ? 'on' : ''}`}>
+                    <span>{label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

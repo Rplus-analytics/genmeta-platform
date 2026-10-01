@@ -980,5 +980,25 @@
 }
 
 /* Data quality sub-tabs nested under "Data quality" in the inner menu */
-.admin-subitem { padding-left: 34px; font-size: 13px; }
+/* parent: when a sub-item is active, no fill — keep the bold label, royal icon */
+.admin-link.dq-parent { background: transparent; color: var(--navy); font-weight: 600; box-shadow: none; }
+.admin-link.dq-parent svg { color: var(--royal); }
+
+/* chevron toggle on the right of "Data quality" */
+.dq-qrow { position: relative; }
+.dq-chev { position: absolute; top: 0; right: 12px; height: 32px; width: 20px; display: grid; place-items: center; border: 0; background: none; color: var(--faint); cursor: pointer; transition: transform .15s, color .15s; }
+.dq-chev:hover { color: var(--navy); }
+.dq-chev.open { transform: rotate(0deg); }
+.dq-chev:not(.open) { transform: rotate(-90deg); }
+
+/* nested sub-list with a 1px guide line under the centre of the Data quality icon */
+.dq-submenu { position: relative; margin: 4px 0; }
+.dq-submenu::before { content: ''; position: absolute; left: 24px; top: 0; bottom: 0; width: 1px; background: var(--line); }
+
+/* sub-items: small and tidy; text sits 8px right of the guide line (guide 24px → text 32px) */
+.admin-subitem { height: 28px; line-height: 28px; padding-left: 24px; font-size: 12.5px; font-weight: 500; color: var(--muted); position: relative; }
 .admin-subitem span { color: inherit; }
+.admin-subitem:hover { background: var(--mist); color: var(--navy); }
+/* active: no full-width fill — navy bold text plus a 2px royal bar on the guide line */
+.admin-subitem.on { background: none; color: var(--navy); font-weight: 600; }
+.admin-subitem.on::before { content: ''; position: absolute; left: 15px; top: 3px; bottom: 3px; width: 2px; border-radius: 2px; background: var(--royal); }
