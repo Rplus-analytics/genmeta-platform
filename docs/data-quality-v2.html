@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Data quality prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0E2A57;--deep:#07111F;--royal:#4D8CFF;--sky:#A9D3FF;--ice:#EDF4FF;--mist:#F6FBFF;--canvas:#F3F6FA;--line:#D7E1EC;--line2:#C9D6E6;--muted:#566A89;--faint:#8694AB;--white:#fff;
+--r-ctl:8px;--r-card:12px;--shadow-1:0 1px 2px rgba(14,42,87,.06),0 1px 1px rgba(14,42,87,.04);--ring:0 0 0 2px #fff,0 0 0 4px var(--royal);--h-sm:28px;--h-md:32px;--h-lg:36px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:14px/1.45 'Hanken Grotesk',system-ui,sans-serif;color:var(--navy);background:var(--canvas)}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:'JetBrains Mono',monospace}
+/* chrome */
+.top{position:fixed;inset:0 0 auto 0;height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 16px;z-index:20}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;width:220px}
+.logo .rp{font-family:Georgia,serif;font-size:20px}
+.logo .sep{width:1px;height:20px;background:var(--line2)}
+.logo .gm{color:var(--navy)}.logo .gm i{font-style:normal;color:var(--royal)}
+.crumbs{font-size:13px;color:var(--muted)}.crumbs b{color:var(--navy);font-weight:600}
+.search{margin-left:auto;margin-right:auto;width:400px;height:34px;border-radius:var(--r-ctl);background:var(--canvas);border:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);font-size:13px}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6FA6FF,#3F7BEA);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+.rail{position:fixed;top:56px;bottom:0;left:0;width:56px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:4px;z-index:10}
+.rail a{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+.rail a.on{background:var(--ice);color:var(--royal)}
+.rail a:hover{background:var(--mist)}
+.inner{position:fixed;top:56px;bottom:0;left:56px;width:268px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:9}
+.inner-h{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 16px;border-bottom:1px solid var(--line);font-weight:600;font-size:15px}
+.inner-b{overflow:auto;padding:10px 10px 24px;flex:1}
+.main{margin-left:324px;padding:72px 32px 40px}
+/* inner menu */
+.msearch{height:32px;display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:var(--r-ctl);padding:0 10px;margin-bottom:8px}
+.msearch input{border:0;outline:0;flex:1;font-size:13px;background:transparent}
+.mlink{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;cursor:pointer;font-size:13.5px;color:var(--navy);user-select:none}
+.mlink:hover{background:var(--mist)}
+.mlink.on{background:var(--ice);font-weight:600}
+.mlink.on svg{color:var(--royal)}
+.mlink .cnt{margin-left:auto;font-size:11.5px;color:var(--faint)}
+.mlink .chev{width:14px;color:var(--faint);transition:transform .15s;flex:none}
+.mlink .chev.open{transform:rotate(90deg)}
+.tchild{padding-left:22px}
+.tchild2{padding-left:40px}
+.sdot{width:7px;height:7px;border-radius:50%;flex:none}
+.sec{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:14px 8px 6px;cursor:pointer}
+.divider{height:1px;background:var(--line);margin:12px 4px}
+.fbox{border:1px solid var(--line);border-radius:var(--r-ctl);padding:4px;margin:0 4px}
+.chk{display:flex;align-items:center;gap:8px;height:28px;padding:0 6px;font-size:13px;border-radius:5px;cursor:pointer}
+.chk:hover{background:var(--mist)}
+.chk input{accent-color:var(--royal)}
+.chk .cnt{margin-left:auto;font-size:11.5px;color:var(--faint)}
+/* shared */
+.eyebrow{font:500 11px 'JetBrains Mono';letter-spacing:.14em;color:var(--royal);text-transform:uppercase}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.phead h1{margin:4px 0 4px;font-size:26px;font-weight:600;letter-spacing:-.01em}
+.phead p{margin:0;color:var(--muted);font-size:13.5px}
+.btn{height:var(--h-lg);padding:0 14px;border-radius:var(--r-ctl);border:1px solid var(--line2);background:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:500;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--mist);border-color:var(--muted)}
+.btn:focus-visible,.mlink:focus-visible,.tab:focus-visible,.ib:focus-visible{outline:0;box-shadow:var(--ring)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--deep)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--ice)}
+.btn.sm{height:var(--h-sm);padding:0 10px;font-size:12.5px}
+.btn.md{height:var(--h-md);padding:0 12px;font-size:13px}
+.btn:disabled{background:var(--ice);border-color:var(--line);color:var(--faint);cursor:not-allowed}
+.ib{width:32px;height:32px;border-radius:var(--r-ctl);border:1px solid transparent;background:transparent;display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.ib:hover{background:var(--ice);color:var(--navy)}
+.ib.on{color:var(--royal)}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1)}
+.card.pad{padding:18px 20px}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.card .sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);margin-bottom:16px}
+.tiles>div{padding:14px 18px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:1px}
+.tiles>div:first-child{border-left:0}
+.tiles b{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.tiles span{font-size:12.5px;font-weight:600}
+.tiles small{font-size:12px;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.badge i{width:6px;height:6px;border-radius:50%}
+.b-approved{background:var(--ice);color:var(--navy)}.b-approved i{background:var(--royal)}
+.b-review{background:#fff;color:var(--royal);border:1px solid rgba(77,140,255,.55)}.b-review i{background:var(--royal)}
+.b-draft{background:#F3F5F8;color:var(--muted);border:1px dashed var(--line2)}.b-draft i{background:var(--faint)}
+.b-deprecated{background:#fff;color:var(--faint);border:1px solid var(--line)}.b-deprecated i{background:#fff;border:1.5px solid var(--faint)}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:var(--mist);border:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--line2);background:#fff;font-size:12.5px;cursor:pointer}
+.chip:hover{background:var(--mist)}
+.chip.on{background:var(--ice);border-color:var(--royal)}
+.chip small{color:var(--faint)}
+.seg2{display:inline-flex;background:#fff;border:1px solid var(--line2);border-radius:var(--r-ctl);padding:2px;gap:2px}
+.seg2 button{height:26px;border:0;background:transparent;border-radius:6px;padding:0 10px;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg2 button:hover{background:var(--mist);color:var(--navy)}
+.seg2 button.on{background:var(--ice);color:var(--navy)}
+.input{height:var(--h-md);border:1px solid var(--line2);border-radius:var(--r-ctl);padding:0 10px;background:#fff;outline:0;font-size:13px}
+.input:focus,textarea:focus{box-shadow:var(--ring);border-color:var(--royal)}
+textarea.input{height:auto;padding:8px 10px;resize:vertical;min-height:72px}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:16px}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover{background:var(--mist)}
+.tbl .tname{display:flex;align-items:center;gap:8px;font-weight:600}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:500}
+.plist>div{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.plist>div:last-child{border-bottom:0}
+.plist small{display:block;font-size:12px;color:var(--muted)}
+.foot{font-size:12px;color:var(--muted);margin-top:10px}
+.tlink{color:var(--royal);font-weight:500;cursor:pointer}
+.tlink:hover{text-decoration:underline;text-underline-offset:3px}
+/* term profile */
+.thead{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px}
+.ticon{width:44px;height:44px;border-radius:10px;background:var(--ice);color:var(--royal);display:grid;place-items:center;flex:none}
+.thead h1{margin:0;font-size:24px;font-weight:600;display:flex;align-items:center;gap:10px}
+.thead .kind{font-size:12.5px;color:var(--muted);margin-top:2px}
+.tools{margin-left:auto;display:flex;align-items:center;gap:2px}
+.banner{display:flex;align-items:center;gap:10px;border:1px solid rgba(77,140,255,.35);background:var(--mist);border-radius:var(--r-ctl);padding:10px 14px;font-size:13px;margin-bottom:14px}
+.banner .btn{margin-left:auto}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;height:44px;align-items:flex-end}
+.tab{height:44px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--muted);border:0;background:none;border-bottom:2px solid transparent;cursor:pointer;padding:0}
+.tab:hover{color:var(--navy)}
+.tab.on{color:var(--navy);border-bottom-color:var(--royal)}
+.tab small{font-size:11.5px;background:var(--ice);border-radius:99px;padding:0 6px;color:var(--muted)}
+.pgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.side{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-1);padding:6px 18px 12px;position:sticky;top:72px}
+.prop{padding:11px 0;border-bottom:1px solid var(--line)}
+.prop:last-child{border-bottom:0}
+.prop label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.prop .v{font-size:13.5px;font-weight:500;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.person{display:inline-flex;align-items:center;gap:6px}
+.person i{width:20px;height:20px;border-radius:50%;background:var(--ice);color:var(--royal);font-style:normal;font-size:10px;font-weight:700;display:grid;place-items:center}
+.cert{background:var(--ice);border-radius:var(--r-ctl);padding:8px 10px;font-size:12.5px}
+.cert b{display:flex;align-items:center;gap:6px}
+ul.clean{margin:0;padding-left:18px}ul.clean li{margin:4px 0}
+.arow{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.arow:last-child{border-bottom:0}
+.arow:hover{background:var(--mist)}
+.aico{width:30px;height:30px;border-radius:8px;background:var(--ice);color:var(--royal);display:grid;place-items:center;flex:none}
+.arow .an{font-family:'JetBrains Mono';font-size:12.5px;font-weight:500;color:var(--royal);cursor:pointer}
+.arow .am{font-size:12px;color:var(--muted);display:flex;gap:8px;margin-top:2px}
+.arow .ib{margin-left:auto}
+.hist>div{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.hist>div:last-child{border-bottom:0}
+.hist .dot{width:9px;height:9px;border-radius:50%;background:var(--royal);margin-top:5px;flex:none;box-shadow:0 0 0 3px var(--ice)}
+.hist small{display:block;color:var(--muted);font-size:12px}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.formgrid label,.fld label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+.fld{margin-bottom:12px}
+.fld .input{width:100%}
+/* drawer & modal */
+.scrim{position:fixed;inset:0;background:rgba(7,17,31,.35);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:440px;background:#fff;z-index:41;box-shadow:-20px 0 40px -20px rgba(14,42,87,.3);display:flex;flex-direction:column}
+.drawer header{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 20px;border-bottom:1px solid var(--line);font-weight:600;font-size:16px}
+.drawer .db{padding:18px 20px;overflow:auto;flex:1}
+.drawer footer{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.modal{position:fixed;left:50%;top:30%;transform:translate(-50%,-30%);width:420px;background:#fff;border-radius:14px;z-index:41;padding:20px;box-shadow:0 20px 50px -20px rgba(14,42,87,.4)}
+.modal h3{margin:0 0 6px;font-size:17px}
+.menu{position:absolute;right:0;top:36px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px -10px rgba(14,42,87,.3);padding:4px;min-width:200px;z-index:30}
+.menu button{display:flex;width:100%;align-items:center;gap:8px;height:32px;border:0;background:none;border-radius:6px;padding:0 10px;font-size:13px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--mist)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:60;box-shadow:0 10px 30px -10px rgba(7,17,31,.5)}
+.proto{position:fixed;left:340px;bottom:16px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);box-shadow:var(--shadow-1)}
+.graph svg{display:block;width:100%;height:auto}
+.gnode{cursor:pointer}
+.gnode:hover rect{stroke:var(--royal)}
+/* ---- data quality additions ---- */
+.sev{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600}
+.sev i{width:8px;height:8px;border-radius:2px}
+.s-high i{background:#0E2A57}.s-medium i{background:#4D8CFF}.s-low i{background:#A9D3FF}
+.st{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:#fff;white-space:nowrap}
+.st i{width:7px;height:7px;border-radius:50%}
+.st-triage{color:var(--navy)}.st-triage i{background:#fff;border:1.5px solid var(--navy)}
+.st-investigating{color:var(--royal);border-color:rgba(77,140,255,.5)}.st-investigating i{background:var(--royal)}
+.st-resolved{background:var(--ice);color:var(--navy);border-color:var(--ice)}.st-resolved i{background:var(--navy)}
+.st-fp{color:var(--faint);border-style:dashed}.st-fp i{background:var(--faint)}
+.pri{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.pri b{display:inline-flex;gap:1px;align-items:flex-end;height:10px}
+.pri b u{width:3px;background:var(--line2);display:block}
+.pri b u.on{background:var(--navy)}
+.score{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;font-weight:600}
+.score .bar{width:54px;height:6px;border-radius:9px;background:var(--ice);overflow:hidden}
+.score .bar i{display:block;height:100%;background:var(--royal);border-radius:9px}
+.score.bad .bar i{background:var(--navy)}
+.dimcell{font-variant-numeric:tabular-nums;text-align:right}
+.dimcell.lo{color:var(--navy);font-weight:700}
+.dimcell.na{color:var(--faint);font-style:italic;text-align:left}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:9px;height:9px;border-radius:2px}
+.legend b{color:var(--navy)}
+.chart svg{display:block;width:100%;height:auto}
+.feed>div{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.feed>div:last-child{border-bottom:0}
+.feed .who{width:24px;height:24px;border-radius:50%;background:var(--ice);color:var(--royal);font-size:10.5px;font-weight:700;display:grid;place-items:center;flex:none}
+.feed small{display:block;color:var(--muted);font-size:12px}
+.daylbl{font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 2px}
+.tiles.t7{grid-template-columns:repeat(7,minmax(0,1fr))}
+.tiles.t5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.tiles.t4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.tiles .lo{color:var(--navy)}
+.tiles .delta{font-size:11.5px;color:var(--royal);font-weight:600}
+.note{display:flex;gap:10px;align-items:flex-start;background:var(--mist);border:1px solid var(--line);border-radius:var(--r-ctl);padding:10px 14px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.note svg{flex:none;color:var(--royal);margin-top:1px}
+.note b{color:var(--navy)}
+.bulk{display:flex;align-items:center;gap:8px;background:var(--navy);color:#fff;border-radius:var(--r-ctl);padding:6px 8px 6px 14px;margin-bottom:10px;font-size:13px}
+.bulk .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.3)}
+.bulk .btn:hover{background:rgba(255,255,255,.1)}
+.steps{display:flex;flex-direction:column;gap:0;margin:0;padding-left:12px}
+.step{border-left:2px solid var(--line);padding:0 0 18px 18px;position:relative}
+.step:last-child{padding-bottom:4px}
+.step .n{position:absolute;left:-12px;top:0;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--line2);font-size:11px;font-weight:700;display:grid;place-items:center;color:var(--muted)}
+.step.on .n{border-color:var(--royal);color:var(--royal)}
+.step.done .n{background:var(--royal);border-color:var(--royal);color:#fff}
+.step h4{margin:1px 0 2px;font-size:14px}
+.step .sub{font-size:12px;color:var(--muted);margin-bottom:10px}
+.step.off h4{color:var(--faint)}
+.dimpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dimpick button{border:1px solid var(--line2);background:#fff;border-radius:var(--r-ctl);padding:10px;text-align:left;cursor:pointer}
+.dimpick button:hover{background:var(--mist)}
+.dimpick button.on{border-color:var(--royal);background:var(--ice)}
+.dimpick b{display:block;font-size:13px}
+.dimpick small{font-size:11.5px;color:var(--muted)}
+.tpl{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.tpl label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:var(--r-ctl);padding:8px 10px;font-size:13px;cursor:pointer}
+.tpl label.on{border-color:var(--royal);background:var(--mist)}
+.tpl input{accent-color:var(--royal)}
+.plain{background:var(--ice);border-radius:var(--r-ctl);padding:10px 12px;font-size:13px;line-height:1.5}
+.plain code{font-family:'JetBrains Mono';font-size:12px;background:#fff;border-radius:4px;padding:1px 5px}
+.cbx{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.cbx label{display:flex;align-items:center;gap:6px}
+.cbx input{accent-color:var(--royal)}
+.drawer.wide{width:560px}
+.ring{position:relative;width:88px;height:88px;flex:none}
+.ring svg{display:block}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:20px;font-weight:600}
+.dimrow{display:grid;grid-template-columns:120px 1fr 48px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.dimrow:last-child{border-bottom:0}
+.dimrow .why{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:-4px}
+.dimrow .bar{height:7px;background:var(--ice);border-radius:9px;overflow:hidden}
+.dimrow .bar i{display:block;height:100%;background:var(--royal)}
+.code{font-family:'JetBrains Mono';font-size:12px;background:var(--deep);color:#DCE8FF;border-radius:var(--r-ctl);padding:12px 14px;white-space:pre;overflow:auto;line-height:1.55}
+.kd{font-size:11px;font-weight:600;border-radius:5px;padding:2px 6px;background:var(--mist);border:1px solid var(--line);color:var(--muted)}
+.kd.anom{background:#fff;border-color:var(--royal);color:var(--royal)}
+.views{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+.cmt{display:flex;gap:8px;margin-top:10px}
+.cmt .input{flex:1}
+th input,td input[type=checkbox]{accent-color:var(--royal)}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cols3{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start}
+.mini{display:flex;gap:1px;align-items:flex-end;height:16px}
+.mini i{width:4px;display:block;border-radius:1px}
+</style>
+</head>
+<body>
+<header class="top">   <div class="logo"><span class="rp">r<sup style="color:var(--royal)">+</sup></span><span class="sep"></span><span class="gm">Gen<i>meta</i></span></div>   <div class="crumbs" id="crumbs"></div>   <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search data, systems, or ask a question…</div>   <span class="tag" style="margin-right:8px">Prototype · demo data</span><div class="av">A</div> </header> 
+<nav class="rail" aria-label="Main">
+  <a title="Data estate"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="10" height="18"/><path d="M14 9h6v12h-6M7 7h4M7 11h4M7 15h4"/></svg></a>
+  <a title="Data assets"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 17.5l9 5 9-5"/></svg></a>
+  <a title="Business glossary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m9 15 3-7 3 7M10 13h4"/></svg></a>
+  <a title="Data products"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></a>
+  <a class="on" title="Data quality"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></a>
+  <a title="Governance"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21h18M5 18V10M9 18V10M15 18V10M19 18V10M2 10l10-6 10 6Z"/></svg></a>
+  <a title="Stewardship"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg></a>
+  <a title="Admin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></a>
+</nav>
+<aside class="inner" aria-label="Data quality">
+  <div class="inner-h"><span>Data quality</span></div>
+  <div class="inner-b" id="menu"></div>
+</aside>
+<main class="main" id="main"></main>
+<div id="overlay"></div>
+<script>
+/* ---------- demo data. Values copy the old GenMeta Quality section where it showed them. */
+const DIMS=['completeness','uniqueness','validity','consistency','timeliness','accuracy'];
+const DIML={completeness:'Completeness',uniqueness:'Uniqueness',validity:'Validity',consistency:'Consistency',timeliness:'Timeliness',accuracy:'Accuracy'};
+const DIMD={completeness:'No missing values, empty strings or missing rows',uniqueness:'No duplicate keys or values',validity:'Values match the expected shape and range',consistency:'Same types and counts across related assets',timeliness:'Data arrives and changes when expected',accuracy:'Agrees with its source or a reference'};
+const PEOPLE={Raghav:'RG',Madhavi:'MD',Karan:'KS',Priya:'PT',Admin:'A'};
+/* assets: name, system, type, rows, dims (null = not measured), owner, steward, priority, method, note */
+const ASSETS=[
+ {n:'INT.CUSTOMER',sys:'Rplus_DWH',t:'view',rows:6,d:[100,100,100,100,13.8,100],own:'Raghav',stw:'Priya',pri:'High',m:'live',dom:'Customer',tags:['PII']},
+ {n:'INT.ORDERS',sys:'Rplus_DWH',t:'view',rows:24,d:[100,100,100,100,21.4,95.8],own:'Raghav',stw:'Priya',pri:'High',m:'live',dom:'Customer',tags:[]},
+ {n:'INT.LINEITEM',sys:'Rplus_DWH',t:'view',rows:88,d:[100,54.5,100,100,20.1,93.2],own:'Madhavi',stw:'Priya',pri:'Medium',m:'live',dom:'Finance',tags:[]},
+ {n:'PRL.ORDER_MASTER',sys:'Rplus_DWH',t:'view',rows:24,d:[100,100,100,100,32.6,100],own:'Raghav',stw:'Karan',pri:'Critical',m:'live',dom:'Customer',tags:['Product']},
+ {n:'SRC.CUSTOMER',sys:'Rplus_DWH',t:'table',rows:6,d:[100,100,100,100,13.8,100],own:'Raghav',stw:'Priya',pri:'High',m:'live',dom:'Customer',tags:['PII']},
+ {n:'SRC.ORDERS',sys:'Rplus_DWH',t:'table',rows:24,d:[100,100,100,100,21.4,100],own:'Raghav',stw:'Priya',pri:'High',m:'live',dom:'Customer',tags:[]},
+ {n:'SRC.NATION',sys:'Rplus_DWH',t:'table',rows:25,d:[100,100,100,100,2.1,null],own:'Madhavi',stw:'Karan',pri:'Low',m:'live',dom:'Reference',tags:[]},
+ {n:'STG.CUSTOMER_ORDER',sys:'Rplus_DWH',t:'view',rows:24,d:[100,95.8,100,100,22.0,100],own:'Raghav',stw:'Priya',pri:'Medium',m:'live',dom:'Customer',tags:[]},
+ {n:'STG.ORDER_ITEM_SUMMARY',sys:'Rplus_DWH',t:'view',rows:31,d:[96.8,77.4,100,100,18.9,70.7],own:'Madhavi',stw:'Priya',pri:'Medium',m:'live',dom:'Finance',tags:[]},
+ {n:'S3_ENR.CUSTOMER_SUMMARY',sys:'Rplus Amazon S3',t:'file',rows:6,d:[83.3,100,100,100,58.0,16.7],own:'Raghav',stw:'Priya',pri:'Medium',m:'file',dom:'Customer',tags:['PII']},
+ {n:'S3_CLN.ORDERS',sys:'Rplus Amazon S3',t:'file',rows:24,d:[100,100,100,100,58.0,100],own:'Raghav',stw:'Priya',pri:'Low',m:'file',dom:'Customer',tags:[]},
+ {n:'SQL_FIN.GENERAL_LEDGER',sys:'Rplus SQL Server',t:'table',rows:null,d:null,own:'Madhavi',stw:'Karan',pri:'Critical',m:'error',err:'not profiled: SQL compilation error: Schema ‘SQL_FIN’ does not exist',dom:'Finance',tags:['Finance']},
+ {n:'SQL_OPS.CASES',sys:'Rplus SQL Server',t:'table',rows:null,d:null,own:'Priya',stw:'Karan',pri:'High',m:'error',err:'not profiled: SQL compilation error: Schema ‘SQL_OPS’ does not exist',dom:'Operations',tags:[]},
+ {n:'STREAMING.order-events',sys:'Rplus Streaming',t:'topic',rows:null,d:null,own:'Karan',stw:'Priya',pri:'High',m:'structure',dom:'Customer',tags:[]},
+ {n:'BI.Order Revenue Report',sys:'Rplus Reports (Power BI)',t:'report',rows:null,d:null,own:'Madhavi',stw:'Priya',pri:'Medium',m:'structure',dom:'Finance',tags:[]},
+ {n:'API.GET_customers',sys:'Rplus API',t:'api',rows:null,d:null,own:'Karan',stw:'Priya',pri:'Low',m:'structure',dom:'Customer',tags:['PII']}
+];
+ASSETS.forEach(a=>{if(a.d){const v=a.d.filter(x=>x!=null);a.score=+(v.reduce((s,x)=>s+x,0)/v.length).toFixed(1)}else a.score=null;});
+/* old-app overrides so the table shows the same scores the old app showed */
+const OVR={'S3_ENR.CUSTOMER_SUMMARY':76.4,'STG.ORDER_ITEM_SUMMARY':77.3,'INT.LINEITEM':78,'SRC.NATION':34};
+ASSETS.forEach(a=>{if(OVR[a.n]!=null)a.score=OVR[a.n]});
+const COLUMNS={'INT.CUSTOMER':[
+ ['CUSTOMER_ID','numeric',100,100,100,'101 – 106','not negative'],
+ ['CUSTOMER_NAME','text',100,100,100,'—','not blank'],
+ ['NATION_ID','numeric',100,66.7,100,'1 – 24','not negative'],
+ ['SEGMENT','text',100,50,100,'—','not blank'],
+ ['ACCOUNT_BALANCE','numeric',100,100,100,'4300 – 18500','not negative']]};
+const WHY={'INT.CUSTOMER':['5 of 5 columns have no missing values','best key candidate 100.0% distinct','every value passed its shape and range check','5 of 5 shared columns keep the same type across the 3 assets','last change 723.7 h ago, measured against a 35-day expectation; set a freshness rule to tighten it','6 rows against 6 in SRC.CUSTOMER']};
+const TEMPLATES={
+ completeness:[['No missing values','Every value in the column is filled in'],['Row count within range','The table has between a low and high number of rows']],
+ uniqueness:[['Values are unique','No value appears twice']],
+ validity:[['Values match the expected shape','Email, postcode, date, or a pattern you pick'],['Numbers stay within range','Between a minimum and maximum']],
+ consistency:[['Every key exists in the parent','Each ID can be found in the parent table']],
+ timeliness:[['Updated recently enough','The asset changed within the last N hours']],
+ accuracy:[['Row count agrees with the upstream','Same number of rows as its source']]};
+let RULES=[
+ {id:'R1',name:'Nation list kept fresh',check:'Updated recently enough',dim:'timeliness',to:'SRC.NATION',col:'—',thr:'within 24 h',type:'fixed',sev:'high',on:['task','quarantine'],by:'Madhavi',q:62,last:'2 h ago',why:'Country lookups go stale on reports'},
+ {id:'R2',name:'Customer email present',check:'No missing values',dim:'completeness',to:'S3_ENR.CUSTOMER_SUMMARY',col:'CUSTOMER_EMAIL',thr:'≥ 100%',type:'fixed',sev:'medium',on:['reprofile','task'],by:'Raghav',q:83,last:'5 h ago',why:'Needed for customer contact'},
+ {id:'R3',name:'Line item key is unique',check:'Values are unique',dim:'uniqueness',to:'INT.LINEITEM',col:'LINEITEM_KEY',thr:'≥ 99%',type:'fixed',sev:'high',on:['task','ai'],by:'Madhavi',q:71,last:'1 h ago',why:'Duplicates double-count revenue'},
+ {id:'R4',name:'Orders match source',check:'Row count agrees with the upstream',dim:'accuracy',to:'INT.ORDERS',col:'—',thr:'≥ 100%',type:'fixed',sev:'medium',on:['reharvest'],by:'Raghav',q:96,last:'3 days ago',why:'Downstream products depend on it'},
+ {id:'R5',name:'Balance in range',check:'Numbers stay within range',dim:'validity',to:'SRC.CUSTOMER',col:'ACCOUNT_BALANCE',thr:'0 – 50,000',type:'fixed',sev:'low',on:[],by:'Priya',q:100,last:'6 days ago',why:'Catches loading errors'},
+ {id:'R6',name:'Order item volume',check:'Row count within range',dim:'completeness',to:'STG.ORDER_ITEM_SUMMARY',col:'—',thr:'learned · sensitivity 2',type:'learned',sev:'medium',on:['reprofile'],by:'Madhavi',q:88,last:'4 h ago',why:'Sudden drops mean a broken load'}
+];
+const ACTL={reprofile:'Reprofile',reharvest:'Reharvest',quarantine:'Quarantine',task:'Create task',ai:'AI describe'};
+let INCIDENTS=[
+ {id:'INC-1042',rule:'R1',title:'Nation list kept fresh',asset:'SRC.NATION',dim:'timeliness',kind:'Rule',sev:'high',status:'triage',pri:'Low',own:'Madhavi',first:'28 Sep',last:'1 Oct, 20:13',n:4,measured:'last change 1,402 h ago',expect:'within 24 h'},
+ {id:'INC-1041',rule:'R3',title:'Line item key is unique',asset:'INT.LINEITEM',dim:'uniqueness',kind:'Rule',sev:'high',status:'investigating',pri:'Medium',own:'Madhavi',first:'30 Sep',last:'1 Oct, 20:13',n:3,measured:'54.5% distinct',expect:'≥ 99%'},
+ {id:'INC-1040',rule:'R6',title:'Row count shifted 31%',asset:'STG.ORDER_ITEM_SUMMARY',dim:'completeness',kind:'Anomaly',sev:'medium',status:'triage',pri:'Medium',own:'Madhavi',first:'1 Oct',last:'1 Oct, 20:13',n:1,measured:'31 rows',expect:'usual 45 ± 4 (z = 3.9)'},
+ {id:'INC-1039',rule:'R2',title:'Customer email present',asset:'S3_ENR.CUSTOMER_SUMMARY',dim:'completeness',kind:'Rule',sev:'medium',status:'investigating',pri:'Medium',own:'Raghav',first:'27 Sep',last:'1 Oct, 08:00',n:5,measured:'83.3% filled',expect:'≥ 100%'},
+ {id:'INC-1038',rule:null,title:'Accuracy dropped 3 runs in a row',asset:'S3_ENR.CUSTOMER_SUMMARY',dim:'accuracy',kind:'Anomaly',sev:'high',status:'triage',pri:'Medium',own:'Raghav',first:'29 Sep',last:'1 Oct, 08:00',n:3,measured:'16.7%',expect:'usual 98% (shift 81%)'},
+ {id:'INC-1037',rule:'R4',title:'Orders match source',asset:'INT.ORDERS',dim:'accuracy',kind:'Rule',sev:'low',status:'resolved',pri:'High',own:'Raghav',first:'24 Sep',last:'25 Sep',n:2,measured:'23 of 24 rows',expect:'≥ 100%'},
+ {id:'INC-1036',rule:'R5',title:'Balance in range',asset:'SRC.CUSTOMER',dim:'validity',kind:'Rule',sev:'low',status:'fp',pri:'High',own:'Priya',first:'22 Sep',last:'22 Sep',n:1,measured:'max 52,100',expect:'0 – 50,000'}
+];
+const STL={triage:'Triage',investigating:'Investigating',resolved:'Resolved',fp:'False positive'};
+let QUAR=[{a:'SRC.NATION',why:'Breaking (score 34). “Nation list kept fresh” failed 4 runs in a row',since:'29 Sep 2026',by:'Madhavi'}];
+let REMED=[
+ {w:'1 Oct, 20:13',a:'SRC.NATION',r:'Nation list kept fresh',acts:'Task created · Quarantine kept',to:'Madhavi (owner)',auth:'Madhavi · governance lead'},
+ {w:'1 Oct, 08:00',a:'S3_ENR.CUSTOMER_SUMMARY',r:'Customer email present',acts:'Reprofiled · Task created',to:'Raghav (owner), Priya (steward)',auth:'Raghav · product owner'},
+ {w:'30 Sep, 14:20',a:'INT.LINEITEM',r:'Line item key is unique',acts:'Task created · AI description drafted',to:'Madhavi (owner)',auth:'Madhavi · governance lead'},
+ {w:'29 Sep, 09:05',a:'SRC.NATION',r:'Nation list kept fresh',acts:'Quarantined',to:'Karan (steward)',auth:'Madhavi · governance lead'},
+ {w:'25 Sep, 11:40',a:'INT.ORDERS',r:'Orders match source',acts:'Reharvested',to:'Raghav (owner)',auth:'Raghav · product owner'}];
+const ACTIVITY=[
+ ['Today',[['MD','Madhavi','changed INC-1041 to Investigating','20:40'],['A','GenMeta','ran 6 checks on schedule: 3 failed','20:13'],['A','GenMeta','flagged an anomaly on STG.ORDER_ITEM_SUMMARY','20:13'],['RG','Raghav','started investigating INC-1039','09:12']]],
+ ['Yesterday',[['MD','Madhavi','wrote rule “Line item key is unique”','14:18'],['A','GenMeta','created a task for INT.LINEITEM','14:20'],['PT','Priya','marked INC-1036 as False positive','10:02']]],
+ ['29 Sep',[['MD','Madhavi','quarantined SRC.NATION','09:05'],['KS','Karan','added a Slack notification rule','08:30']]]];
+let NOTIF=[
+ {name:'Critical and high to owners',ch:'Email',to:'Asset owner and steward',f:'Severity: High · Priority: Critical, High',on:true},
+ {name:'Finance data to #fin-data',ch:'Slack',to:'#fin-data',f:'Domain: Finance · any severity',on:true},
+ {name:'Everything in the app',ch:'In-app',to:'Owner, steward, watchers',f:'All incidents',on:true}];
+const SCORE={overall:57,assets:37,comp:19,key:100,doc:81,sens:97,sensCols:81,sensAssets:36,pass:6,warn:0,brk:31,issues:{Completeness:222,Structure:30,Documentation:7}};
+/* 30 days of trend: [high, medium, low, non, score, ttrHours, resolved, fp, investigating, triage] */
+const TREND=(()=>{let s=7,out=[];const r=()=>{s=(s*9301+49297)%233280;return s/233280};
+ for(let i=0;i<30;i++){const h=r()<.25?1+Math.floor(r()*2):0,m=r()<.35?1+Math.floor(r()*2):0,l=r()<.3?1:0;const non=40+Math.floor(r()*8);
+  const sc=Math.max(52,Math.min(100,Math.round(100-(h*9+m*5+l*2)-r()*4)));
+  out.push({h,m,l,non,sc,ttr:+(6+r()*30).toFixed(1),res:Math.floor(r()*3),fp:r()<.15?1:0,inv:i>25?1+Math.floor(r()*2):0,tri:i>27?1+Math.floor(r()*2):0,day:i})}
+ return out})();
+const DAYS=(()=>{const a=[];const d=new Date(2026,8,2);for(let i=0;i<30;i++){const x=new Date(d);x.setDate(d.getDate()+i);a.push(x.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getMonth()])}return a})();
+/* lineage around assets, for root cause */
+const LINEAGE={
+ 'S3_ENR.CUSTOMER_SUMMARY':{up:[['S3_RAW.CUSTOMER',''],['S3_CLN.CUSTOMER','inc']],down:[['BI.Customer 360 Dashboard',''],['API.GET_customers','']]},
+ 'INT.LINEITEM':{up:[['SRC.LINEITEM','inc'],['STG.ORDER_ITEM_SUMMARY','inc']],down:[['PRL.ORDER_MASTER',''],['BI.Order Revenue Report','']]},
+ 'STG.ORDER_ITEM_SUMMARY':{up:[['SRC.LINEITEM','inc'],['SRC.ORDERS','']],down:[['INT.LINEITEM','inc'],['BI.Order Revenue Report','']]},
+ 'SRC.NATION':{up:[],down:[['INT.CUSTOMER',''],['STG.CUSTOMER_ORDER','']]},
+ 'INT.ORDERS':{up:[['SRC.ORDERS',''],['STG.CUSTOMER_ORDER','']],down:[['PRL.ORDER_MASTER','']]},
+ 'SRC.CUSTOMER':{up:[],down:[['INT.CUSTOMER',''],['STG.CUSTOMER_ORDER','']]}};
+/* ---------- state + helpers */
+const ui={view:'overview',mode:'live',range:'30d',asset:null,atab:'overview',inc:null,itab:'overview',sel:new Set(),ifilter:{status:'open',kind:'all'},q:'',sys:'all',side:null,drawer:null,modal:null,menu:null,toast:null,lastRun:'1 Oct 2026, 20:13',view_saved:null};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const I={
+ info:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+ play:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4v16l13-8Z"/></svg>',
+ plus:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+ x:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ search:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+ dots:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+ back:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>',
+ refresh:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>',
+ bell:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4Z"/><path d="M10 21h4"/></svg>',
+ mute:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V11a6 6 0 0 1 9-5.2M18 11v5l2 2H8M10 21h4M3 3l18 18"/></svg>',
+ code:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>',
+ shield:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>',
+ grid:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+ table:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>',
+ rule:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h10M4 18h7"/><path d="m15 17 2 2 4-4"/></svg>',
+ alert:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.5"/></svg>',
+ tool:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5Z"/></svg>',
+ card:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+ view:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h14v16l-7-4-7 4Z"/></svg>'};
+const person=n=>`<span class="person"><i>${PEOPLE[n]||n[0]}</i>${esc(n)}</span>`;
+const sevB=s=>`<span class="sev s-${s}"><i></i>${s[0].toUpperCase()+s.slice(1)}</span>`;
+const stB=(s,id)=>`<span class="st st-${s}" ${id?`onclick="event.stopPropagation();openMenu('st','${id}',this)"`:''}><i></i>${STL[s]}</span>`;
+const PRI=['None','Low','Medium','High','Critical'];
+const priB=p=>{const k=PRI.indexOf(p);return `<span class="pri"><b>${[1,2,3,4].map(i=>`<u style="height:${2+i*2}px" class="${i<=k?'on':''}"></u>`).join('')}</b>${p}</span>`};
+const scoreB=v=>v==null?'<span class="faint">—</span>':`<span class="score ${v<60?'bad':''}"><span class="bar"><i style="width:${v}%"></i></span>${v}</span>`;
+const statusOf=v=>v==null?null:v>=85?'Passing':v>=70?'Warning':'Breaking';
+const statusB=v=>{const s=statusOf(v);if(!s)return '<span class="faint">—</span>';const c={Passing:'b-approved',Warning:'b-review',Breaking:'b-draft'}[s];return `<span class="badge ${c}"><i></i>${s}</span>`};
+function toast(t){ui.toast=t;draw();clearTimeout(window._tt);window._tt=setTimeout(()=>{ui.toast=null;draw()},2600)}
+function go(v,extra={}){Object.assign(ui,{view:v,side:null,menu:null},extra);window.scrollTo(0,0);render()}
+function setMode(m){ui.mode=m;toast(m==='live'?'Live profiling: measured on Rplus_DWH and S3 files':'Metadata estimates: from harvested metadata only');render()}
+function runProfiling(){ui.lastRun='1 Oct 2026, 20:41';toast('Profiling finished: 11 assets measured in 8.4s, no row values stored');render()}
+function runChecks(){ui.lastRun='1 Oct 2026, 20:41';toast('6 checks ran: 3 failed, 0 new incidents');render()}
+
+/* ---------- charts */
+function qualityChart(h=170){
+ const W=760,H=h,pl=34,pr=8,pt=10,pb=22,n=TREND.length,bw=(W-pl-pr)/n;
+ const mx=Math.max(...TREND.map(d=>d.h+d.m+d.l))||1;const barH=(H-pt-pb)*.42;
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Data quality over time">`;
+ [0,50,100].forEach(v=>{const y=pt+(H-pt-pb)*(1-v/100);s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#E3EAF3"/><text x="${pl-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#8694AB">${v}%</text>`});
+ TREND.forEach((d,i)=>{const x=pl+i*bw+bw*.2,w=bw*.6;let y=H-pb;[['h','#0E2A57'],['m','#4D8CFF'],['l','#A9D3FF']].forEach(([k,c])=>{const hh=d[k]/mx*barH;if(hh){y-=hh;s+=`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${c}" rx="1"><title>${DAYS[i]}: ${d.h} high, ${d.m} medium, ${d.l} low · score ${d.sc}%</title></rect>`}})});
+ const pts=TREND.map((d,i)=>[pl+i*bw+bw/2,pt+(H-pt-pb)*(1-d.sc/100)]);
+ s+=`<path d="M${pts.map(p=>p.join(',')).join('L')}" fill="none" stroke="#4D8CFF" stroke-width="2"/>`;
+ pts.forEach((p,i)=>{if(i%1==0)s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.4" fill="#fff" stroke="#4D8CFF" stroke-width="1.5"><title>${DAYS[i]} · ${TREND[i].sc}%</title></circle>`});
+ [0,7,14,21,29].forEach(i=>s+=`<text x="${pl+i*bw+bw/2}" y="${H-6}" text-anchor="middle" font-size="10" fill="#8694AB">${DAYS[i]}</text>`);
+ return s+'</svg>'}
+function qualityLegend(){const t=TREND.reduce((a,d)=>({h:a.h+d.h,m:a.m+d.m,l:a.l+d.l,n:a.n+d.non}),{h:0,m:0,l:0,n:0});
+ return `<div class="legend"><span><i style="background:#0E2A57"></i>High <b>${t.h}</b></span><span><i style="background:#4D8CFF"></i>Medium <b>${t.m}</b></span><span><i style="background:#A9D3FF"></i>Low <b>${t.l}</b></span><span><i style="background:#fff;border:1px solid var(--line2)"></i>Passed checks <b>${t.n}</b></span><span><i style="background:none;border-top:2px solid #4D8CFF;height:0;border-radius:0;width:14px"></i>Quality score</span></div>`}
+function ttrChart(){
+ const W=760,H=170,pl=34,pr=8,pt=10,pb=22,n=TREND.length,bw=(W-pl-pr)/n;const mx=Math.max(...TREND.map(d=>d.res+d.fp+d.inv+d.tri))||1;const barH=(H-pt-pb)*.5;const mt=40;
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Time to resolution">`;
+ [0,20,40].forEach(v=>{const y=pt+(H-pt-pb)*(1-v/mt);s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#E3EAF3"/><text x="${pl-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#8694AB">${v}h</text>`});
+ TREND.forEach((d,i)=>{const x=pl+i*bw+bw*.2,w=bw*.6;let y=H-pb;[['res','#0E2A57'],['fp','#C9D6E6'],['inv','#4D8CFF'],['tri','#A9D3FF']].forEach(([k,c])=>{const hh=d[k]/mx*barH;if(hh){y-=hh;s+=`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${c}" rx="1"><title>${DAYS[i]}: ${d.res} resolved, ${d.fp} false positive, ${d.inv} investigating, ${d.tri} triage · ${d.ttr} h to resolve</title></rect>`}})});
+ const pts=TREND.map((d,i)=>[pl+i*bw+bw/2,pt+(H-pt-pb)*(1-d.ttr/mt)]);
+ s+=`<path d="M${pts.map(p=>p.join(',')).join('L')}" fill="none" stroke="#0E2A57" stroke-width="1.8"/>`;
+ [0,7,14,21,29].forEach(i=>s+=`<text x="${pl+i*bw+bw/2}" y="${H-6}" text-anchor="middle" font-size="10" fill="#8694AB">${DAYS[i]}</text>`);
+ return s+'</svg>'}
+const ttrLegend=()=>`<div class="legend"><span><i style="background:#0E2A57"></i>Resolved <b>${TREND.reduce((a,d)=>a+d.res,0)}</b></span><span><i style="background:#C9D6E6"></i>False positive <b>${TREND.reduce((a,d)=>a+d.fp,0)}</b></span><span><i style="background:#4D8CFF"></i>Investigating <b>${INCIDENTS.filter(i=>i.status=='investigating').length}</b></span><span><i style="background:#A9D3FF"></i>Triage <b>${INCIDENTS.filter(i=>i.status=='triage').length}</b></span></div>`;
+function ring(v,size=88,c='#4D8CFF'){const r=size/2-7,C=2*Math.PI*r;return `<div class="ring" style="width:${size}px;height:${size}px"><svg width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#EDF4FF" stroke-width="8"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${v<60?'#0E2A57':c}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C*v/100} ${C}" transform="rotate(-90 ${size/2} ${size/2})"/></svg><b style="font-size:${size/4.4}px">${v}%</b></div>`}
+function miniHist(inc){const k=inc.sev=='high'?[3,5,2,6,4]:inc.sev=='medium'?[2,3,1,4,2]:[1,2,1,1,2];const c={high:'#0E2A57',medium:'#4D8CFF',low:'#A9D3FF'}[inc.sev];return `<span class="mini">${k.slice(0,Math.min(5,inc.n+1)).map(h=>`<i style="height:${h*2.4}px;background:${c}"></i>`).join('')}</span>`}
+
+/* ---------- inner menu */
+function menu(){const open=INCIDENTS.filter(i=>i.status=='triage'||i.status=='investigating').length;
+ const L=(v,ic,t,c)=>`<div class="mlink ${ui.view==v||(v=='assets'&&ui.view=='asset')||(v=='incidents'&&ui.view=='incident')?'on':''}" tabindex="0" onclick="go('${v}')">${ic}<span>${t}</span>${c!=null?`<span class="cnt">${c}</span>`:''}</div>`;
+ return L('overview',I.grid,'Overview')+L('assets',I.table,'Profiling & dimensions',ASSETS.length)+L('rules',I.rule,'Rules & thresholds',RULES.length)+L('incidents',I.alert,'Monitoring & anomalies',open)+L('remediation',I.tool,'Remediation',QUAR.length)+L('scorecards',I.card,'Scorecards')+
+ `<div class="divider"></div><div class="sec">Alerts</div>`+L('notifications',I.bell,'Notification rules',NOTIF.length)+
+ `<div class="sec">Saved views</div>`+
+ [['My open incidents','incidents',{mtab:'incidents',ifilter:{status:'open',kind:'all',own:'Madhavi'}}],['Finance breaking assets','scorecards',{}],['Anomalies this week','incidents',{mtab:'anomalies'}]].map((v,i)=>`<div class="mlink" onclick='go("${v[1]}",${JSON.stringify(v[2])})'>${I.view}<span>${v[0]}</span></div>`).join('')}
+
+/* ---------- page header shared by all tabs */
+function head(title,sub,extra=''){return `<div class="phead"><div><div class="eyebrow">Data quality</div><h1>${title}</h1><p>${sub}</p></div><div style="display:flex;gap:8px;align-items:center">${extra}</div></div>`}
+const modeSw=()=>`<div class="seg2" role="group" aria-label="Measurement mode"><button class="${ui.mode=='meta'?'on':''}" onclick="setMode('meta')">Metadata estimates</button><button class="${ui.mode=='live'?'on':''}" onclick="setMode('live')">Live profiling</button></div><button class="btn md primary" onclick="runProfiling()">${I.play}Run profiling</button>`;
+const SUB='Trust, completeness, key coverage, documentation and sensitivity across the metadata estate.';
+
+/* ---------- 1. overview */
+function vOverview(){const open=INCIDENTS.filter(i=>i.status=='triage'||i.status=='investigating');
+ return head('Overview',SUB,modeSw())+
+ `<div class="toolbar"><span class="chip">Domain <small>All</small></span><span class="chip">Owner <small>All</small></span><span class="chip">Tag <small>All</small></span><span style="margin-left:auto" class="seg2">${['7d','30d','90d','365d'].map(r=>`<button class="${ui.range==r?'on':''}" onclick="ui.range='${r}';render()">${r}</button>`).join('')}</span></div>`+
+ `<div class="tiles t5"><div><span>Overall quality</span><b>${SCORE.overall}%</b><small>across ${SCORE.assets} assets</small></div><div><span>Open incidents</span><b>${open.length}</b><small>${open.filter(i=>i.sev=='high').length} high · ${INCIDENTS.filter(i=>i.kind=='Anomaly'&&i.status!='resolved').length} anomalies</small></div><div><span>Mean time to resolve</span><b>18.4 h</b><small class="delta">↓ 4.1 h vs last period</small></div><div><span>Rules running</span><b>${RULES.length}</b><small>every harvest · 15 min</small></div><div><span>Quarantined</span><b>${QUAR.length}</b><small>cannot be published</small></div></div>`+
+ `<div class="cols2"><div class="card pad chart"><h3>Data quality over time</h3><p class="sub">Score leaves out resolved and false-positive incidents, so it shows live problems only.</p>${qualityLegend()}${qualityChart()}</div>
+ <div class="card pad chart"><h3>Time to resolution</h3><p class="sub">Average hours from first seen to Resolved or False positive.</p>${ttrLegend()}${ttrChart()}</div></div>`+
+ `<div class="cols3" style="margin-top:16px"><div class="card"><div style="padding:16px 18px 6px;display:flex;align-items:center"><h3 style="margin:0">Needs attention</h3><span class="tlink" style="margin-left:auto;font-size:13px" onclick="go('incidents',{mtab:'incidents'})">All incidents</span></div>
+ <table class="tbl"><thead><tr><th>Incident</th><th>Asset</th><th>Severity</th><th>Status</th><th>Owner</th></tr></thead><tbody>${open.sort((a,b)=>(a.sev=='high'?0:1)-(b.sev=='high'?0:1)).map(i=>`<tr onclick="go('incident',{inc:'${i.id}',itab:'overview'})"><td><div class="tname">${esc(i.title)}</div><small class="faint mono">${i.id}</small></td><td class="mono" style="font-size:12px">${esc(i.asset)}</td><td>${sevB(i.sev)}</td><td>${stB(i.status,i.id)}</td><td>${person(i.own)}</td></tr>`).join('')}</tbody></table></div>
+ <div class="card pad"><h3>Activity</h3><p class="sub">Who changed what. Export as CSV.</p><div class="feed">${ACTIVITY.map(([d,rows])=>`<div class="daylbl" style="border:0;padding:0">${d}</div>`+rows.map(r=>`<div><span class="who">${r[0]}</span><div><b>${r[1]}</b> ${esc(r[2])}<small>${r[3]}</small></div></div>`).join('')).join('')}</div><button class="btn sm" style="margin-top:8px" onclick="toast('Activity exported as CSV')">Export CSV</button></div></div>`}
+
+/* ---------- 2. assets & profiling */
+function avg(i){const v=ASSETS.filter(a=>a.d&&a.d[i]!=null).map(a=>a.d[i]);return +(v.reduce((s,x)=>s+x,0)/v.length).toFixed(1)}
+const DIMAVG={completeness:100,uniqueness:95.4,validity:100,consistency:100,timeliness:30.4,accuracy:90.9};
+function vAssets(){const sys=[...new Set(ASSETS.map(a=>a.sys))];
+ const rows=ASSETS.filter(a=>(ui.sys=='all'||a.sys==ui.sys)&&(!ui.q||a.n.toLowerCase().includes(ui.q.toLowerCase())));
+ return head('Profiling & dimensions',SUB,modeSw())+
+ `<div class="tiles t7">${DIMS.map(d=>`<div title="${DIMD[d]}"><span>${DIML[d]}</span><b class="${DIMAVG[d]<60?'lo':''}">${DIMAVG[d]}%</b><small>estate average</small></div>`).join('')}<div><span>Open quality alerts</span><b>${INCIDENTS.filter(i=>i.status=='triage'||i.status=='investigating').length}</b><small>${QUAR.length} quarantined · ${INCIDENTS.filter(i=>i.kind=='Anomaly'&&i.status!='resolved').length} anomalies</small></div></div>`+
+ `<div class="note">${I.info}<div><b>${ui.mode=='live'?'Live profiling':'Metadata estimates'}.</b> ${ui.mode=='live'?'Warehouse tables and views are profiled with one aggregate query each. S3 files are read. APIs and streams are structure only.':'Scores come from harvested metadata only. Switch to Live profiling to measure real values.'} No row values are stored.</div></div>`+
+ `<div class="toolbar"><div class="msearch" style="width:280px;margin:0">${I.search}<input placeholder="Search assets" value="${esc(ui.q)}" oninput="ui.q=this.value;render();setTimeout(()=>{const e=document.querySelector('.msearch input');e.focus();e.setSelectionRange(99,99)})"></div>
+ <select class="input" style="width:220px" onchange="ui.sys=this.value;render()"><option value="all">All systems (${ASSETS.length})</option>${sys.map(x=>`<option ${ui.sys==x?'selected':''} value="${esc(x)}">${esc(x)} (${ASSETS.filter(a=>a.sys==x).length})</option>`).join('')}</select>
+ <button class="btn md" style="margin-left:auto" onclick="runProfiling()">${I.refresh}Profile and check now</button></div>`+
+ `<div class="card" style="overflow:auto"><table class="tbl"><thead><tr><th>Asset</th><th class="num">Rows</th>${DIMS.map(d=>`<th class="num">${DIML[d]}</th>`).join('')}<th>Score</th><th>Priority</th><th>Owner</th></tr></thead><tbody>${rows.map(a=>`<tr onclick="go('asset',{asset:'${a.n}',atab:'overview'})"><td><span class="tname mono" style="font-size:12.5px">${esc(a.n)}</span><small class="faint">${esc(a.sys)} · ${a.t} · <b style="font-weight:600;color:var(--muted)">${methodOf(a)}</b></small></td>${a.d?`<td class="num">${a.rows}</td>`+a.d.map(v=>v==null?'<td class="dimcell na">not measured</td>':`<td class="dimcell ${v<60?'lo':''}">${v}</td>`).join(''):`<td></td><td colspan="6" class="dimcell na">${a.m=='error'?esc(a.err):'structure only · no values to measure'}</td>`}<td>${scoreB(a.score)}</td><td>${priB(a.pri)}</td><td>${person(a.own)}</td></tr>`).join('')}</tbody></table></div><p class="foot">${rows.length} assets · last profiled ${ui.lastRun}</p>`}
+
+function vAsset(){const a=ASSETS.find(x=>x.n==ui.asset);const inc=INCIDENTS.filter(i=>i.asset==a.n);const rl=RULES.filter(r=>r.to==a.n);
+ const cols=COLUMNS[a.n]||(a.d?[['ID','numeric',100,a.d[1],100,'—','not negative'],['NAME','text',a.d[0],90,a.d[2],'—','not blank'],['UPDATED_AT','date',100,100,100,'—','valid date']]:[]);
+ const why=WHY[a.n]||whyFor(a,cols.length);
+ const tabs=[['overview','Overview'],['columns','Columns',cols.length],['checks','Checks',rl.length],['incidents','Incidents',inc.length],['activity','Activity']];
+ let body='';
+ if(ui.atab=='overview'){body=a.d?`<div class="pgrid"><div class="card pad"><div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">${ring(a.score)}<div><h3>Quality dimensions</h3><p class="sub" style="margin:0">${a.m=='file'?'S3 file read':'warehouse aggregate query'} · profiled ${ui.lastRun} · ${cols.length} of ${cols.length} columns</p></div></div>${DIMS.map((d,i)=>{const v=a.d[i];return `<div class="dimrow"><b>${DIML[d]}</b><span class="bar"><i style="width:${v??0}%;${v!=null&&v<60?'background:var(--navy)':''}"></i></span><span class="num">${v??'\u2014'}</span><span class="why">${esc(why[i])}</span></div>`}).join('')}</div>
+ <div class="side"><div class="prop"><label>Status</label><div class="v">${statusB(a.score)}</div></div><div class="prop"><label>Priority</label><div class="v">${priB(a.pri)}</div></div><div class="prop"><label>Owner</label><div class="v">${person(a.own)}</div></div><div class="prop"><label>Steward</label><div class="v">${person(a.stw)}</div></div><div class="prop"><label>Domain</label><div class="v">${a.dom}</div></div><div class="prop"><label>Recommended actions</label><div class="v" style="flex-direction:column;align-items:stretch;gap:6px"><button class="btn sm" onclick="runProfiling()">Run profile</button><button class="btn sm" onclick="openRule('${a.n}')">Add a rule</button><button class="btn sm" onclick="toast('Stewardship task created for ${a.stw}')">Send to stewardship</button></div></div></div></div>`:`<div class="card empty">${a.m=='error'?esc(a.err):'This asset is structure only. GenMeta tracks its schema and freshness from metadata, but there are no values to profile.'}</div>`}
+ if(ui.atab=='columns')body=cols.length?`<div class="card"><table class="tbl"><thead><tr><th>Column</th><th>Type</th><th class="num">Complete</th><th class="num">Distinct</th><th class="num">Valid</th><th>Range</th><th>Check applied</th></tr></thead><tbody>${cols.map(c=>`<tr><td class="mono" style="font-size:12.5px;font-weight:600">${c[0]}</td><td class="muted">${c[1]}</td><td class="num">${c[2]}%</td><td class="num">${c[3]}%</td><td class="num">${c[4]}%</td><td class="mono" style="font-size:12px">${c[5]}</td><td><span class="tag">${c[6]}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="card empty">No columns profiled.</div>';
+ if(ui.atab=='checks')body=`<div class="card">${rulesTable(rl)}</div><button class="btn md" style="margin-top:12px" onclick="openRule('${a.n}')">${I.plus}Add a rule</button>`;
+ if(ui.atab=='incidents')body=`<div class="card">${incTable(inc,false)}</div>`;
+ if(ui.atab=='activity')body=`<div class="card pad"><div class="hist"><div><span class="dot"></span><div>Profiled by live aggregate query<small>${ui.lastRun}</small></div></div>${inc.map(i=>`<div><span class="dot"></span><div>${i.id} ${esc(i.title)}: ${STL[i.status]}<small>${i.last}</small></div></div>`).join('')}<div><span class="dot"></span><div>Harvested from ${esc(a.sys)}<small>1 Oct 2026, 20:00</small></div></div></div></div>`;
+ return `<div class="crumbs" style="margin-bottom:10px"><span class="tlink" onclick="go('assets')">Profiling & dimensions</span> / <b>${esc(a.n)}</b></div>
+ <div class="thead"><div class="ticon">${I.table}</div><div><h1 class="mono" style="font-size:21px">${esc(a.n)}</h1><div class="kind">${a.t} · ${esc(a.sys)} · ${a.rows??'—'} rows</div></div><div class="tools"><button class="btn md" onclick="runProfiling()">${I.refresh}Profile now</button></div></div>
+ ${QUAR.some(q=>q.a==a.n)?`<div class="banner">${I.alert}<span><b>Quarantined.</b> Not fit for use. Flagged in the Catalogue and cannot be published as a data product until its owner or steward releases it.</span><button class="btn sm" onclick="release('${a.n}')">Release</button></div>`:''}
+ <div class="tabs">${tabs.map(t=>`<button class="tab ${ui.atab==t[0]?'on':''}" onclick="ui.atab='${t[0]}';render()">${t[1]}${t[2]!=null?` <small>${t[2]}</small>`:''}</button>`).join('')}</div>${body}`}
+/* ---------- 3. rules */
+function rulesTable(rows){if(!rows.length)return '<div class="empty">No rules yet. Write one from a plain template, no SQL needed.</div>';
+ return `<table class="tbl"><thead><tr><th>Rule</th><th>Check</th><th>Dimension</th><th>Applies to</th><th>Threshold</th><th>On failure</th><th>Quality</th><th>Last incident</th><th>Written by</th><th>On</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr onclick="toast('Opens rule ${esc(r.name)}')" style="${r.enabled===false?'opacity:.5':''}"><td><div class="tname">${esc(r.name)}</div><small class="faint">${sevB(r.sev)}</small></td><td>${esc(r.check)}</td><td><span class="tag">${DIML[r.dim]}</span></td><td class="mono" style="font-size:12px">${esc(r.to)}${r.col!='—'?`<br><span class="faint">${esc(r.col)}</span>`:''}</td><td style="font-size:12.5px">${esc(r.thr)}${r.type=='learned'?' <span class="kd anom">learned</span>':''}</td><td style="font-size:12px">${r.on.length?r.on.map(o=>ACTL[o]).join(', ')+`<br><span class="faint">authorised by ${esc((r.auth||'Madhavi').split(' (')[0])}</span>`:'<span class="faint">Alert only</span>'}</td><td>${scoreB(r.q)}</td><td class="muted" style="font-size:12.5px">${r.last}</td><td>${person(r.by)}</td><td onclick="event.stopPropagation()"><input type="checkbox" aria-label="Enable rule" ${r.enabled!==false?'checked':''} onchange="toggleRule('${r.id}',this.checked)" style="accent-color:var(--royal)"></td><td onclick="event.stopPropagation()"><button class="ib" title="Delete rule" onclick="delRule('${r.id}')">${I.x}</button></td></tr>`).join('')}</tbody></table>`}
+function vRules(){return head('Rules & thresholds','Write checks from plain templates. They run on every harvest and when data changes.',`<button class="btn md primary" onclick="openRule()">${I.plus}New rule</button>`)+
+ `<div class="tiles t4">${['timeliness','completeness','uniqueness','accuracy'].map(d=>{const r=RULES.filter(x=>x.dim==d);return `<div><span>${DIML[d]}</span><b>${r.length}</b><small>${r.length?'rules':'no rules yet'}</small></div>`}).join('')}</div>`+
+ `<div class="toolbar"><div class="msearch" style="width:280px;margin:0">${I.search}<input placeholder="Search rules"></div><span class="chip">Dimension <small>All</small></span><span class="chip">Severity <small>All</small></span><span class="chip">Written by <small>All</small></span><span class="views" style="margin-left:auto"><span class="tlink" onclick="toast('View saved')">Save as view</span></span></div>`+
+ `<div class="card" style="overflow:auto">${rulesTable(RULES)}</div><p class="foot">Self-remediation actions need a governance lead or product owner to authorise them.</p>`}
+function openRule(asset){ui.drawer={kind:'rule',dim:null,tpl:null,to:asset||'',scope:asset?'One asset':'One asset',col:'',run:'Every harvest (15 min)',seg:'',thrType:'fixed',thr:100,sens:2,adapt:'Slow',sev:'medium',owner:'Madhavi',why:'',acts:[],auth:'',p1:'',p2:'',name:''};draw()}
+function rd(k,v){ui.drawer[k]=v;draw()}
+function ruleSentence(d){if(!d.tpl)return 'Pick a dimension and a check to see what this rule will do.';
+ const t=d.thrType=='fixed'?`at least <code>${d.thr}%</code> of checks pass`:`the value stays inside the band GenMeta learns, with sensitivity <code>${d.sens}</code> and a <code>${d.adapt.toLowerCase()}</code> adaptation rate`;
+ return `GenMeta will check <b>${esc(d.tpl.toLowerCase())}</b> on <code>${esc(d.to||'…')}</code>${paramText(d)}${d.col?` column <code>${esc(d.col)}</code>`:''}${d.seg?`, split by <code>${esc(d.seg)}</code>`:''}, <b>${d.run.toLowerCase()}</b>. It passes when ${t}. If it fails, a <b>${d.sev}</b> incident goes to ${esc(d.owner)}${d.acts.length&&d.auth?` and GenMeta will ${d.acts.map(a=>ACTL[a].toLowerCase()).join(', ')}`:''}.`}
+function ruleDrawer(){const d=ui.drawer;const s1=!!d.tpl,s2=s1&&!!d.to;
+ const step=(n,on,done,t,sub,body)=>`<div class="step ${done?'done':on?'on':'off'}"><span class="n">${done?'✓':n}</span><h4>${t}</h4><div class="sub">${sub}</div>${body}</div>`;
+ const assetOpts=ASSETS.filter(a=>a.d).map(a=>`<option ${a.n==d.to?'selected':''}>${a.n}</option>`).join('');
+ return `<div class="scrim" onclick="ui.drawer=null;draw()"></div><aside class="drawer wide" role="dialog" aria-label="New rule"><header>Write a rule<button class="ib" onclick="ui.drawer=null;draw()">${I.x}</button></header><div class="db"><div class="steps">
+ ${step(1,true,s1,'What should it check?','Pick a dimension, then a plain template. No SQL.',`<div class="dimpick">${DIMS.map(x=>`<button class="${d.dim==x?'on':''}" onclick="ui.drawer.dim='${x}';ui.drawer.tpl=null;draw()"><b>${DIML[x]}</b><small>${DIMD[x]}</small></button>`).join('')}</div>${d.dim?`<div class="tpl">${TEMPLATES[d.dim].map(([t,s])=>`<label class="${d.tpl==t?'on':''}"><input type="radio" name="tpl" ${d.tpl==t?'checked':''} onclick='ui.drawer.tpl=${JSON.stringify(t)};if(!ui.drawer.name)ui.drawer.name=${JSON.stringify(t)};draw()'><span><b>${t}</b><br><small class="muted">${s}</small></span></label>`).join('')}</div>`:''}`)}
+ ${step(2,s1,s2,'Where does it apply?','Everything profiled, one asset, a dataset or a classification.',`<div class="formgrid" style="grid-template-columns:1fr 1fr"><div class="fld"><label>Applies to</label><select class="input" onchange="rd('scope',this.value)">${['Everything profiled','One asset','A dataset','A classification'].map(o=>`<option ${d.scope==o?'selected':''}>${o}</option>`).join('')}</select></div><div class="fld"><label>Asset</label><select class="input" onchange="rd('to',this.value)"><option value="">Choose…</option>${assetOpts}</select></div><div class="fld"><label>Column</label><input class="input" placeholder="e.g. CUSTOMER_EMAIL" value="${esc(d.col)}" onchange="rd('col',this.value)"></div><div class="fld"><label>Split by (optional)</label><input class="input" placeholder="e.g. SEGMENT" value="${esc(d.seg)}" onchange="rd('seg',this.value)"></div>${paramField(d)}</div>`)}
+ ${step(3,s2,s2,'When does it run?','Checks run on every scheduled harvest and again the moment data changes.',`<div class="seg2">${['Every harvest (15 min)','Daily window','On data change'].map(o=>`<button class="${d.run==o?'on':''}" onclick='rd("run",${JSON.stringify(o)})'>${o}</button>`).join('')}</div>`)}
+ ${step(4,s2,s2,'When is it a failure?','Fixed: you set the pass mark. Learned: GenMeta learns what is normal.',`<div class="seg2" style="margin-bottom:10px"><button class="${d.thrType=='fixed'?'on':''}" onclick="rd('thrType','fixed')">Fixed</button><button class="${d.thrType=='learned'?'on':''}" onclick="rd('thrType','learned')">Learned</button></div>${d.thrType=='fixed'?`<div class="fld" style="max-width:180px"><label>Passes at ≥ %</label><input class="input" type="number" min="0" max="100" value="${d.thr}" onchange="rd('thr',this.value)"></div>`:`<div class="formgrid" style="grid-template-columns:1fr 1fr"><div class="fld"><label>Sensitivity (1 = loose, 5 = strict)</label><select class="input" onchange="rd('sens',this.value)">${[1,2,3,4,5].map(o=>`<option ${d.sens==o?'selected':''}>${o}</option>`).join('')}</select></div><div class="fld"><label>Adaptation rate</label><select class="input" onchange="rd('adapt',this.value)">${['Slow','Fast'].map(o=>`<option ${d.adapt==o?'selected':''}>${o}</option>`).join('')}</select></div></div>`}`)}
+ ${step(5,s2,s2&&!!d.name,'Details and what happens next','Severity, owner, why it matters and self-remediation.',`<div class="fld"><label>Name</label><input class="input" value="${esc(d.name)}" onchange="rd('name',this.value)"></div><div class="formgrid"><div class="fld"><label>Severity</label><select class="input" onchange="rd('sev',this.value)">${['high','medium','low'].map(o=>`<option ${d.sev==o?'selected':''}>${o}</option>`).join('')}</select></div><div class="fld" style="grid-column:span 2"><label>Business owner</label><select class="input" onchange="rd('owner',this.value)">${Object.keys(PEOPLE).filter(p=>p!='Admin').map(o=>`<option ${d.owner==o?'selected':''}>${o}</option>`).join('')}</select></div></div><div class="fld"><label>Why it matters</label><textarea class="input" onchange="rd('why',this.value)" placeholder="e.g. Duplicates double-count revenue">${esc(d.why)}</textarea></div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Self-remediation · only a governance lead or product owner can authorise</label><div class="fld"><select class="input" onchange="ui.drawer.auth=this.value;if(!this.value)ui.drawer.acts=[];draw()"><option value="">Not authorised: alert only</option>${AUTHORISERS.map(p=>`<option ${d.auth==p?'selected':''}>${p}</option>`).join('')}</select></div><div class="cbx" style="${d.auth?'':'opacity:.5'}">${Object.entries(ACTL).map(([k,v])=>`<label><input type="checkbox" ${d.auth?'':'disabled'} ${d.acts.includes(k)?'checked':''} onchange="const a=ui.drawer.acts;this.checked?a.push('${k}'):a.splice(a.indexOf('${k}'),1);draw()">${v}</label>`).join('')}</div>`)}
+ </div><div class="plain" style="margin-top:6px">${ruleSentence(d)}</div></div><footer><button class="btn md" onclick="ui.drawer=null;draw()">Cancel</button><button class="btn md primary" ${s2&&d.name?'':'disabled'} onclick="saveRule()">Save rule</button></footer></aside>`}
+function saveRule(){const d=ui.drawer;RULES.unshift({id:'R'+(RULES.length+1),name:d.name,check:d.tpl,dim:d.dim,to:d.to,col:d.col||'—',thr:d.thrType=='fixed'?'≥ '+d.thr+'%':'learned · sensitivity '+d.sens,type:d.thrType,sev:d.sev,on:d.auth?[...d.acts]:[],auth:d.auth,by:'Admin',q:100,last:'never',why:d.why,enabled:true});ui.drawer=null;go('rules');toast('Rule saved. It runs on the next harvest.')}
+
+/* ---------- 4. incidents */
+function incTable(rows,sel=true){if(!rows.length)return '<div class="empty">No incidents match. Checks run on every harvest.</div>';
+ return `<table class="tbl"><thead><tr>${sel?`<th style="width:28px"><input type="checkbox" aria-label="Select all" ${rows.every(r=>ui.sel.has(r.id))?'checked':''} onclick="event.stopPropagation();${rows.every(r=>ui.sel.has(r.id))?'ui.sel.clear()':`[${rows.map(r=>`'${r.id}'`)}].forEach(i=>ui.sel.add(i))`};render()"></th>`:''}<th>Incidents</th><th>Group</th><th>Asset</th><th>Status</th><th>Priority</th><th>Owner</th><th>First seen</th><th>Last seen</th><th></th></tr></thead><tbody>${rows.map(i=>`<tr onclick="go('incident',{inc:'${i.id}',itab:'overview'})">${sel?`<td onclick="event.stopPropagation()"><input type="checkbox" ${ui.sel.has(i.id)?'checked':''} onchange="this.checked?ui.sel.add('${i.id}'):ui.sel.delete('${i.id}');render()"></td>`:''}<td><div style="display:flex;align-items:center;gap:8px">${miniHist(i)}${sevB(i.sev)} <span class="faint">${i.n}</span></div></td><td style="min-width:220px"><div class="tname">${esc(i.title)}</div><div style="display:flex;gap:6px;align-items:center;margin-top:3px"><small class="faint mono">${i.id}</small><span class="kd ${i.kind=='Anomaly'?'anom':''}">${i.kind}</span><span class="kd">${DIML[i.dim]}</span></div></td><td class="mono" style="font-size:12px">${esc(i.asset)}</td><td>${stB(i.status,i.id)}</td><td>${priB(i.pri)}</td><td>${person(i.own)}</td><td class="muted" style="font-size:12.5px">${i.first}</td><td class="muted" style="font-size:12.5px">${i.last}</td><td><button class="ib" title="${i.muted?'Unmute':'Mute'}" onclick="event.stopPropagation();mute('${i.id}')">${i.muted?I.mute:I.bell}</button></td></tr>`).join('')}</tbody></table>`}
+function mute(id){const i=INCIDENTS.find(x=>x.id==id);i.muted=!i.muted;toast(i.muted?id+' muted for 24 hours':id+' unmuted');render()}
+function setStatus(id,s){INCIDENTS.find(x=>x.id==id).status=s;ui.menu=null;toast(id+' set to '+STL[s]+(s=='fp'?'. GenMeta will learn from this.':''));render()}
+function bulk(kind){const ids=[...ui.sel];if(kind=='mute')ids.forEach(id=>INCIDENTS.find(x=>x.id==id).muted=true);if(kind=='own')ids.forEach(id=>INCIDENTS.find(x=>x.id==id).own='Madhavi');if(kind=='inv')ids.forEach(id=>INCIDENTS.find(x=>x.id==id).status='investigating');toast(ids.length+' incidents updated');ui.sel.clear();render()}
+function vIncidentList(){const f=ui.ifilter;let rows=INCIDENTS.filter(i=>(f.status=='all'||(f.status=='open'?(i.status=='triage'||i.status=='investigating'):i.status==f.status))&&(f.kind=='all'||i.kind==f.kind)&&(!f.own||i.own==f.own));
+ return head('Incidents','Every failed rule and every anomaly becomes an incident that someone owns.',`<button class="btn md" onclick="toast('Looked for data changes: 1 asset changed, checks queued')">${I.refresh}Check for data changes</button><button class="btn md primary" onclick="runChecks()">${I.play}Run checks now</button>`)+
+ `<div class="note">${I.info}<div>Checks run on every scheduled harvest (15 minutes) and again the moment an asset’s data changes. <b>Last run ${ui.lastRun}: 6 checks, 3 failed, 8.4s.</b> Anomalies beyond the rules are flagged when a robust z-score is above 3.5, or the last three runs shift by more than 25%.</div></div>`+
+ `<div class="card pad chart" style="margin-bottom:16px"><div style="display:flex;align-items:center"><h3 style="margin:0">Time to resolution</h3><span style="margin-left:auto">${ttrLegend()}</span></div>${ttrChart()}</div>`+
+ `<div class="toolbar"><span class="seg2">${[['open','Open'],['triage','Triage'],['investigating','Investigating'],['resolved','Resolved'],['fp','False positive'],['all','All']].map(([k,l])=>`<button class="${f.status==k?'on':''}" onclick="ui.ifilter.status='${k}';render()">${l}</button>`).join('')}</span><span class="seg2">${['all','Rule','Anomaly'].map(k=>`<button class="${f.kind==k?'on':''}" onclick="ui.ifilter.kind='${k}';render()">${k=='all'?'Rules + anomalies':k+'s'}</button>`).join('')}</span>${f.own?`<span class="chip on" onclick="delete ui.ifilter.own;render()">Owner: ${f.own} ✕</span>`:'<span class="chip">Owner <small>All</small></span>'}<span class="chip">Priority <small>All</small></span><span class="views" style="margin-left:auto"><span class="tlink" onclick="toast('View saved')">Save as view</span></span></div>`+
+ (ui.sel.size?`<div class="bulk"><b>${ui.sel.size} selected</b><span style="flex:1"></span><button class="btn sm" onclick="bulk('own')">Assign owner</button><button class="btn sm" onclick="bulk('inv')">Set to Investigating</button><button class="btn sm" onclick="bulk('mute')">Mute</button><button class="btn sm" onclick="ui.sel.clear();render()">Clear</button></div>`:'')+
+ `<div class="card" style="overflow:auto">${incTable(rows)}</div>`}
+function metricChart(i){const W=760,H=200,pl=40,pr=10,pt=12,pb=24,n=21;let s=`<svg viewBox="0 0 ${W} ${H}">`;const bw=(W-pl-pr)/(n-1);
+ const base=i.dim=='timeliness'?20:i.dim=='uniqueness'?99:i.dim=='accuracy'?97:90;const vals=[...Array(n)].map((_,k)=>k>=n-i.n?base-(i.sev=='high'?40:20)-k%3*4:base+((k*7)%5)-2);
+ const y=v=>pt+(H-pt-pb)*(1-v/110);
+ s+=`<path d="M${pl},${y(base+6)} L${W-pr},${y(base+6)} L${W-pr},${y(base-8)} L${pl},${y(base-8)}Z" fill="#EDF4FF"/>`;
+ [0,50,100].forEach(v=>s+=`<text x="${pl-6}" y="${y(v)+4}" font-size="10" text-anchor="end" fill="#8694AB">${v}</text><line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="#E3EAF3"/>`);
+ s+=`<path d="M${vals.map((v,k)=>(pl+k*bw)+','+y(v)).join('L')}" fill="none" stroke="#4D8CFF" stroke-width="2"/>`;
+ vals.forEach((v,k)=>{const bad=k>=n-i.n;s+=`<circle cx="${pl+k*bw}" cy="${y(v)}" r="${bad?4.5:2.5}" fill="${bad?'#0E2A57':'#fff'}" stroke="${bad?'#0E2A57':'#4D8CFF'}" stroke-width="1.5"><title>${bad?'Incident: ':''}${v}</title></circle>`});
+ s+=`<text x="${W-pr}" y="${y(base+6)-4}" text-anchor="end" font-size="10" fill="#566A89">expected band</text>`;return s+'</svg>'}
+function rootCause(i){const L=LINEAGE[i.asset]||{up:[],down:[]};const W=820,H=260;let s=`<svg viewBox="0 0 ${W} ${H}">`;
+ const node=(x,y,n,st)=>{const c=st=='me'?'#0E2A57':st=='inc'?'#4D8CFF':'#C9D6E6';return `<g class="gnode"><rect x="${x}" y="${y}" width="200" height="44" rx="8" fill="${st=='me'?'#EDF4FF':'#fff'}" stroke="${c}" stroke-width="${st?2:1}"/><text x="${x+12}" y="${y+19}" font-size="11.5" font-family="JetBrains Mono" font-weight="600" fill="#0E2A57">${esc(n.length>24?n.slice(0,23)+'…':n)}</text><text x="${x+12}" y="${y+34}" font-size="10.5" fill="${st?'#4D8CFF':'#8694AB'}">${st=='me'?'this incident':st=='inc'?'incident in same window':'healthy'}</text></g>`};
+ const cy=H/2-22;const pos=(arr,x)=>arr.map((a,k)=>[x,arr.length==1?cy:cy+(k-(arr.length-1)/2)*(arr.length==2?120:70),a]);
+ const U=pos(L.up,20),D=pos(L.down,600);
+ U.forEach(([x,y])=>s+=`<path d="M${x+200},${y+22} C${x+260},${y+22} ${250},${cy+22} 310,${cy+22}" fill="none" stroke="#C9D6E6" stroke-width="1.5"/>`);
+ D.forEach(([x,y])=>s+=`<path d="M510,${cy+22} C560,${cy+22} ${x-50},${y+22} ${x},${y+22}" fill="none" stroke="#C9D6E6" stroke-width="1.5"/>`);
+ U.forEach(([x,y,a])=>s+=node(x,y,a[0],a[1]));D.forEach(([x,y,a])=>s+=node(x,y,a[0],a[1]));s+=node(310,cy,i.asset,'me');
+ if(!L.up.length)s+=`<text x="120" y="${cy+26}" text-anchor="middle" font-size="11" fill="#8694AB">no upstream assets</text>`;
+ return s+'</svg>'}
+function vIncident(){const i=INCIDENTS.find(x=>x.id==ui.inc);const r=RULES.find(x=>x.id==i.rule);const L=LINEAGE[i.asset]||{up:[],down:[]};
+ const related=[...L.up.filter(u=>u[1]).map(u=>[u[0],'upstream']),...L.down.filter(u=>u[1]).map(u=>[u[0],'downstream'])];
+ let body='';
+ if(ui.itab=='overview')body=`<div class="pgrid"><div class="stack"><div class="card pad chart"><h3>${esc(r?r.check:i.title)} on ${esc(i.asset)}</h3><p class="sub">Measured value over the last 21 runs. Dark points are incidents.</p>${metricChart(i)}</div>
+ <div class="card"><table class="tbl"><thead><tr><th>Measured</th><th>Expected</th><th>Severity</th><th>Status</th><th>Seen at</th><th></th></tr></thead><tbody>${[...Array(i.n)].map((_,k)=>`<tr style="cursor:default"><td class="mono" style="font-size:12px">${esc(i.measured)}</td><td class="mono" style="font-size:12px">${esc(i.expect)}</td><td>${sevB(i.sev)}</td><td>${stB(i.status)}</td><td class="muted">${k==0?i.last:i.first}</td><td><button class="btn sm" onclick="ui.modal='debug';draw()">${I.code}Debug</button></td></tr>`).join('')}</tbody></table></div></div>
+ <div class="side"><div class="prop"><label>Status</label><div class="v">${stB(i.status,i.id)}</div></div><div class="prop"><label>Owner</label><div class="v">${person(i.own)}</div></div><div class="prop"><label>Priority</label><div class="v">${priB(i.pri)} <span class="faint" style="font-size:12px">from asset</span></div></div><div class="prop"><label>Found by</label><div class="v">${i.kind=='Anomaly'?'Anomaly detection':esc(r.name)} <span class="kd ${i.kind=='Anomaly'?'anom':''}">${i.kind}</span></div></div><div class="prop"><label>Dimension</label><div class="v">${DIML[i.dim]}</div></div><div class="prop"><label>First seen · last seen</label><div class="v">${i.first} · ${i.last}</div></div>${r&&r.why?`<div class="prop"><label>Why it matters</label><div class="v" style="font-weight:400">${esc(r.why)}</div></div>`:''}
+ <div class="prop"><label>Activity</label><div class="hist"><div><span class="dot"></span><div>${i.n} incidents reported<small>${i.last}</small></div></div><div><span class="dot"></span><div>Alert sent to ${esc(i.own)} by email<small>${i.first}</small></div></div></div><div class="cmt"><input class="input" placeholder="Leave a comment"><button class="btn sm" onclick="toast('Comment added')">Post</button></div></div></div></div>`;
+ if(ui.itab=='root')body=`<div class="card pad graph"><h3>Related incidents across lineage</h3><p class="sub">Upstream and downstream assets that had incidents in the same window. Lineage comes from the Graph.</p>${rootCause(i)}</div>
+ <div class="card" style="margin-top:16px">${related.length?`<table class="tbl"><thead><tr><th>Asset</th><th>Relationship</th><th>What we found</th></tr></thead><tbody>${related.map(([a,rel])=>`<tr><td class="mono" style="font-size:12px;font-weight:600">${esc(a)}</td><td>${rel}</td><td class="muted">${rel=='upstream'?'An incident on an upstream source in the same window. Likely cause, fix this first.':'A downstream asset is now affected by this incident.'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">No related incidents. This problem most likely started on this asset.</div>'}</div>`;
+ if(ui.itab=='past')body=`<div class="card"><table class="tbl"><thead><tr><th>Incident</th><th>Status</th><th>First seen</th><th>Time to resolve</th></tr></thead><tbody><tr><td class="mono">INC-0981</td><td>${stB('resolved')}</td><td class="muted">12 Sep</td><td>14.2 h</td></tr><tr><td class="mono">INC-0902</td><td>${stB('fp')}</td><td class="muted">2 Sep</td><td>1.1 h</td></tr></tbody></table></div>`;
+ return `<div class="crumbs" style="margin-bottom:10px"><span class="tlink" onclick="go('incidents',{mtab:'incidents'})">Monitoring & anomalies</span> / <b>${i.id}</b></div>
+ <div class="thead"><div class="ticon">${I.alert}</div><div><h1>${esc(i.title)} ${sevB(i.sev)}</h1><div class="kind mono">${i.id} · ${esc(i.asset)}</div></div><div class="tools"><button class="btn md" onclick="mute('${i.id}')">${i.muted?I.mute+'Unmute':I.bell+'Mute'}</button><button class="btn md" onclick="ui.modal='debug';draw()">${I.code}Debug query</button><button class="btn md primary" onclick="setStatus('${i.id}','resolved')">Mark resolved</button></div></div>
+ <div class="tabs">${[['overview','Overview'],['root','Root cause'],['past','Past incidents',2]].map(t=>`<button class="tab ${ui.itab==t[0]?'on':''}" onclick="ui.itab='${t[0]}';render()">${t[1]}${t[2]?` <small>${t[2]}</small>`:''}</button>`).join('')}</div>${body}`}
+function debugModal(){const i=INCIDENTS.find(x=>x.id==ui.inc)||INCIDENTS[0];const col=(RULES.find(r=>r.id==i.rule)||{}).col||'*';
+ const sql=i.dim=='uniqueness'?`SELECT ${col}, COUNT(*) AS copies\nFROM RPLUS_DWH.${i.asset}\nGROUP BY ${col}\nHAVING COUNT(*) > 1\nORDER BY copies DESC\nLIMIT 50;`:i.dim=='completeness'?`SELECT *\nFROM ${i.asset}\nWHERE ${col=='—'?'CUSTOMER_EMAIL':col} IS NULL\n   OR TRIM(${col=='—'?'CUSTOMER_EMAIL':col}) = ''\nLIMIT 50;`:`SELECT MAX(LAST_ALTERED) AS last_change,\n       DATEDIFF('hour', MAX(LAST_ALTERED), CURRENT_TIMESTAMP) AS hours_ago\nFROM INFORMATION_SCHEMA.TABLES\nWHERE TABLE_NAME = '${i.asset.split('.').pop()}';`;
+ return `<div class="scrim" onclick="ui.modal=null;draw()"></div><div class="modal" style="width:600px;top:22%"><h3>Debug query</h3><p class="muted" style="font-size:13px;margin:0 0 12px">Sample SQL that pulls the rows behind this incident. It runs on your warehouse; GenMeta does not store the rows.</p><div class="code">${esc(sql)}</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn md" onclick="toast('Asked AI for a better query')">Suggest with AI</button><button class="btn md" onclick="toast('Query saved on this rule')">Save on rule</button><button class="btn md primary" onclick="ui.modal=null;toast('Copied to clipboard')">Copy SQL</button></div></div>`}
+function openMenu(kind,id,el){const r=el.getBoundingClientRect();ui.menu={kind,id,x:r.left,y:r.bottom+window.scrollY+4};draw()}
+function menuEl(){const m=ui.menu;return `<div style="position:fixed;inset:0;z-index:29" onclick="ui.menu=null;draw()"></div><div class="menu" style="position:absolute;left:${m.x}px;top:${m.y}px;right:auto">${Object.entries(STL).map(([k,v])=>`<button onclick="setStatus('${m.id}','${k}')">${stB(k)}</button>`).join('')}</div>`}
+
+/* ---------- 5. remediation */
+function release(a){QUAR=QUAR.filter(q=>q.a!=a);REMED.unshift({w:'1 Oct, 20:45',a,r:'—',acts:'Released from quarantine',to:'—',auth:'Admin'});toast(a+' released. It can be published again.');render()}
+function vRemediation(){return head('Remediation','What GenMeta did when checks failed, and who authorised it.','')+
+ `<div class="card" style="margin-bottom:16px"><div style="padding:16px 18px 6px"><h3>Quarantined assets</h3><p class="sub">Not fit for use. Flagged in the Catalogue and blocked from being published as a data product until its owner or steward releases it.</p></div>${QUAR.length?`<table class="tbl"><thead><tr><th>Asset</th><th>Why</th><th>Since</th><th>Quarantined by</th><th></th></tr></thead><tbody>${QUAR.map(q=>`<tr onclick="go('asset',{asset:'${q.a}',atab:'overview'})"><td class="mono" style="font-size:12.5px;font-weight:600">${q.a}</td><td>${esc(q.why)}</td><td class="muted">${q.since}</td><td>${person(q.by)}</td><td><button class="btn sm" onclick="event.stopPropagation();release('${q.a}')">Release</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">Nothing is quarantined.</div>'}</div>`+
+ `<div class="card"><div style="padding:16px 18px 6px"><h3>Remediation record</h3><p class="sub">Every automatic or manual fix, kept for audit.</p></div><table class="tbl"><thead><tr><th>When</th><th>Asset</th><th>Rule</th><th>Actions taken</th><th>Routed to</th><th>Authorised by</th><th>Steward task</th></tr></thead><tbody>${REMED.map(r=>`<tr style="cursor:default"><td class="muted">${r.w}</td><td class="mono" style="font-size:12px">${r.a}</td><td>${esc(r.r)}</td><td>${esc(r.acts)}</td><td>${esc(r.to)}</td><td>${esc(r.auth)}</td><td>${/Task/.test(r.acts)?`<span class="tlink" onclick="toast('Opens Stewardship > Approvals & quality issues')">Open in Stewardship</span>`:'<span class="faint">—</span>'}</td></tr>`).join('')}</tbody></table></div>`}
+
+/* ---------- 6. scorecards */
+function donut(){const t=Object.values(SCORE.issues).reduce((a,b)=>a+b,0);const cs=['#0E2A57','#4D8CFF','#A9D3FF'];let a0=-Math.PI/2,s='<svg width="150" height="150" viewBox="0 0 150 150">';
+ Object.values(SCORE.issues).forEach((v,k)=>{const a1=a0+v/t*2*Math.PI;const L=a1-a0>Math.PI?1:0;const p=(a,r)=>[75+r*Math.cos(a),75+r*Math.sin(a)];const [x0,y0]=p(a0,62),[x1,y1]=p(a1,62),[x2,y2]=p(a1,40),[x3,y3]=p(a0,40);s+=`<path d="M${x0},${y0}A62,62 0 ${L} 1 ${x1},${y1}L${x2},${y2}A40,40 0 ${L} 0 ${x3},${y3}Z" fill="${cs[k]}"/>`;a0=a1});
+ return s+`<text x="75" y="73" text-anchor="middle" font-size="22" font-weight="600" fill="#0E2A57">${t}</text><text x="75" y="90" text-anchor="middle" font-size="11" fill="#566A89">issues</text></svg>`}
+function vScorecards(){const t=Object.values(SCORE.issues).reduce((a,b)=>a+b,0);const rows=ASSETS.filter(a=>a.score!=null).sort((a,b)=>a.score-b.score);
+ return head('Scorecards','How fit for use each asset is, measured on real snapshots only.','<button class="btn md" onclick="toast(\'Scorecards exported as CSV\')">Export</button>')+
+ `<div class="tiles t5"><div><span>Overall quality score</span><b>${SCORE.overall}%</b><small>across ${SCORE.assets} assets</small></div><div><span>Completeness</span><b class="lo">${SCORE.comp}%</b><small>columns fully filled</small></div><div><span>Key coverage</span><b>${SCORE.key}%</b><small>assets with a key</small></div><div><span>Documentation</span><b>${SCORE.doc}%</b><small>described</small></div><div><span>Sensitive coverage</span><b>${SCORE.sens}%</b><small>${SCORE.sensCols} columns across ${SCORE.sensAssets} assets</small></div></div>`+
+ `<div class="tiles t4"><div><span>Passing</span><b>${SCORE.pass}</b><small>16%</small></div><div><span>Warnings</span><b>${SCORE.warn}</b><small>0%</small></div><div><span>Breaking</span><b class="lo">${SCORE.brk}</b><small>84%</small></div><div><span>Assets assessed</span><b>${SCORE.assets}</b><small>${SCORE.sensAssets} with sensitive data</small></div></div>`+
+ `<div class="cols2" style="margin-bottom:16px"><div class="card pad"><h3>Quality trend</h3><p class="sub">One snapshot so far. GenMeta never invents history; the line grows with each profiling run.</p><svg viewBox="0 0 420 120" style="width:100%"><line x1="30" x2="410" y1="100" y2="100" stroke="#E3EAF3"/><line x1="30" x2="410" y1="20" y2="20" stroke="#E3EAF3"/><text x="24" y="24" font-size="10" text-anchor="end" fill="#8694AB">100%</text><text x="24" y="104" font-size="10" text-anchor="end" fill="#8694AB">0%</text><circle cx="390" cy="${100-SCORE.overall*.8}" r="6" fill="#4D8CFF"/><text x="378" y="${96-SCORE.overall*.8}" text-anchor="end" font-size="12" font-weight="600" fill="#0E2A57">${SCORE.overall}% · 1 Oct</text></svg></div>
+ <div class="card pad"><h3>Issue distribution</h3><p class="sub">What is pulling the score down.</p><div style="display:flex;gap:20px;align-items:center">${donut()}<div class="plist" style="flex:1">${Object.entries(SCORE.issues).map(([k,v],n)=>`<div><span class="sdot" style="background:${['#0E2A57','#4D8CFF','#A9D3FF'][n]};width:10px;height:10px"></span><span style="flex:1">${k}</span><b>${v}</b><span class="muted" style="width:40px;text-align:right">${Math.round(v/t*100)}%</span></div>`).join('')}</div></div></div></div>`+
+ `<div class="card"><div style="padding:16px 18px 6px"><h3>Quality scorecards</h3></div><table class="tbl"><thead><tr><th>Asset</th><th>Type</th><th>Status</th><th>Score</th><th class="num">Columns</th><th>Measurement</th></tr></thead><tbody>${rows.map(a=>`<tr onclick="ui.side='${a.n}';draw()"><td class="mono" style="font-size:12.5px;font-weight:600">${a.n}</td><td class="muted">${a.t}</td><td>${statusB(a.score)}</td><td>${scoreB(a.score)}</td><td class="num">${(COLUMNS[a.n]||[1,2,3,4,5]).length}</td><td class="muted" style="font-size:12.5px">${a.m=='file'?'File read':ui.mode=='live'?'Live profile':'Metadata estimate'}</td></tr>`).join('')}</tbody></table></div>`}
+function sidePanel(){const a=ASSETS.find(x=>x.n==ui.side);const fail=INCIDENTS.filter(i=>i.asset==a.n&&i.status!='resolved'&&i.status!='fp');
+ return `<div class="scrim" onclick="ui.side=null;draw()"></div><aside class="drawer"><header>Asset quality<button class="ib" onclick="ui.side=null;draw()">${I.x}</button></header><div class="db"><div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">${ring(a.score)}<div><div class="mono" style="font-weight:600">${a.n}</div><div class="muted" style="font-size:12.5px">${a.t} · ${esc(a.sys)}</div><div style="margin-top:6px">${statusB(a.score)}</div></div></div>
+ <h4 style="margin:12px 0 4px;font-size:13px">Quality dimensions</h4>${DIMS.map((d,k)=>`<div class="dimrow" style="grid-template-columns:110px 1fr 44px"><span>${DIML[d]}</span><span class="bar"><i style="width:${a.d[k]??0}%"></i></span><span class="num">${a.d[k]??'n/a'}</span></div>`).join('')}
+ <h4 style="margin:14px 0 4px;font-size:13px">Failing checks</h4>${fail.length?fail.map(i=>`<div class="plist"><div><span style="flex:1">${esc(i.title)}<small>${i.id}</small></span>${sevB(i.sev)}</div></div>`).join(''):'<p class="muted" style="font-size:13px">None.</p>'}
+ <h4 style="margin:14px 0 6px;font-size:13px">Recommended actions</h4><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="runProfiling()">Run profile</button><button class="btn sm" onclick="ui.side=null;openRule('${a.n}')">Improve</button><button class="btn sm" onclick="toast('Sent to stewardship')">Stewardship</button></div></div><footer><button class="btn md" onclick="go('asset',{asset:'${a.n}',atab:'overview'})">Open asset</button></footer></aside>`}
+
+/* ---------- notification rules */
+function vNotifications(){return head('Notification rules','Who hears about which incidents, and where.',`<button class="btn md primary" onclick="ui.drawer={kind:'notif',ch:'Slack'};draw()">${I.plus}New notification rule</button>`)+
+ `<div class="tiles t4"><div><span>In-app</span><b>On</b><small>owner, steward, watchers</small></div><div><span>Email</span><b>On</b><small>to the asset’s owner and steward</small></div><div><span>Slack</span><b>1 channel</b><small>#fin-data</small></div><div><span>Muted groups</span><b>${INCIDENTS.filter(i=>i.muted).length}</b><small>until unmuted</small></div></div>`+
+ `<div class="card"><table class="tbl"><thead><tr><th>Rule</th><th>Channel</th><th>Sends to</th><th>Which incidents</th><th>On</th></tr></thead><tbody>${NOTIF.map((n,k)=>`<tr style="cursor:default"><td class="tname">${esc(n.name)}</td><td><span class="tag">${n.ch}</span></td><td>${esc(n.to)}</td><td class="muted" style="font-size:12.5px">${esc(n.f)}</td><td><input type="checkbox" ${n.on?'checked':''} onchange="NOTIF[${k}].on=this.checked;toast('Rule '+(this.checked?'on':'off'))" style="accent-color:var(--royal)"></td></tr>`).join('')}</tbody></table></div>`}
+function notifDrawer(){const d=ui.drawer;return `<div class="scrim" onclick="ui.drawer=null;draw()"></div><aside class="drawer"><header>New notification rule<button class="ib" onclick="ui.drawer=null;draw()">${I.x}</button></header><div class="db"><div class="fld"><label>Name</label><input class="input" id="nn" placeholder="e.g. Customer data to #cx-data"></div><div class="fld"><label>Channel</label><div class="seg2">${['In-app','Email','Slack','Teams','Webhook'].map(c=>`<button class="${d.ch==c?'on':''}" onclick="ui.drawer.ch='${c}';draw()">${c}</button>`).join('')}</div></div><div class="fld"><label>Send to</label><input class="input" id="nt" placeholder="${d.ch=='Slack'?'#channel':'Owner and steward'}"></div><div class="fld"><label>Severity</label><div class="cbx">${['High','Medium','Low'].map(s=>`<label><input type="checkbox" checked>${s}</label>`).join('')}</div></div><div class="fld"><label>Priority</label><div class="cbx">${['Critical','High','Medium','Low'].map(s=>`<label><input type="checkbox" ${s=='Low'?'':'checked'}>${s}</label>`).join('')}</div></div><div class="fld"><label>Only these domains or tags (optional)</label><input class="input" placeholder="e.g. Finance, PII"></div></div><footer><button class="btn md" onclick="ui.drawer=null;draw()">Cancel</button><button class="btn md primary" onclick="NOTIF.push({name:document.getElementById('nn').value||'New rule',ch:ui.drawer.ch,to:document.getElementById('nt').value||'Owner and steward',f:'Severity: High, Medium, Low · Priority: Critical, High, Medium',on:true});ui.drawer=null;render();toast('Notification rule saved')">Save</button></footer></aside>`}
+
+/* ---------- router */
+const VIEWS={overview:vOverview,assets:vAssets,asset:vAsset,rules:vRules,incidents:vIncidents,incident:vIncident,remediation:vRemediation,scorecards:vScorecards,notifications:vNotifications};
+const NAMES={overview:'Overview',assets:'Profiling & dimensions',asset:'Profiling & dimensions',rules:'Rules & thresholds',incidents:'Monitoring & anomalies',incident:'Monitoring & anomalies',remediation:'Remediation',scorecards:'Scorecards',notifications:'Notification rules'};
+function render(){$('#menu').innerHTML=menu();$('#main').innerHTML=VIEWS[ui.view]();$('#crumbs').innerHTML=`Data quality / <b>${NAMES[ui.view]}</b>`;draw()}
+function draw(){let o='';if(ui.drawer)o+=ui.drawer.kind=='rule'?ruleDrawer():notifDrawer();if(ui.side)o+=sidePanel();if(ui.modal=='debug')o+=debugModal();if(ui.menu)o+=menuEl();if(ui.toast)o+=`<div class="toast">${esc(ui.toast)}</div>`;$('#overlay').innerHTML=o}
+/* ---------- v2 additions: bid evidence DQM-01 to DQM-06 */
+const AUTHORISERS=['Madhavi (governance lead)','Raghav (product owner)'];
+RULES.forEach(r=>{r.enabled=true;if(r.on.length)r.auth=r.by=='Raghav'?'Raghav (product owner)':'Madhavi (governance lead)'});
+const methodOf=a=>({live:'aggregate query',file:'object scan',structure:'structure only',error:'not profiled'})[a.m];
+function whyFor(a,nc){if(!a.d)return DIMS.map(()=>'not measured');const [c,u,v,co,t,ac]=a.d;const up=(LINEAGE[a.n]||{up:[]}).up[0];
+ return [`${c}% of values filled across ${nc} columns`,`best key candidate ${u}% distinct`,`${v}% of values passed their shape and range checks`,`${nc} of ${nc} shared columns keep the same type across related assets`,`last change measured against a 35-day expectation; set a freshness rule to tighten it`,
+  ac==null?'not measured: no upstream feeds this asset, so there is nothing to reconcile against':`row count reconciled against ${up?up[0]:'the upstream that feeds it'}`]}
+function paramField(d){const t=d.tpl;if(!t)return '';
+ const f=(l,k,ph)=>`<div class="fld"><label>${l}</label><input class="input" value="${esc(d[k])}" placeholder="${ph}" onchange="rd('${k}',this.value)"></div>`;
+ if(/recently/.test(t))return f('Updated within (hours)','p1','24');
+ if(/stay within range|Row count within/.test(t))return f('Minimum','p1','0')+f('Maximum','p2','50000');
+ if(/shape/.test(t))return `<div class="fld"><label>Expected shape</label><select class="input" onchange="rd('p1',this.value)">${['Email','UK postcode','Date','NI number','Custom pattern'].map(o=>`<option ${d.p1==o?'selected':''}>${o}</option>`).join('')}</select></div>`;
+ if(/parent/.test(t))return f('Parent table and key','p1','SRC.CUSTOMER.CUSTOMER_ID');
+ if(/upstream/.test(t))return f('Upstream asset','p1','SRC.ORDERS');
+ return ''}
+function paramText(d){const t=d.tpl||'';if(/recently/.test(t)&&d.p1)return ` within <code>${esc(d.p1)} h</code>`;if(/range/.test(t)&&(d.p1||d.p2))return ` between <code>${esc(d.p1||'…')}</code> and <code>${esc(d.p2||'…')}</code>`;if(/shape/.test(t)&&d.p1)return ` as <code>${esc(d.p1)}</code>`;if(/parent|upstream/.test(t)&&d.p1)return ` against <code>${esc(d.p1)}</code>`;return ''}
+function toggleRule(id,on){RULES.find(r=>r.id==id).enabled=on;toast(on?'Rule enabled':'Rule disabled: it will not run until enabled');render()}
+function delRule(id){ui.modal={kind:'del',id};draw()}
+/* latest result per rule and asset (DQM-04) */
+const RESULTS=[
+ ['fail','Nation list kept fresh','SRC.NATION','timeliness','last change 1,402 h ago','within 24 h','Schedule','1 Oct, 20:13'],
+ ['fail','Line item key is unique','INT.LINEITEM','uniqueness','54.5% distinct','≥ 99%','Data change','1 Oct, 20:13'],
+ ['fail','Customer email present','S3_ENR.CUSTOMER_SUMMARY','completeness','83.3% filled','≥ 100%','Schedule','1 Oct, 20:13'],
+ ['pass','Orders match source','INT.ORDERS','accuracy','24 of 24 rows','≥ 100%','Schedule','1 Oct, 20:13'],
+ ['pass','Balance in range','SRC.CUSTOMER','validity','max 18,500','0 – 50,000','Manual','1 Oct, 19:40'],
+ ['pass','Order item volume','STG.ORDER_ITEM_SUMMARY','completeness','31 rows','learned band 28 – 52','Data change','1 Oct, 20:13']];
+let ALERTS=[
+ {id:'AL-311',inc:'INC-1042',t:'Nation list kept fresh failed',a:'SRC.NATION',sev:'high',to:'Madhavi (owner), Karan (steward)',mail:'Delivered',st:'open',w:'1 Oct, 20:13'},
+ {id:'AL-310',inc:'INC-1041',t:'Line item key is unique failed',a:'INT.LINEITEM',sev:'high',to:'Madhavi (owner), Priya (steward)',mail:'Delivered',st:'ack',w:'1 Oct, 20:13'},
+ {id:'AL-309',inc:'INC-1040',t:'Anomaly: row count shifted 31%',a:'STG.ORDER_ITEM_SUMMARY',sev:'medium',to:'Madhavi (owner), Priya (steward)',mail:'Sent',st:'open',w:'1 Oct, 20:13'},
+ {id:'AL-308',inc:'INC-1039',t:'Customer email present failed',a:'S3_ENR.CUSTOMER_SUMMARY',sev:'medium',to:'Raghav (owner), Priya (steward)',mail:'Bounced: retrying',st:'ack',w:'1 Oct, 08:00'},
+ {id:'AL-305',inc:'INC-1037',t:'Orders match source failed',a:'INT.ORDERS',sev:'low',to:'Raghav (owner), Priya (steward)',mail:'Delivered',st:'resolved',w:'25 Sep, 11:40'}];
+const ALS={open:'Open',ack:'Acknowledged',resolved:'Resolved'};
+function alertAct(id,st){ALERTS.find(a=>a.id==id).st=st;toast(id+(st=='ack'?' acknowledged':' resolved'));render()}
+/* anomalies beyond the rules (DQM-05) */
+const ANOMS=[
+ {a:'STG.ORDER_ITEM_SUMMARY',m:'Row count',now:'31',usual:'45 (range 41 – 49)',how:'Robust z-score 3.9 over the metric history (threshold 3.5)',n:28,inc:'INC-1040',why:'The row count fell by 14 compared with its usual level. SRC.LINEITEM, which feeds this view, also loaded fewer rows in the same harvest, so the drop most likely starts upstream rather than in this view.',check:['Check the last SRC.LINEITEM load: was the source extract partial?','Compare order dates in the missing rows: is one day absent?','If the source is correct, re-harvest STG.ORDER_ITEM_SUMMARY.']},
+ {a:'S3_ENR.CUSTOMER_SUMMARY',m:'Accuracy',now:'16.7%',usual:'98%',how:'Level shift: last 3 runs moved 81% from the earlier level (threshold 25%)',n:14,inc:'INC-1038',why:'Accuracy reconciles this file against S3_CLN.CUSTOMER. Since 29 Sep only 1 of 6 rows matches. S3_CLN.CUSTOMER also changed its column order on that date, so the enrichment job is likely reading columns in the wrong position.',check:['Open the 29 Sep schema change on S3_CLN.CUSTOMER.','Check the enrichment job mapping by column name, not position.','Re-profile after the fix to clear the shift.']},
+ {a:'SRC.NATION',m:'Distinct NATION_NAME',now:'24',usual:'25 (constant)',how:'Changed from a previously constant value',n:30,inc:null,why:'NATION_NAME has had exactly 25 distinct values for every reading on record. The latest reading has 24, so one country is missing or two names were merged.',check:['List the 25 names from the previous snapshot and find the missing one.','Ask the owner whether the change was intended.']}];
+function explainModal(){const x=ANOMS[ui.modal.i];return `<div class="scrim" onclick="ui.modal=null;draw()"></div><div class="modal" style="width:560px;top:20%"><div class="eyebrow">Explained by Claude</div><h3 style="margin-top:4px">${esc(x.m)} on ${esc(x.a)}</h3><p style="font-size:13.5px;line-height:1.55">${esc(x.why)}</p><div class="plain" style="margin-bottom:10px"><b>What to check first</b><ol style="margin:6px 0 0;padding-left:18px">${x.check.map(c=>`<li>${esc(c)}</li>`).join('')}</ol></div><p class="faint" style="font-size:12px;margin:0">Based on ${x.n} readings and lineage from the Graph. No row values were sent to the model.</p><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">${x.inc?`<button class="btn md" onclick="ui.modal=null;go('incident',{inc:'${x.inc}',itab:'overview'})">Open incident</button>`:`<button class="btn md" onclick="ui.modal=null;toast('Incident raised for ${x.a}')">Raise incident</button>`}<button class="btn md primary" onclick="ui.modal=null;draw()">Done</button></div></div>`}
+function delModal(){const r=RULES.find(x=>x.id==ui.modal.id);return `<div class="scrim" onclick="ui.modal=null;draw()"></div><div class="modal"><h3>Delete “${esc(r.name)}”?</h3><p class="muted" style="font-size:13px">Its history stays in the remediation record. To pause it instead, switch it off.</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn md" onclick="ui.modal=null;draw()">Cancel</button><button class="btn md primary" onclick="RULES=RULES.filter(x=>x.id!='${r.id}');ui.modal=null;render();toast('Rule deleted')">Delete</button></div></div>`}
+
+/* Monitoring & anomalies tab replaces the plain incidents list */
+function vIncidents(){const mt=ui.mtab||'results';const f=ui.ifilter;
+ const rows=INCIDENTS.filter(i=>(f.status=='all'||(f.status=='open'?(i.status=='triage'||i.status=='investigating'):i.status==f.status))&&(f.kind=='all'||i.kind==f.kind)&&(!f.own||i.own==f.own));
+ const tabs=[['results','Latest results',RESULTS.length],['alerts','Alerts',ALERTS.filter(a=>a.st!='resolved').length],['anomalies','Anomalies',ANOMS.length],['incidents','Incidents',INCIDENTS.filter(i=>i.status=='triage'||i.status=='investigating').length]];
+ let body='';
+ if(mt=='results')body=`<div class="card" style="overflow:auto"><table class="tbl"><thead><tr><th>Status</th><th>Rule</th><th>Asset</th><th>Dimension</th><th>Measured</th><th>Threshold</th><th>Trigger</th><th>When</th></tr></thead><tbody>${RESULTS.map(r=>`<tr style="cursor:default"><td>${r[0]=='pass'?'<span class="badge b-approved"><i></i>Passed</span>':'<span class="badge b-draft" style="color:var(--navy);border-color:var(--navy)"><i style="background:var(--navy)"></i>Failed</span>'}</td><td class="tname">${esc(r[1])}</td><td class="mono" style="font-size:12px">${r[2]}</td><td><span class="tag">${DIML[r[3]]}</span></td><td class="mono" style="font-size:12px">${esc(r[4])}</td><td class="mono" style="font-size:12px">${esc(r[5])}</td><td><span class="kd">${r[6]}</span></td><td class="muted">${r[7]}</td></tr>`).join('')}</tbody></table></div><p class="foot">Latest result per rule and asset. Trigger shows what started the run: the 15-minute schedule, a data change, or a manual run.</p>`;
+ if(mt=='alerts')body=`<div class="card" style="overflow:auto"><table class="tbl"><thead><tr><th>Alert</th><th>Asset</th><th>Severity</th><th>Notified</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>${ALERTS.map(a=>`<tr onclick="go('incident',{inc:'${a.inc}',itab:'overview'})"><td><div class="tname">${esc(a.t)}</div><small class="faint mono">${a.id} · ${a.w}</small></td><td class="mono" style="font-size:12px">${a.a}</td><td>${sevB(a.sev)}</td><td style="font-size:12.5px">${esc(a.to)}<br><span class="faint">in-app + email</span></td><td><span class="kd ${/Bounced/.test(a.mail)?'anom':''}">${a.mail}</span></td><td><span class="st ${a.st=='resolved'?'st-resolved':a.st=='ack'?'st-investigating':'st-triage'}" style="cursor:default"><i></i>${ALS[a.st]}</span></td><td onclick="event.stopPropagation()" style="white-space:nowrap">${a.st=='open'?`<button class="btn sm" onclick="alertAct('${a.id}','ack')">Acknowledge</button> `:''}${a.st!='resolved'?`<button class="btn sm" onclick="alertAct('${a.id}','resolved')">Resolve</button>`:''}</td></tr>`).join('')}</tbody></table></div><p class="foot">Alerts go in-app and by email to the asset’s owner and steward. Extra channels such as Slack are set in Notification rules.</p>`;
+ if(mt=='anomalies')body=`<div class="note">${I.info}<div><b>Anomalies beyond the rules.</b> GenMeta watches every profiled metric, so nothing here needs a rule written first. It flags a robust z-score above 3.5, a level shift of more than 25% over the last three runs, or a change from a value that has always been constant.</div></div><div class="card" style="overflow:auto"><table class="tbl"><thead><tr><th>Asset</th><th>Metric</th><th>Now</th><th>Usual</th><th>How it was found</th><th class="num">Readings</th><th></th></tr></thead><tbody>${ANOMS.map((x,k)=>`<tr style="cursor:default"><td class="mono" style="font-size:12px;font-weight:600">${x.a}</td><td>${x.m}</td><td class="mono" style="font-weight:600">${x.now}</td><td class="mono muted">${x.usual}</td><td style="font-size:12.5px;max-width:300px">${esc(x.how)}</td><td class="num">${x.n}</td><td><button class="btn sm" onclick="ui.modal={kind:'explain',i:${k}};draw()">Explain</button></td></tr>`).join('')}</tbody></table></div>`;
+ if(mt=='incidents'){const html=vIncidentList();body=html.slice(html.indexOf('<div class="toolbar">'))}
+ return head('Monitoring & anomalies','Checks run on every scheduled harvest (15 minutes) and again the moment an asset’s data changes.',`<button class="btn md" onclick="toast('Looked for data changes: STG.ORDER_ITEM_SUMMARY changed, re-checked now')">${I.refresh}Check for data changes</button><button class="btn md primary" onclick="runChecks()">${I.play}Run checks now</button>`)+
+ `<div class="tiles t4"><div><span>Last run</span><b style="font-size:17px">${ui.lastRun}</b><small>6 checks · 3 failed · 8.4s</small></div><div><span>Next scheduled run</span><b style="font-size:17px">in 11 min</b><small>every harvest · 15 min</small></div><div><span>Open alerts</span><b>${ALERTS.filter(a=>a.st=='open').length}</b><small>${ALERTS.filter(a=>a.st=='ack').length} acknowledged</small></div><div><span>Anomalies</span><b>${ANOMS.length}</b><small>found without a rule</small></div></div>`+
+ `<div class="tabs">${tabs.map(t=>`<button class="tab ${mt==t[0]?'on':''}" onclick="ui.mtab='${t[0]}';render()">${t[1]} <small>${t[2]}</small></button>`).join('')}</div>`+body}
+function draw(){let o='';if(ui.drawer)o+=ui.drawer.kind=='rule'?ruleDrawer():notifDrawer();if(ui.side)o+=sidePanel();if(ui.modal=='debug')o+=debugModal();if(ui.modal&&ui.modal.kind=='explain')o+=explainModal();if(ui.modal&&ui.modal.kind=='del')o+=delModal();if(ui.menu)o+=menuEl();if(ui.toast)o+=`<div class="toast">${esc(ui.toast)}</div>`;$('#overlay').innerHTML=o}
+render();
+</script></body></html>

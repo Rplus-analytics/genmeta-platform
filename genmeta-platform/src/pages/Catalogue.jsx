@@ -8,6 +8,7 @@ import { Section } from '../components/Rail.jsx';
 import {
   ASSETS, FACETS, EXAMPLES, KIND_ICON, facetCounts, matchesFilters, matchesText, parseQuestion, srcMeta, kindLabel, tiles, pct,
 } from '../catalogue/model.js';
+import { getQuarantine } from '../catalogue/quality/store.js';
 
 /* Filters survive opening an asset and coming back */
 const SAVED = { sel: {}, words: [], asked: '', q: '', sort: 'relevance' };
@@ -159,6 +160,7 @@ function AssetRow({ a, onOpen }) {
           <SrcMark source={a.source} />
           <b>{a.fqn}</b>
           {verified && <BadgeCheck size={15} className="verified" aria-label="Verified" />}
+          {getQuarantine().some((q) => q.asset === a.key) && <span className="dq-quarbadge" title="Quarantined by Data quality — not fit for use">Quarantined</span>}
           <Sens v={a.sensitivity} />
         </div>
         <div className="arow-path">

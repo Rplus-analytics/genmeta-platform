@@ -5,6 +5,10 @@ import {
   D, subs, score, sclass, ini, ainfo, now, COVER, downstream, typGlyph,
 } from '../../data/products.js';
 import { I, domainIconHTML } from './icons.js';
+import { getQuarantine } from '../../catalogue/quality/store.js';
+
+/* A product cannot be published while one of its assets is quarantined by Data quality. */
+export const quarantinedAssets = (p) => { const q = new Set(getQuarantine().map((x) => x.asset)); return (p.assets || []).filter((k) => q.has(k)); };
 
 /* ---------- routes ---------- */
 export const paths = {
@@ -53,6 +57,7 @@ export function ProductsProvider({ children }) {
 
   const setStatus = (id, s) => {
     const p = PR(id); if (!p || p.status === s) return;
+    if (s === 'published') { const q = quarantinedAssets(p); if (q.length) { toast(`Cannot publish — ${q[0]} is quarantined by Data quality`); return; } }
     const o = p.status; p.status = s; log(id, `Status ${o} → ${s}`); toast(`${p.name} is now ${PST[s][0].toLowerCase()}`); force();
   };
   const setField = (id, k, v, label) => { const p = PR(id); p[k] = v; if (label) log(id, label); force(); };
@@ -67,6 +72,7 @@ export function ProductsProvider({ children }) {
     let outputs = n.outputs.length ? n.outputs : n.assets.slice(0, 1);
     const id = n.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     if (PR(id)) { toast('A product with this name already exists'); return null; }
+    if (status === 'published') { const q = new Set(getQuarantine().map((x) => x.asset)); const bad = n.assets.find((k) => q.has(k)); if (bad) { toast(`Cannot publish — ${bad} is quarantined by Data quality`); return null; } }
     products.current = [...products.current, {
       id, name: n.name, owner: n.owners[0], domain: n.domain, desc: n.desc || 'No description yet.',
       consumers: 0, sources: new Set(n.assets.map((a) => ainfo(a).src)).size, quality: 75, status, crit: n.crit, sens: n.sens, vis: n.vis,

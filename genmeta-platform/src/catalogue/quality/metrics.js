@@ -23,6 +23,22 @@ export function dimensions(a) {
   return { completeness, uniqueness, validity, consistency, timeliness, accuracy };
 }
 
+/* A plain-English reason for each dimension's score, shown on the asset detail.
+   For sources whose values are not readable, every dimension is "not measured". */
+export function dimensionReason(a) {
+  if (!readable(a)) return Object.fromEntries(DIMENSIONS.map((d) => [d, 'not measured — values are not readable from this source']));
+  const dm = dimensions(a);
+  const n = (a.columns || []).length || 1;
+  return {
+    completeness: `${dm.completeness}% of values filled across ${n} column${n === 1 ? '' : 's'}`,
+    uniqueness: a.pk && a.pk.length ? `key declared unique (${dm.uniqueness}% distinct)` : 'no unique key declared for this asset',
+    validity: `${dm.validity}% of values passed their shape and range checks`,
+    consistency: a.fk && a.fk.length ? 'shared keys resolve to their parent tables' : 'no foreign keys to reconcile across related assets',
+    timeliness: `proxied by trust (${dm.timeliness}%) — no freshness signal in this dataset; set a freshness rule to measure it`,
+    accuracy: `proxied by trust (${dm.accuracy}%) — no reference source to reconcile against`,
+  };
+}
+
 export const overallScore = (a) => Math.round((a.trust || 0) * 100);
 export const statusOf = (a) => { const s = overallScore(a); return s >= 80 ? 'Passing' : s >= 50 ? 'Warning' : 'Breaking'; };
 export const isProfiled = (key) => getProfiled().has(key);

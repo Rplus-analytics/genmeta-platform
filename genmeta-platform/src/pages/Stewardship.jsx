@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, X, FileText, Tag, GitBranch } from 'lucide-react';
+import { Check, X, FileText, Tag, GitBranch, ShieldAlert, ArrowUpRight } from 'lucide-react';
 import { PageHead } from '../components/ui.jsx';
+import { getRemediation, getQuarantine } from '../catalogue/quality/store.js';
 
 const TASKS = [
   { k: 'describe', t: 'Review 22 AI-drafted descriptions', target: 'ledger.payments', who: 'Madhavi', due: 'Today' },
@@ -40,6 +41,41 @@ export default function Stewardship() {
           })}
         </ul>
       </article>
+
+      <QualityIssues nav={nav} />
     </div>
+  );
+}
+
+/* Steward tasks raised by Data quality — remediation tasks and quarantined assets. */
+function QualityIssues({ nav }) {
+  const tasks = getRemediation().filter((r) => (r.task != null ? r.task : /Task/.test(r.actions || '')));
+  const quar = getQuarantine();
+  const [done, setDone] = useState({});
+  if (!tasks.length && !quar.length) return null;
+  return (
+    <article className="card" style={{ marginTop: 16 }}>
+      <header className="card-head">
+        <div><h2>Approvals &amp; quality issues</h2><p>Tasks routed from Data quality remediation, and assets held in quarantine.</p></div>
+        <button className="btn secondary sm" onClick={() => nav('/app/quality?quality=remediation')}><ArrowUpRight size={14} />Open Data quality</button>
+      </header>
+      <ul className="tasks">
+        {quar.map((q) => (
+          <li key={`q-${q.asset}`}>
+            <span className="feed-ico"><ShieldAlert size={15} /></span>
+            <div className="task-t"><b>Quarantined asset — review and release</b><small><code>{q.asset}</code> · {q.why}</small></div>
+            <button className="btn secondary sm" onClick={() => nav('/app/quality?quality=remediation')}><Check size={14} />Review</button>
+          </li>
+        ))}
+        {tasks.map((r, i) => (
+          <li key={`t-${i}`} className={done[i] ? 'done' : ''}>
+            <span className="feed-ico"><FileText size={15} /></span>
+            <div className="task-t"><b>{r.rule} on {r.asset}</b><small><code>{r.asset}</code> · routed to {r.routedTo} · {r.authorisedBy}</small></div>
+            <button className="btn subtle sm" onClick={() => setDone({ ...done, [i]: true })}><X size={14} />Dismiss</button>
+            <button className="btn secondary sm" onClick={() => nav('/app/quality?quality=remediation')}><Check size={14} />Open</button>
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
