@@ -144,7 +144,7 @@ export default function AppShell() {
             <Route path="ask" element={<AskGenMeta />} />
             <Route path="governance" element={<Governance />} />
             <Route path="classification" element={<Classification />} />
-            <Route path="products" element={<DataProducts />} />
+            <Route path="products/*" element={<DataProducts />} />
             <Route path="stewardship" element={<Stewardship />} />
               <Route path="admin/*" element={<Admin />} />
               <Route path="*" element={<Navigate to="/app" replace />} />

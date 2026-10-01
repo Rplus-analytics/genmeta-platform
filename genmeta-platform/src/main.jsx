@@ -6,6 +6,7 @@ import './styles.css';
 import './pro.css';
 import './catalogue.css';
 import './glossary.css';
+import './products.css';
 
 /* Hosted build has no server for deep URLs, so routing stays in memory */
 const Router = import.meta.env.VITE_TARGET === 'artifact' ? MemoryRouter : BrowserRouter;
