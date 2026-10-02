@@ -1,4 +1,5 @@
 import { ASSETS } from '../model.js';
+import { Button } from '../../components/ui.jsx';
 import { overallScore } from './metrics.js';
 import { getRules, getQuarantine } from './store.js';
 import { seedRules } from './metrics.js';
@@ -80,10 +81,10 @@ export default function Overview({ onOpenIncident, onGoMonitoring }) {
       </div>
 
       <div className="dq-two" style={{ marginTop: 16 }}>
-        <div className="card ml-card">
-          <div className="dq-cardhead"><h3 className="sec-h" style={{ margin: 0 }}>Needs attention</h3><button className="tlink dq-asbtn" onClick={() => onGoMonitoring('incidents')}>All incidents</button></div>
-          <div className="e2e-hop-wrap">
-            <table className="tbl dq-mon">
+        <div className="dash-card dq-attn">
+          <div className="block-head"><h2>Needs attention</h2><Button variant="link" onClick={() => onGoMonitoring('incidents')}>All incidents</Button></div>
+          <div className="table-wrap">
+            <table className="tbl">
               <thead><tr><th>Incident</th><th>Asset</th><th>Severity</th><th>Status</th><th>Owner</th></tr></thead>
               <tbody>
                 {[...open].sort((a, b) => (a.sev === 'high' ? 0 : 1) - (b.sev === 'high' ? 0 : 1)).map((i) => (

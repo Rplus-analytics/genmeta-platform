@@ -1,18 +1,18 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Search, ChevronRight, Compass, FilePen, Layers, Box } from 'lucide-react';
 import { DOMAINS, D, subs } from '../data/products.js';
 import InnerLayout from '../components/InnerLayout.jsx';
-import { ProductsProvider, useProducts, paths, Svg, DomainIcon } from './products/shared.jsx';
-import { I } from './products/icons.js';
+import { Section } from '../components/Rail.jsx';
+import { ProductsProvider, useProducts, paths } from './products/shared.jsx';
 import Home from './products/Home.jsx';
 import Drafts from './products/Drafts.jsx';
 import Domain from './products/Domain.jsx';
 import Product from './products/Product.jsx';
 import Create from './products/Create.jsx';
 
-/* The Data products section mirrors Atlan's marketplace:
-   an inner panel (Products · All domains switcher, Overview, My drafts, search, domain tree)
-   reusing the shared InnerLayout, plus full-width pages for home/domain/product and a
+/* Data products: an inner panel (glossary-style search, Overview, My drafts, domain tree and a
+   domain filter) reusing InnerLayout, full-width pages for home/domain/product, and a
    standalone full-page create flow. */
 export default function DataProducts() {
   return (
@@ -49,43 +49,63 @@ function InnerMenu() {
   if (!dMatch && !isHome && !isDrafts) { const m = pathname.match(/\/app\/products\/([^/]+)/); if (m && store.PR(m[1])) curProduct = m[1]; }
 
   const toggle = (id) => setOpen((o) => { const n = new Set(o); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const onScope = (v) => { store.setScope(v); nav(paths.home); };
   const tops = DOMAINS.filter((d) => !d.parent && (store.scope === 'all' || d.id === store.scope));
   const draftCount = store.products.filter((p) => p.status === 'draft').length;
+  const onScope = (v) => { store.setScope(v); nav(paths.home); };
 
-  const ProdRow = ({ p, pad }) => (
-    <div className={`mlink${curProduct === p.id ? ' on' : ''}`} style={{ paddingLeft: pad, display: 'flex', alignItems: 'center', gap: 8, height: 32, borderRadius: 6, cursor: 'pointer', fontSize: 13.5 }}
-      tabIndex={0} onClick={() => nav(paths.product(p.id))} onKeyDown={(e) => { if (e.key === 'Enter') nav(paths.product(p.id)); }}>
-      <span className="pico"><Svg html={I.boxS} /></span><span className="ell">{p.name}</span>
+  const ProdRow = ({ p, depth }) => (
+    <div className={`gl-mlink ${depth > 1 ? 'gl-tchild2' : 'gl-tchild'} ${curProduct === p.id ? 'on' : ''}`} tabIndex={0}
+      onClick={() => nav(paths.product(p.id))} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(paths.product(p.id)))}>
+      <Box className="gl-book" size={16} strokeWidth={1.7} /><span className="ell">{p.name}</span>
     </div>
   );
-  const DomRow = ({ d, pad }) => {
+  const DomRow = ({ d, depth }) => {
     const ps = store.products.filter((p) => p.domain === d.id && (!q || p.name.toLowerCase().includes(q)));
     const isOpen = open.has(d.id) || !!q;
     return (
-      <>
-        <div className={`mlink${curDomain === d.id ? ' on' : ''}`} style={{ paddingLeft: pad, display: 'flex', alignItems: 'center', gap: 8, height: 32, borderRadius: 6, cursor: 'pointer', fontSize: 13.5 }}
-          tabIndex={0} onClick={() => nav(paths.domain(d.id))} onKeyDown={(e) => { if (e.key === 'Enter') nav(paths.domain(d.id)); }}>
-          <span className="tog" style={{ display: 'inline-flex', width: 14 }} onClick={(e) => { e.stopPropagation(); toggle(d.id); }}><Svg html={I.chev} className={isOpen ? 'chev open' : 'chev'} /></span>
-          <DomainIcon id={d.id} size={16} /><span className="ell">{d.name}</span>
+      <Fragment>
+        <div className={`gl-mlink ${depth ? 'gl-tchild' : ''} ${curDomain === d.id ? 'on' : ''}`} tabIndex={0}
+          onClick={() => nav(paths.domain(d.id))} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(paths.domain(d.id)))}>
+          <span onClick={(e) => { e.stopPropagation(); toggle(d.id); }}><ChevronRight className={`gl-chev ${isOpen ? 'open' : ''}`} size={14} /></span>
+          <Layers className="gl-book" size={16} strokeWidth={1.7} /><span className="ell">{d.name}</span>
         </div>
-        {isOpen && <>{subs(d.id).map((s) => <DomRow key={s.id} d={s} pad={pad + 16} />)}{ps.map((p) => <ProdRow key={p.id} p={p} pad={pad + 32} />)}</>}
-      </>
+        {isOpen && <>{subs(d.id).map((s) => <DomRow key={s.id} d={s} depth={depth + 1} />)}{ps.map((p) => <ProdRow key={p.id} p={p} depth={depth + 1} />)}</>}
+      </Fragment>
     );
   };
 
   return (
-    <div className="dp-menu-wrap" style={{ padding: '0 10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px 8px' }}>
-        <select className="scope" style={{ flex: 1 }} value={store.scope} onChange={(e) => onScope(e.target.value)}>
-          <option value="all">All domains</option>
-          {DOMAINS.filter((d) => !d.parent).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+    <div className="gl-menu-block">
+      <div className="gl-msec gl-msec-first">Products</div>
+      <div className="gl-msearch">
+        <Search size={14} strokeWidth={2} />
+        <input value={mq} onChange={(e) => setMq(e.target.value)} placeholder="Search products & domains…" aria-label="Search products and domains" />
       </div>
-      <div className={`mlink${isHome ? ' on' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 32, borderRadius: 6, cursor: 'pointer', fontSize: 13.5 }} tabIndex={0} onClick={() => nav(paths.home)}><Svg html={I.binoc} /><span>Overview</span></div>
-      <div className={`mlink${isDrafts ? ' on' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 32, borderRadius: 6, cursor: 'pointer', fontSize: 13.5 }} tabIndex={0} onClick={() => nav(paths.drafts)}><Svg html={I.half} /><span>My drafts</span><span className="cnt" style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--faint)' }}>{draftCount}</span></div>
-      <div className="msearch" style={{ marginTop: 10 }}><Svg html={I.search} /><input placeholder="Search products and domains" value={mq} onChange={(e) => setMq(e.target.value)} /></div>
-      {tops.map((d) => <DomRow key={d.id} d={d} pad={4} />)}
+      <div className={`gl-mlink ${isHome ? 'on' : ''}`} tabIndex={0} onClick={() => nav(paths.home)}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(paths.home))}>
+        <Compass className="gl-book" size={16} strokeWidth={1.7} />Overview
+      </div>
+      <div className={`gl-mlink ${isDrafts ? 'on' : ''}`} tabIndex={0} onClick={() => nav(paths.drafts)}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(paths.drafts))}>
+        <FilePen className="gl-book" size={16} strokeWidth={1.7} />My drafts<span className="gl-cnt">{draftCount}</span>
+      </div>
+      {tops.map((d) => <DomRow key={d.id} d={d} depth={0} />)}
+      <div className="inner-sep" />
+      <div className="gl-msec">Domain</div>
+      <Section label="Filter" defaultOpen>
+        <div className="fopts">
+          <label className="fopt">
+            <input type="radio" name="dpscope" checked={store.scope === 'all'} onChange={() => onScope('all')} />
+            <span className="fopt-l">All domains</span><span className="fopt-n">{store.products.length}</span>
+          </label>
+          {DOMAINS.filter((d) => !d.parent).map((d) => (
+            <label key={d.id} className="fopt">
+              <input type="radio" name="dpscope" checked={store.scope === d.id} onChange={() => onScope(d.id)} />
+              <span className="fopt-l">{d.name}</span><span className="fopt-n">{store.products.filter((p) => p.domain === d.id || D(p.domain).parent === d.id).length}</span>
+            </label>
+          ))}
+        </div>
+      </Section>
     </div>
   );
 }

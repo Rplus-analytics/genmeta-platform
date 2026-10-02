@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import { Box, Layers, Plus, Database } from 'lucide-react';
 import { DOMAINS, VIEWS, RECENT, CANDS, D, subs } from '../../data/products.js';
-import { useProducts, paths, Svg, DomainIcon, Crumbs } from './shared.jsx';
-import { I } from './icons.js';
+import { PageHead, Button } from '../../components/ui.jsx';
+import { useProducts, paths } from './shared.jsx';
 
 export default function Home() {
   const nav = useNavigate();
@@ -19,66 +20,80 @@ export default function Home() {
     nav(paths.create, { state: { prefill: { name: exists ? c.n + ' Product' : c.n, assets: [c.a], outputs: [c.a], domain: c.a.includes('CUSTOMER') ? 'customer' : 'orders' } } });
   };
 
-  return (
-    <div className="dp">
-      <Crumbs parts={[]} />
-      <div className="pad">
-        <div className="hhead">
-          <div><h1>Data products</h1><p className="muted">Discover your most valued assets.</p></div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={() => store.toast('New domain: cover, colour, name (80), icon, description, owners')}><Svg html={I.layers} /> Create domain</button>
-            <button className="btn primary" onClick={() => nav(paths.create, { state: { prefill: { domain: scope !== 'all' ? scope : 'customer' } } })}><Svg html={I.boxS} /> Create product</button>
-          </div>
-        </div>
+  const tiles = [
+    [list.length, 'Products', `${tops.length} ${tops.length === 1 ? 'domain' : 'domains'}`],
+    [list.filter((p) => p.status === 'published').length, 'Published', 'live in the marketplace'],
+    [list.filter((p) => p.status === 'draft').length, 'Drafts', 'awaiting publish'],
+    [list.reduce((a, p) => a + p.consumers, 0), 'Consumers', 'across all products'],
+    [new Set(list.flatMap((p) => p.assets)).size, 'Assets', 'curated into products'],
+  ];
 
-        <div className="two">
-          <div className="acardbox">
-            <b className="ct">Most viewed</b>
+  return (
+    <div className="page fade-in dp">
+      <PageHead eyebrow="Discover" title="Data products" sub="Curated, owned and certified datasets — discover your most valued assets.">
+        <Button variant="secondary" icon={Layers} onClick={() => store.toast('New domain: cover, colour, name, icon, description, owners')}>Create domain</Button>
+        <Button variant="primary" icon={Plus} onClick={() => nav(paths.create, { state: { prefill: { domain: scope !== 'all' ? scope : 'customer' } } })}>Create product</Button>
+      </PageHead>
+
+      <div className="tiles-sm">
+        {tiles.map(([v, k, s]) => <div key={k}><b>{v.toLocaleString('en-GB')}</b><span>{k}</span><small>{s}</small></div>)}
+      </div>
+
+      <div className="dp-two">
+        <div className="card pad">
+          <h3>Most viewed</h3>
+          <div className="dp-list">
             {mv.map((p) => (
-              <div key={p.id} className="lrow" onClick={() => nav(paths.product(p.id))}>
-                <span className="pico"><Svg html={I.boxS} /></span><span>{p.name}</span>
-                <span className="faint" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Svg html={I.trend} /> {VIEWS[p.id]} views</span>
+              <div key={p.id} className="dp-lrow" onClick={() => nav(paths.product(p.id))}>
+                <Box size={15} strokeWidth={1.7} /><span>{p.name}</span>
+                <span className="gl-faint" style={{ marginLeft: 'auto' }}>{VIEWS[p.id]} views</span>
               </div>
             ))}
           </div>
-          <div className="acardbox">
-            <b className="ct">Recently viewed</b>
+        </div>
+        <div className="card pad">
+          <h3>Recently viewed</h3>
+          <div className="dp-list">
             {RECENT.map(([id, t]) => {
               const p = store.PR(id), d = D(id);
               return (
-                <div key={id} className="lrow" onClick={() => nav(p ? paths.product(id) : paths.domain(id))}>
-                  {p ? <span className="pico"><Svg html={I.boxS} /></span> : <DomainIcon id={id} size={16} />}
-                  <span>{p ? p.name : d.name}</span><span className="faint" style={{ marginLeft: 'auto' }}>{t}</span>
+                <div key={id} className="dp-lrow" onClick={() => nav(p ? paths.product(id) : paths.domain(id))}>
+                  {p ? <Box size={15} strokeWidth={1.7} /> : <Layers size={15} strokeWidth={1.7} />}
+                  <span>{p ? p.name : d.name}</span><span className="gl-faint" style={{ marginLeft: 'auto' }}>{t}</span>
                 </div>
               );
             })}
           </div>
         </div>
+      </div>
 
-        <h2 className="h2">Discover assets and products by domain</h2>
-        <div className="dgrid">
-          {tops.map((d) => (
-            <div key={d.id} className="dcard" onClick={() => nav(paths.domain(d.id))}>
-              <div className="dcover" style={{ background: `linear-gradient(115deg, ${d.color} 0%, #4D8CFF 55%, #A9D3FF 100%)` }} />
-              <div className="dicon" style={{ background: d.color }}><Svg html={I.layersW} /></div>
-              <div className="dbody"><b>{d.name}</b><span className="faint"><Svg html={I.layers} /> {inDomainCount(d.id)} products · {subs(d.id).length} sub-domains</span></div>
-            </div>
-          ))}
-        </div>
+      <div className="block-head"><h2>Discover by domain</h2></div>
+      <div className="dp-dgrid">
+        {tops.map((d) => (
+          <button key={d.id} className="card dp-dcard" onClick={() => nav(paths.domain(d.id))}>
+            <span className="dp-dicon"><Layers size={18} strokeWidth={1.7} /></span>
+            <div><b>{d.name}</b><span className="muted">{inDomainCount(d.id)} products · {subs(d.id).length} sub-domains</span></div>
+          </button>
+        ))}
+      </div>
 
-        <h2 className="h2">Recommended from usage <span className="tag">GenMeta</span></h2>
-        <div className="acardbox">
-          <p className="psub" style={{ marginTop: 0 }}>Assets queried often enough to become products (Rplus_DWH query history, GenMeta's own queries excluded).</p>
-          {CANDS.map((c) => (
-            <div key={c.a} className="cand">
-              <span className="pico"><Svg html={I.db} /></span>
-              <div style={{ flex: 1 }}>
-                <b style={{ fontSize: 13 }}>{c.n}</b> <span className="mono faint" style={{ fontSize: 11.5 }}>{c.a}</span>
-                <div className="muted" style={{ fontSize: 12 }}>{c.why} · candidate score {c.s}/100</div>
-              </div>
-              <button className="btn sm" onClick={() => createFromCand(c)}>Create product</button>
-            </div>
-          ))}
+      <div className="dash-card">
+        <div className="block-head"><div><h2>Recommended from usage</h2><p className="block-sub">Assets queried often enough to become products (Rplus_DWH query history, GenMeta's own queries excluded).</p></div><span className="tag">GenMeta</span></div>
+        <div className="table-wrap">
+          <table className="tbl static">
+            <thead><tr><th>Candidate</th><th>Asset</th><th>Why</th><th className="num">Score</th><th /></tr></thead>
+            <tbody>
+              {CANDS.map((c) => (
+                <tr key={c.a}>
+                  <td><div className="tname"><Database size={15} strokeWidth={1.7} />{c.n}</div></td>
+                  <td className="mono">{c.a}</td>
+                  <td className="muted">{c.why}</td>
+                  <td className="num">{c.s}/100</td>
+                  <td style={{ textAlign: 'right' }}><Button variant="secondary" size="sm" onClick={() => createFromCand(c)}>Create product</Button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

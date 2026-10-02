@@ -1,6 +1,8 @@
-import { useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookMarked, Waypoints, Gauge, Landmark, Compass, History, ChevronDown } from 'lucide-react';
+import {
+  BookMarked, Waypoints, Gauge, Landmark, Compass, History,
+  LayoutDashboard, ScanSearch, ListChecks, Activity, Wrench, BarChart3, Bell,
+} from 'lucide-react';
 import { DATA_ASSETS_NAV } from '../nav.js';
 import InnerLayout from '../components/InnerLayout.jsx';
 import { PageHead } from '../components/ui.jsx';
@@ -9,13 +11,15 @@ import { CatalogueResults, FiltersPanel, useCatalogueState } from './Catalogue.j
 import Glossary, { GlossaryMenu, useGlossaryUI } from './Glossary.jsx';
 import { ASSETS } from '../catalogue/model.js';
 import DataQualitySection, { SUBTABS } from '../catalogue/quality/DataQualitySection.jsx';
+import MetadataChanges from './MetadataChanges.jsx';
 
 const ICONS = { BookMarked, Waypoints, Gauge, Landmark, Compass, History };
+/* Data quality sub-pages, shown as a filter-style group in the inner menu on /app/quality */
+const DQ_ICON = { overview: LayoutDashboard, profiling: ScanSearch, rules: ListChecks, monitoring: Activity, remediation: Wrench, scorecards: BarChart3, notifications: Bell };
 const COMING = {
   '/app/lineage': 'Data lineage',
   '/app/data-governance': 'Data governance',
   '/app/data-explorer': 'Data explorer',
-  '/app/metadata-changes': 'Metadata changes',
 };
 /* estate-wide representative asset for the standalone /app/quality view */
 const ESTATE_ASSET = ASSETS.find((x) => x.key === 'SRC.CUSTOMER') || ASSETS[0];
@@ -27,7 +31,6 @@ export default function DataAssets() {
   const state = useCatalogueState();
   const onQuality = pathname === '/app/quality';
   const curSub = sp.get('quality') || 'overview';
-  const [dqOpen, setDqOpen] = useState(true);
   const glossary = useGlossaryUI();
   const onList = pathname === '/app/catalogue';
   const onGlossary = pathname === '/app/glossary' || pathname.startsWith('/app/glossary/');
@@ -41,30 +44,26 @@ export default function DataAssets() {
       {DATA_ASSETS_NAV.map((n) => {
         const I = ICONS[n.icon];
         return (
-          <div key={n.to} className={n.to === '/app/quality' ? 'dq-qrow' : undefined}>
-            <NavLink to={n.to} title={n.label}
-              className={({ isActive }) => (n.to === '/app/quality' && onQuality ? 'admin-link dq-parent' : `admin-link ${isActive ? 'on' : ''}`)}>
-              <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
-            </NavLink>
-            {n.to === '/app/quality' && onQuality && (
-              <button type="button" className={`dq-chev ${dqOpen ? 'open' : ''}`} aria-label={dqOpen ? 'Collapse Data quality' : 'Expand Data quality'} aria-expanded={dqOpen}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDqOpen((o) => !o); }}>
-                <ChevronDown size={14} strokeWidth={1.8} />
-              </button>
-            )}
-            {n.to === '/app/quality' && onQuality && dqOpen && (
-              <div className="dq-submenu">
-                {SUBTABS.map(([key, label]) => (
-                  <Link key={key} to={`/app/quality?quality=${key}`} title={label} className={`admin-link admin-subitem ${curSub === key ? 'on' : ''}`}>
-                    <span>{label}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+          <NavLink key={n.to} to={n.to} title={n.label} className={({ isActive }) => `admin-link ${isActive ? 'on' : ''}`}>
+            <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
+          </NavLink>
         );
       })}
       {onList && <FiltersPanel state={state} />}
+      {onQuality && (
+        <div className="cat-filters">
+          <div className="inner-sep" />
+          <div className="cat-filters-h"><span className="admin-nav-sec">Data quality</span></div>
+          {SUBTABS.map(([key, label]) => {
+            const I = DQ_ICON[key];
+            return (
+              <Link key={key} to={`/app/quality?quality=${key}`} title={label} className={`admin-link ${curSub === key ? 'on' : ''}`}>
+                <I size={16} strokeWidth={1.6} /><span>{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 
@@ -72,6 +71,7 @@ export default function DataAssets() {
   if (onList) content = <CatalogueResults state={state} />;
   else if (onGlossary) content = <Glossary ui={glossary} />;
   else if (onQuality) content = <DataQualitySection a={ESTATE_ASSET} onOpenAsset={(id) => nav(`/app/catalogue/${id}`)} />;
+  else if (pathname === '/app/metadata-changes') content = <MetadataChanges />;
   else if (pathname.startsWith('/app/catalogue/')) content = <AssetDetail />;
   else content = <PageHead eyebrow="Data assets" title={COMING[pathname] || 'Data assets'} sub="Coming soon" />;
 

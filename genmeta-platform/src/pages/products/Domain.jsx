@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   DOMAINS, STAKE, MON, CRIT, SENS, PST, D, subs, score, sclass, ini, ainfo, midx,
 } from '../../data/products.js';
+import { Layers } from 'lucide-react';
 import {
-  useProducts, paths, Svg, DomainIcon, Person, Crumbs, crumbDomainParts, EntityHead, ProductCard, LineageGraph,
+  useProducts, paths, Svg, DomainIcon, Person, EntityHead, ProductCard, LineageGraph,
 } from './shared.jsx';
+import { Tabs } from '../../components/ui.jsx';
 import { I } from './icons.js';
 
-const TABS = [['overview', 'Overview'], ['products', 'Products and Assets'], ['stats', 'Statistics'], ['lineage', 'Lineage']];
+const TABS = [{ value: 'overview', label: 'Overview' }, { value: 'products', label: 'Products and Assets' }, { value: 'stats', label: 'Statistics' }, { value: 'lineage', label: 'Lineage' }];
 
 export default function Domain() {
   const { id } = useParams();
@@ -18,20 +20,17 @@ export default function Domain() {
   const [tab, setTab] = useState('overview');
   const [seg, setSeg] = useState('all');
 
-  if (!d) return <div className="dp"><Crumbs parts={[]} /><div className="pad"><div className="acardbox empty">Domain not found.</div></div></div>;
+  if (!d) return <div className="page dp"><div className="dash-card">Domain not found.</div></div>;
 
   const par = d.parent ? D(d.parent) : null;
   const list = store.inDomain(d.id);
-  const people = [...new Set([...d.owners, ...list.map((p) => p.owner)])];
 
   return (
-    <div className="dp">
-      <Crumbs parts={crumbDomainParts(d.id, nav)} />
-      <EntityHead cover={`linear-gradient(115deg, ${d.color} 0%, #4D8CFF 55%, #A9D3FF 100%)`} icon={I.layersW} iconBg={d.color}
-        title={d.name} kind={<><Svg html={I.layers} /> {par ? 'SUB-DOMAIN in ' + par.name : 'DOMAIN'}</>} edited="20 hours ago" people={people} id={d.id}
+    <div className="page fade-in dp">
+      <EntityHead icon={Layers} title={d.name} kind={par ? `Sub-domain in ${par.name}` : 'Domain'} id={d.id}
         isProduct={false} onAddProduct={() => nav(paths.create, { state: { prefill: { domain: d.id } } })} onCreateSub={() => store.toast('New sub-domain in ' + d.name)} />
-      <div className="atabs">{TABS.map(([k, l]) => <button key={k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
-      <div className="pad">
+      <Tabs items={TABS} value={tab} onChange={setTab} />
+      <div className="dp-tabbody">
         {tab === 'overview' && <DomOverview d={d} list={list} />}
         {tab === 'products' && <DomProducts d={d} list={list} seg={seg} setSeg={setSeg} />}
         {tab === 'stats' && <DomStats d={d} list={list} goProducts={(s) => { setSeg(s); setTab('products'); }} />}

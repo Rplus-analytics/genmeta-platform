@@ -1,10 +1,13 @@
 import { createContext, useContext, useReducer, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Layers, Box, BadgeCheck, ChevronDown, Plus, Star, Share2, MoreHorizontal, Megaphone, Lock,
+} from 'lucide-react';
+import {
   DOMAINS, PRODUCTS, INITIAL_ACT, INITIAL_REQS, PST, CRIT, SENS, FEEDS,
   D, subs, score, sclass, ini, ainfo, now, COVER, downstream, typGlyph,
 } from '../../data/products.js';
-import { I, domainIconHTML } from './icons.js';
+import { Button, IconButton } from '../../components/ui.jsx';
 import { getQuarantine } from '../../catalogue/quality/store.js';
 
 /* A product cannot be published while one of its assets is quarantined by Data quality. */
@@ -113,48 +116,29 @@ export function Dchip({ id }) {
 export function Lvl({ map, k }) {
   return <span className="lvl"><i style={{ background: map[k][1] }} />{map[k][0]}</span>;
 }
-export function DomainIcon({ id, size = 18 }) {
-  return <Svg html={domainIconHTML(D(id), size)} />;
+/* a plain lucide domain mark (no coloured square) */
+export function DomainIcon({ size = 16 }) {
+  return <Layers size={size} strokeWidth={1.7} className="dp-dmk" />;
 }
 
-/* ---------- breadcrumb row ---------- */
-export function Crumbs({ parts }) {
-  const nav = useNavigate();
-  return (
-    <div className="crow">
-      <button className="ib sm" title="Collapse sidebar"><Svg html={I.side} /></button>
-      <span className="sepv" />
-      <span className="tlink2" onClick={() => nav(paths.home)}><Svg html={I.binoc} /> Overview</span>
-      {parts.map((x, i) => <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="faint">›</span>{x}</span>)}
-    </div>
-  );
-}
-export function crumbDomainParts(id, nav) {
-  const d = D(id), par = d.parent ? D(d.parent) : null;
-  const link = (x) => <span className="tlink2" onClick={() => nav(paths.domain(x.id))}><DomainIcon id={x.id} size={14} /> {x.name}</span>;
-  return [...(par ? [link(par)] : []), link(d)];
-}
-
-/* ---------- product card (Atlan "Products and Assets" card) ---------- */
+/* ---------- product card ---------- */
 export function ProductCard({ p }) {
   const nav = useNavigate();
   const s = score(p);
   return (
-    <div className="acard" tabIndex={0} onClick={() => nav(paths.product(p.id))}
-      onKeyDown={(e) => { if (e.key === 'Enter') nav(paths.product(p.id)); }}>
-      <div className="acard-t">
+    <button className="card dp-pcard" onClick={() => nav(paths.product(p.id))}>
+      <div className="dp-pcard-t">
         <span>{p.name}</span>
-        {p.cert === 'Verified' && <Svg html={I.vtick} />}
+        {p.cert === 'Verified' && <BadgeCheck size={15} strokeWidth={1.7} className="dp-verified" />}
         {p.status !== 'published' && <Badge status={p.status} />}
       </div>
-      <div className="acard-d"><DomainIcon id={p.domain} size={14} /><span>{D(p.domain).name}</span></div>
-      <div className="acard-x">{p.desc}</div><div className="tip">{p.desc}</div>
-      <div className="acard-f">
-        <span className="ports">{p.outputs.map((a) => <i key={a} title={a}>{typGlyph(ainfo(a).type)}</i>)}</span>
+      <div className="dp-pcard-d"><Layers size={14} strokeWidth={1.7} /><span>{D(p.domain).name}</span></div>
+      <div className="dp-pcard-x">{p.desc}</div>
+      <div className="dp-pcard-f">
         <span>{p.outputs.length} output port{p.outputs.length > 1 ? 's' : ''}</span>
-        <span className={`sc5 ${sclass(s)}`}>{s.toFixed(1)}</span>
+        <span className={`dp-score ${sclass(s)}`}>{s.toFixed(1)}</span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -205,14 +189,12 @@ export function LineageGraph({ ids }) {
   );
 }
 
-/* ---------- entity header with cover (domain + product) ---------- */
-export function EntityHead({ cover, icon, iconBg, title, tick, kind, edited, people, status, id, isProduct, onAddProduct, onCreateSub }) {
+/* ---------- entity header (domain + product), glossary thead style ---------- */
+export function EntityHead({ icon: Icon = Layers, title, tick, kind, status, id, isProduct, onAddProduct, onCreateSub }) {
   const store = useProducts();
-  const nav = useNavigate();
   const [pop, setPop] = useState(null);
   const close = () => setPop(null);
   const starred = store.isStarred(id);
-  const n = starred ? 1 : 0;
 
   const doMore = (m) => {
     close();
@@ -225,56 +207,48 @@ export function EntityHead({ cover, icon, iconBg, title, tick, kind, edited, peo
   };
 
   return (
-    <>
-      <div className="cover" style={{ background: cover }} />
-      <div className="ehead">
-        <div className="eicon" style={{ background: iconBg }}><Svg html={icon} /></div>
-        <div className="etitle">
-          <h1>{title} {tick && <Svg html={I.vtick} />}</h1>
-          <div className="kind">{kind}</div>
-        </div>
-        <div className="etools">
-          <span className="faint" style={{ fontSize: 12.5 }}>edited {edited}</span>
-          <span className="avs">{people.slice(0, 3).map((x, i) => <i key={i} title={x}>{ini(x)}</i>)}{people.length > 3 && <em>+{people.length - 3}</em>}</span>
-          {status ? (
-            <div style={{ position: 'relative' }}>
-              <button className="stbtn" onClick={(e) => { e.stopPropagation(); setPop(pop === 'status' ? null : 'status'); }}><Svg html={I.vtickB} />{PST[status][0]} <Svg html={I.down} /></button>
-              {pop === 'status' && <StatusPop cur={status} onPick={(k) => { close(); store.setStatus(id, k); }} />}
-            </div>
-          ) : (
-            <div style={{ position: 'relative' }}>
-              <button className="btn primary sm" onClick={(e) => { e.stopPropagation(); setPop(pop === 'add' ? null : 'add'); }}>Add <Svg html={I.down} /></button>
-              {pop === 'add' && (
-                <div className="menu" style={{ right: 0 }}>
-                  <button onClick={() => { close(); onCreateSub && onCreateSub(); }}><Svg html={I.domS2} /> Sub-domain</button>
-                  <button onClick={() => { close(); onAddProduct && onAddProduct(); }}><Svg html={I.boxS} /> Product</button>
-                </div>
-              )}
-            </div>
-          )}
-          <span className="tgroup">
-            <button className="ib sm" title="Star" onClick={() => store.toggleStar(id)}><Svg html={starred ? I.starF : I.starL} /></button>
-            {status && <span className="faint" style={{ fontSize: 12, padding: '0 4px' }}>{n}</span>}
-            <button className="ib sm" title="Share" onClick={() => store.toast('Link copied')}><Svg html={I.share} /></button>
-            <span style={{ position: 'relative' }}>
-              <button className="ib sm" title="More" onClick={(e) => { e.stopPropagation(); setPop(pop === 'more' ? null : 'more'); }}><Svg html={I.dots} /></button>
-              {pop === 'more' && <MoreMenu isProduct={isProduct} onPick={doMore} />}
-            </span>
-          </span>
-        </div>
+    <div className="gl-thead">
+      <div className="gl-ticon"><Icon size={20} strokeWidth={1.7} /></div>
+      <div>
+        <h1>{title} {tick && <BadgeCheck size={18} strokeWidth={1.7} className="dp-verified" />}</h1>
+        <div className="gl-kind">{kind}</div>
       </div>
-    </>
+      <div className="gl-tools">
+        {status ? (
+          <span className="dp-pop">
+            <Button variant="secondary" size="sm" icon={ChevronDown} iconRight onClick={(e) => { e.stopPropagation(); setPop(pop === 'status' ? null : 'status'); }}>{PST[status][0]}</Button>
+            {pop === 'status' && <StatusPop cur={status} onPick={(k) => { close(); store.setStatus(id, k); }} />}
+          </span>
+        ) : (
+          <span className="dp-pop">
+            <Button variant="primary" size="sm" icon={Plus} onClick={(e) => { e.stopPropagation(); setPop(pop === 'add' ? null : 'add'); }}>Add</Button>
+            {pop === 'add' && (
+              <div className="dp-menu">
+                <button onClick={() => { close(); onCreateSub && onCreateSub(); }}><Layers size={15} strokeWidth={1.7} /> Sub-domain</button>
+                <button onClick={() => { close(); onAddProduct && onAddProduct(); }}><Box size={15} strokeWidth={1.7} /> Product</button>
+              </div>
+            )}
+          </span>
+        )}
+        <IconButton icon={Star} label="Star" variant="secondary" size="sm" className={starred ? 'on' : ''} onClick={() => store.toggleStar(id)} />
+        <IconButton icon={Share2} label="Share" variant="secondary" size="sm" onClick={() => store.toast('Link copied')} />
+        <span className="dp-pop">
+          <IconButton icon={MoreHorizontal} label="More" variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setPop(pop === 'more' ? null : 'more'); }} />
+          {pop === 'more' && <MoreMenu isProduct={isProduct} onPick={doMore} />}
+        </span>
+      </div>
+    </div>
   );
 }
 
 function StatusPop({ cur, onPick }) {
   const M = { draft: 'Visible only to owners', published: 'Visible to all users with access', sunset: 'Planned for retirement', archived: 'Retired and hidden for all users' };
   return (
-    <div className="menu stpop" style={{ right: 0, width: 270 }}>
-      <div className="faint" style={{ fontSize: 12, padding: '6px 10px' }}>Change status</div>
+    <div className="dp-menu dp-stpop">
+      <div className="muted" style={{ fontSize: 12, padding: '6px 10px' }}>Change status</div>
       {Object.keys(PST).map((k) => (
-        <button key={k} className={cur === k ? 'cur' : ''} onClick={() => onPick(k)}>
-          <span className={`sdot2 ${k}`} /><span><b>{PST[k][0]}</b><small>{M[k]}</small></span>
+        <button key={k} className={cur === k ? 'on' : ''} onClick={() => onPick(k)}>
+          <span className={`dp-sdot ${k}`} /><span><b>{PST[k][0]}</b><small>{M[k]}</small></span>
         </button>
       ))}
     </div>
@@ -282,17 +256,17 @@ function StatusPop({ cur, onPick }) {
 }
 function MoreMenu({ isProduct, onPick }) {
   return (
-    <div className="menu" style={{ right: 0 }}>
+    <div className="dp-menu">
       {isProduct ? (
         <>
-          <button onClick={() => onPick('announce')}><Svg html={I.mega} /> Add announcement</button>
-          <button onClick={() => onPick('request')}><Svg html={I.lock} /> Request access</button>
+          <button onClick={() => onPick('announce')}><Megaphone size={15} strokeWidth={1.7} /> Add announcement</button>
+          <button onClick={() => onPick('request')}><Lock size={15} strokeWidth={1.7} /> Request access</button>
           <button onClick={() => onPick('export')}>Export assets</button>
           <button onClick={() => onPick('delete')}>Delete product</button>
         </>
       ) : (
         <>
-          <button onClick={() => onPick('announce')}><Svg html={I.mega} /> Add announcement</button>
+          <button onClick={() => onPick('announce')}><Megaphone size={15} strokeWidth={1.7} /> Add announcement</button>
           <button onClick={() => onPick('slack')}>Post on Slack or Teams</button>
           <button onClick={() => onPick('edit')}>Edit domain</button>
         </>

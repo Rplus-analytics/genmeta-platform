@@ -533,6 +533,30 @@ body{color:var(--ink);background:var(--bg)}
 .av{background:var(--blue-soft);color:var(--ink)}
 .toast,.bulk,.tip{background:var(--ink)}
 @media (max-width:860px){.main{padding:24px 16px 48px}}
+/* ---- Metadata changes layout (compare bar, range chip, collapsible history) ---- */
+.mc-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:16px}
+.mc-bar .lbl{font-size:13px;color:var(--ink-2)}
+.mc-bar .arrow{color:var(--ink-3)}
+.mc-bar .seg2.txt button{font-size:13px;padding:0 12px;height:30px}
+.mc-bar .range{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.mc-bar .range b{color:var(--ink);font-weight:600;font-family:var(--mono);font-size:12.5px;background:var(--sel);border-radius:6px;padding:3px 8px}
+.mc-tiles small{font-size:12px;color:var(--ink-3)}
+.mc-tiles div.z b{color:var(--ink-3)}
+.mc-added{margin:12px 0 0;font-size:13px;color:var(--ink-2);line-height:1.6}
+.mc-added b{font-weight:500;color:var(--ink)}
+.mc-coll .ph{cursor:pointer;user-select:none;flex-wrap:nowrap;align-items:flex-start}
+.mc-coll .ph>div:first-child{flex:1;min-width:0}
+.mc-coll .ph:hover h3{color:var(--blue)}
+.mc-coll .mnote{margin:4px 0 0;font-size:13px;color:var(--ink-2)}
+.mc-coll .msum{font-size:13px;color:var(--ink-2);display:flex;align-items:center;gap:10px;white-space:nowrap;margin-top:2px}
+.mc-coll .chev{color:var(--ink-3);transition:transform .15s;flex:none}
+.mc-coll.open .chev{transform:rotate(180deg)}
+.mc-scroll{max-height:480px;overflow:auto}
+.tbl tr.inr td{background:var(--sel)}
+.tbl tr.edge td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+.tbl tbody tr.mcrow{cursor:pointer}
+.tbl tbody tr.mcrow:hover td{background:var(--panel-2)}
+.tbl tbody tr.mcrow.inr:hover td{background:var(--sel)}
 </style>
 </head>
 <body>
@@ -969,41 +993,79 @@ class ColumnDef:
 }
 /* ---------- Metadata changes (TMM-05, TMM-06) ---------- */
 let VERSIONS=[
- {v:1,t:"12 Sep 2026, 02:00",trig:"Scheduled",a:1201,c:13980,m:402,fp:"9c1e44a0b7",ch:null},
- {v:2,t:"15 Sep 2026, 09:14",trig:"Event-driven",a:1219,c:14150,m:410,fp:"3fa81c02de",ch:{aa:["STG.CUSTOMER_ORDER_LIVE_RPLUS"],ar:[],ac:[{a:"SRC.ORDERS",add:["ORDER_CHANNEL"],rem:[],rt:[],key:[],part:[]}],mp:[["added","STG.CUSTOMER_ORDER_LIVE_RPLUS.TOTAL","SUM(l.EXTENDEDPRICE)"]]}},
- {v:3,t:"18 Sep 2026, 02:00",trig:"Scheduled",a:1236,c:14311,m:414,fp:"b27d905e1f",ch:{aa:["gold.customer_360"],ar:["dbo.PAYMENT_TMP"],ac:[],mp:[["added","gold.customer_360.LIFETIME_VALUE","SUM(o.TOTALPRICE)"]]}},
- {v:4,t:"20 Sep 2026, 14:30",trig:"Manual",a:1240,c:14360,m:414,fp:"d0e6a1733c",ch:{aa:[],ar:[],ac:[{a:"SRC.ORDERS",add:[],rem:[],rt:[["TOTAL_PRICE","number(12,2)","number(18,2)"]],key:[],part:[]}],mp:[]}},
- {v:5,t:"22 Sep 2026, 02:00",trig:"Scheduled",a:1251,c:14502,m:418,fp:"5e9b2f8810",ch:{aa:["cleansed/customers_v2.parquet"],ar:[],ac:[{a:"INT.LINEITEM",add:[],rem:[],rt:[],key:["Primary key declared: (ORDERKEY, LINENUMBER)"],part:[]}],mp:[["re-expressed","INT.LINEITEM.NET_PRICE","EXTENDEDPRICE*(1-DISCOUNT) → ROUND(EXTENDEDPRICE*(1-DISCOUNT),2)"]]}},
- {v:6,t:"24 Sep 2026, 11:02",trig:"Event-driven",a:1266,c:14630,m:421,fp:"a41c7d09e2",ch:{aa:["ml_features.churn_inputs"],ar:["dbo.CASE_NOTES_TMP"],ac:[{a:"INT.CUSTOMER",add:["SEGMENT"],rem:[],rt:[],key:[],part:[]}],mp:[["added","INT.CUSTOMER.SEGMENT","SRC.CUSTOMER.MKTSEGMENT"]]}},
- {v:7,t:"25 Sep 2026, 02:00",trig:"Scheduled",a:1279,c:14811,m:423,fp:"7b33e5c6a9",ch:{aa:["bronze.web_events_raw"],ar:[],ac:[{a:"bronze.web_events",add:[],rem:[],rt:[],key:[],part:["Partitioned by EVENT_DATE (was unpartitioned)"]},{a:"INT.ORDERS",add:[],rem:["LEGACY_FLAG"],rt:[],key:[],part:[]}],mp:[["removed","INT.ORDERS.LEGACY_FLAG","CASE WHEN ... END"]]}},
- {v:8,t:"26 Sep 2026, 09:46",trig:"Scheduled",a:1284,c:14902,m:425,fp:"e8f2019bd4",ch:{aa:["gold.orders_daily"],ar:[],ac:[{a:"INT.NATION",add:[],rem:[],rt:[["NATION_ID","number","varchar(3)"]],key:[],part:[]}],mp:[["added","gold.orders_daily.ORDER_COUNT","COUNT(DISTINCT o.ORDERKEY)"]]}}
+ {v:1,d:"2026-07-03T02:00",trig:"Scheduled",a:1092,c:12410,m:361,fp:"1d7a0c44e2",ch:null},
+ {v:2,d:"2026-07-10T02:00",trig:"Scheduled",a:1104,c:12560,m:366,fp:"6be2f09a13",ch:{aa:["SRC.SUPPLIER","SRC.PARTSUPP"],ar:[],ac:[],mp:[["added","STG.SUPPLIER_SUMMARY.TOTAL_COST","SUM(ps.SUPPLYCOST)"]]}},
+ {v:3,d:"2026-07-24T14:12",trig:"Event-driven",a:1118,c:12744,m:371,fp:"c03d8e71fa",ch:{aa:["raw/orders_2026_07.parquet"],ar:[],ac:[{a:"SRC.CUSTOMER",add:["EMAIL"],rem:[],rt:[],key:[],part:[]}],mp:[]}},
+ {v:4,d:"2026-08-07T02:00",trig:"Scheduled",a:1131,c:12950,m:379,fp:"8f41b2d06c",ch:{aa:["BI.Fulfilment Live"],ar:["dbo.ORDERS_OLD"],ac:[],mp:[["added","BI.Fulfilment Live.LATE_ORDERS","COUNT(*) WHERE SHIPDATE > COMMITDATE"]]}},
+ {v:5,d:"2026-08-21T10:40",trig:"Manual",a:1152,c:13312,m:386,fp:"e5a90c3b7d",ch:{aa:["SQL_OPS.CASE_SLA"],ar:[],ac:[{a:"SQL_OPS.CASES",add:[],rem:[],rt:[["OPENED_AT","date","timestamp"]],key:[],part:[]}],mp:[]}},
+ {v:6,d:"2026-09-04T02:00",trig:"Scheduled",a:1178,c:13701,m:395,fp:"2b6f1e98c0",ch:{aa:["STREAMING.order-events"],ar:[],ac:[{a:"INT.ORDERS",add:["ORDER_STATUS"],rem:[],rt:[],key:[],part:[]}],mp:[["added","INT.ORDERS.ORDER_STATUS","SRC.ORDERS.ORDERSTATUS"]]}},
+ {v:7,d:"2026-09-12T02:00",trig:"Scheduled",a:1201,c:13980,m:402,fp:"9c1e44a0b7",ch:{aa:["S3_ENR.CUSTOMER_SUMMARY"],ar:[],ac:[],mp:[]}},
+ {v:8,d:"2026-09-15T09:14",trig:"Event-driven",a:1219,c:14150,m:410,fp:"3fa81c02de",ch:{aa:["STG.CUSTOMER_ORDER_LIVE_RPLUS"],ar:[],ac:[{a:"SRC.ORDERS",add:["ORDER_CHANNEL"],rem:[],rt:[],key:[],part:[]}],mp:[["added","STG.CUSTOMER_ORDER_LIVE_RPLUS.TOTAL","SUM(l.EXTENDEDPRICE)"]]}},
+ {v:9,d:"2026-09-18T02:00",trig:"Scheduled",a:1236,c:14311,m:414,fp:"b27d905e1f",ch:{aa:["gold.customer_360"],ar:["dbo.PAYMENT_TMP"],ac:[],mp:[["added","gold.customer_360.LIFETIME_VALUE","SUM(o.TOTALPRICE)"]]}},
+ {v:10,d:"2026-09-20T14:30",trig:"Manual",a:1240,c:14360,m:414,fp:"d0e6a1733c",ch:{aa:[],ar:[],ac:[{a:"SRC.ORDERS",add:[],rem:[],rt:[["TOTAL_PRICE","number(12,2)","number(18,2)"]],key:[],part:[]}],mp:[]}},
+ {v:11,d:"2026-09-22T02:00",trig:"Scheduled",a:1251,c:14502,m:418,fp:"5e9b2f8810",ch:{aa:["cleansed/customers_v2.parquet"],ar:[],ac:[{a:"INT.LINEITEM",add:[],rem:[],rt:[],key:["Primary key declared: (ORDERKEY, LINENUMBER)"],part:[]}],mp:[["re-expressed","INT.LINEITEM.NET_PRICE","EXTENDEDPRICE*(1-DISCOUNT) → ROUND(EXTENDEDPRICE*(1-DISCOUNT),2)"]]}},
+ {v:12,d:"2026-09-24T11:02",trig:"Event-driven",a:1266,c:14630,m:421,fp:"a41c7d09e2",ch:{aa:["ml_features.churn_inputs"],ar:["dbo.CASE_NOTES_TMP"],ac:[{a:"INT.CUSTOMER",add:["SEGMENT"],rem:[],rt:[],key:[],part:[]}],mp:[["added","INT.CUSTOMER.SEGMENT","SRC.CUSTOMER.MKTSEGMENT"]]}},
+ {v:13,d:"2026-09-25T02:00",trig:"Scheduled",a:1279,c:14811,m:423,fp:"7b33e5c6a9",ch:{aa:["bronze.web_events_raw"],ar:[],ac:[{a:"bronze.web_events",add:[],rem:[],rt:[],key:[],part:["Partitioned by EVENT_DATE (was unpartitioned)"]},{a:"INT.ORDERS",add:[],rem:["LEGACY_FLAG"],rt:[],key:[],part:[]}],mp:[["removed","INT.ORDERS.LEGACY_FLAG","CASE WHEN ... END"]]}},
+ {v:14,d:"2026-09-26T09:46",trig:"Scheduled",a:1284,c:14902,m:425,fp:"e8f2019bd4",ch:{aa:["gold.orders_daily"],ar:[],ac:[{a:"INT.NATION",add:[],rem:[],rt:[["NATION_ID","number","varchar(3)"]],key:[],part:[]}],mp:[["added","gold.orders_daily.ORDER_COUNT","COUNT(DISTINCT o.ORDERKEY)"]]}}
 ];
+VERSIONS.forEach((x,i)=>{x.dt=new Date(x.d);x.audit=1034+i*4});
+const MCMON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const mcFmt=x=>`${x.dt.getDate()} ${MCMON[x.dt.getMonth()]} ${x.dt.getFullYear()}, ${String(x.dt.getHours()).padStart(2,"0")}:${String(x.dt.getMinutes()).padStart(2,"0")}`;
+const MC_DAYS={"1w":7,"1m":30,"3m":91};
+const mcN=x=>x.ch?x.ch.aa.length+x.ch.ar.length+x.ch.ac.length+x.ch.mp.length:0;
+const MC_CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chev" style="width:18px;height:18px"><path d="m6 9 6 6 6-6"/></svg>';
+function mcPreset(p){const to=VERSIONS[VERSIONS.length-1];const lim=new Date(to.dt.getTime()-MC_DAYS[p]*864e5);let f=[...VERSIONS].reverse().find(x=>x.dt<=lim)||VERSIONS[0];if(f===to)f=VERSIONS[VERSIONS.length-2];return{from:f.v,to:to.v}}
 let pendingChange=false;
 function diffBetween(f,t){const vs=VERSIONS.filter(x=>x.v>f&&x.v<=t&&x.ch);const d={aa:[],ar:[],ac:{},mp:[]};
   vs.forEach(x=>{d.aa.push(...x.ch.aa);d.ar.push(...x.ch.ar);d.mp.push(...x.ch.mp.map(m=>[...m,x.v]));x.ch.ac.forEach(c=>{const o=d.ac[c.a]||(d.ac[c.a]={add:[],rem:[],rt:[],key:[],part:[]});["add","rem","rt","key","part"].forEach(k=>o[k].push(...c[k]))})});return d}
 function renderChanges(){
-  const last=VERSIONS[VERSIONS.length-1].v;if(state.vto==null)state.vto=last;if(state.vfrom==null)state.vfrom=Math.max(1,last-3);
+  if(state.vpreset===undefined)state.vpreset="1w";
+  if(state.vfrom==null||state.vto==null){const r=mcPreset(state.vpreset||"1w");state.vfrom=r.from;state.vto=r.to}
   if(state.vfrom>=state.vto)state.vfrom=state.vto-1;
-  const d=diffBetween(state.vfrom,state.vto),acs=Object.entries(d.ac),rt=acs.reduce((a,[,o])=>a+o.rt.length,0);
-  const opt=(sel)=>VERSIONS.map(x=>`<option value="${x.v}" ${sel===x.v?"selected":""}>v${x.v} · ${x.t}</option>`).join("");
+  const fv=VERSIONS.find(x=>x.v===state.vfrom),tv=VERSIONS.find(x=>x.v===state.vto);
+  const d=diffBetween(state.vfrom,state.vto),acs=Object.entries(d.ac);
+  const rt=acs.reduce((a,[,o])=>a+o.rt.length,0),cAdd=acs.reduce((a,[,o])=>a+o.add.length,0),cRem=acs.reduce((a,[,o])=>a+o.rem.length,0);
+  const mAdd=d.mp.filter(m=>m[0]==="added").length,mRem=d.mp.filter(m=>m[0]==="removed").length,mRe=d.mp.length-mAdd-mRem;
+  const days=Math.round((tv.dt-fv.dt)/864e5),nver=VERSIONS.filter(x=>x.v>state.vfrom&&x.v<=state.vto).length;
+  const fopt=[...VERSIONS].reverse().filter(x=>x.v<=state.vto-1&&x.v>=1).map(x=>`<option value="${x.v}" ${state.vfrom===x.v?"selected":""}>v${x.v} · ${mcFmt(x)}</option>`).join("");
+  const topt=[...VERSIONS].reverse().filter(x=>x.v<=VERSIONS.length&&x.v>=2).map(x=>`<option value="${x.v}" ${state.vto===x.v?"selected":""}>v${x.v} · ${mcFmt(x)}</option>`).join("");
+  const tile=(l,v,s)=>`<div class="${v?"":"z"}"><span>${l}</span><b>${v}</b><small>${s}</small></div>`;
+  const rows=[...VERSIONS].reverse();
   $("#view").innerHTML=shell(`
-  <div class="alert info"><span class="ai">${I.hist}</span><div class="grow">A new version is created only when a harvest's fingerprint differs from the last version. <b>${312+VERSIONS.length-8} harvests</b> since v1, <b>${VERSIONS.length} versions</b> created, <b>${304} unchanged harvests</b> skipped. Every version is written to the hash-chained audit log.</div><button class="btn xs" id="audit">View audit evidence</button></div>
-  <section class="panel"><div class="ph"><h3>Version history</h3><div class="actions"><label class="toggle" style="padding:0;font-size:13.5px"><input type="checkbox" class="swi" id="simc" ${pendingChange?"checked":""}><span class="sw"></span>Simulate a source change (add column INT.CUSTOMER.EMAIL_OPT_IN)</label><button class="btn xs" id="refresh">${I.sync}Trigger refresh</button></div></div>
-    <div class="tbl" style="margin-top:10px"><table style="min-width:980px"><thead><tr><th>Version</th><th>Captured</th><th>Trigger</th><th class="r">Assets</th><th class="r">Columns</th><th class="r">Mappings</th><th>Changes</th><th>Fingerprint</th><th>Audit</th></tr></thead><tbody>
-    ${[...VERSIONS].reverse().map((x,i,arr)=>{const n=x.ch?x.ch.aa.length+x.ch.ar.length+x.ch.ac.length+x.ch.mp.length:0;const prev=arr[i+1];return `<tr><td><b style="font-weight:500">v${x.v}</b>${i===0?' <span class="tg">Current</span>':""}</td><td class="nw">${x.t}</td><td><span class="et ${x.trig==="Event-driven"?"sync":""}">${x.trig}</span></td><td class="num r">${x.a.toLocaleString("en-GB")}</td><td class="num r">${x.c.toLocaleString("en-GB")}</td><td class="num r">${x.m}</td><td class="sub2">${x.ch?`${n} change${n===1?"":"s"}`:"Baseline"}</td><td class="mono">sha256:${x.fp}…</td><td class="sub2 nw">#${1030+x.v*4} ${prev?`← #${1030+prev.v*4}`:"(genesis)"}</td></tr>`}).join("")}</tbody></table></div></section>
-  <section class="panel"><div class="ph"><h3>Compare versions</h3><div class="actions"><label class="inl">From <select class="sel" id="vf">${opt(state.vfrom)}</select></label><label class="inl">To <select class="sel" id="vt">${opt(state.vto)}</select></label></div></div>
-    <div class="tiles">${[["Assets added",d.aa.length],["Assets removed",d.ar.length],["Assets changed",acs.length],["Columns retyped",rt],["Mappings changed",d.mp.length]].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join("")}</div>
-    ${d.aa.length||d.ar.length?`<p class="sub2" style="margin:12px 0 0">${d.aa.length?`<b style="font-weight:500">Added:</b> <span class="mono">${d.aa.join(", ")}</span>`:""}${d.aa.length&&d.ar.length?"<br>":""}${d.ar.length?`<b style="font-weight:500">Removed:</b> <span class="mono">${d.ar.join(", ")}</span>`:""}</p>`:""}
+  <div class="mc-bar">
+   <span class="lbl">Compare</span>
+   <select class="sel" id="vf" aria-label="From version">${fopt}</select>
+   <span class="arrow">→</span>
+   <select class="sel" id="vt" aria-label="To version">${topt}</select>
+   <div class="seg2 txt" role="group" aria-label="Quick range">${[["1w","1 week"],["1m","1 month"],["3m","3 months"]].map(([k,l])=>`<button data-preset="${k}" class="${state.vpreset===k?"on":""}">${l}</button>`).join("")}</div>
+   <div class="range"><b>v${state.vfrom} → v${state.vto}</b>${days} days · ${nver} version${nver===1?"":"s"}</div>
+  </div>
+  <div class="tiles mc-tiles">${tile("Assets added",d.aa.length,"since v"+state.vfrom)}${tile("Assets removed",d.ar.length,"since v"+state.vfrom)}${tile("Assets changed",acs.length,"schema or keys")}${tile("Columns retyped",rt,`${cAdd} added · ${cRem} removed`)}${tile("Mappings changed",d.mp.length,`${mAdd} added · ${mRem} removed${mRe?` · ${mRe} re-expressed`:""}`)}</div>
+  <section class="panel"><div class="ph"><h3>What changed</h3><span class="sub2">${(tv.a-fv.a)>=0?"+":""}${(tv.a-fv.a).toLocaleString("en-GB")} assets · ${(tv.c-fv.c)>=0?"+":""}${(tv.c-fv.c).toLocaleString("en-GB")} columns between v${state.vfrom} and v${state.vto}</span></div>
+    ${d.aa.length||d.ar.length?`<p class="mc-added">${d.aa.length?`<b>Added:</b> <span class="mono">${d.aa.join(", ")}</span>`:""}${d.aa.length&&d.ar.length?"<br>":""}${d.ar.length?`<b>Removed:</b> <span class="mono">${d.ar.join(", ")}</span>`:""}</p>`:""}
     <h4 class="h4">Changed assets</h4><div class="tbl" style="margin-top:6px"><table style="min-width:900px"><thead><tr><th>Asset</th><th>Columns added</th><th>Columns removed</th><th>Columns retyped</th><th>Key / partition changes</th></tr></thead><tbody>${acs.length?acs.map(([a,o])=>`<tr><td class="mono">${a}</td><td class="mono">${o.add.join(", ")||"—"}</td><td class="mono">${o.rem.join(", ")||"—"}</td><td class="mono">${o.rt.map(r=>`${r[0]}: ${r[1]} → ${r[2]}`).join("<br>")||"—"}</td><td class="sub2">${[...o.key,...o.part].join("<br>")||"—"}</td></tr>`).join(""):'<tr><td colspan="5" class="sub">No asset changes between these versions.</td></tr>'}</tbody></table></div>
-    <h4 class="h4">Mappings</h4><div class="tbl" style="margin-top:6px"><table style="min-width:800px"><thead><tr><th>Change</th><th>Target</th><th>Transformation</th><th>In version</th></tr></thead><tbody>${d.mp.length?d.mp.map(m=>`<tr><td><span class="et ${m[0]==="removed"?"":m[0]==="added"?"sync":"warning"}">${m[0][0].toUpperCase()+m[0].slice(1)}</span></td><td class="mono">${m[1]}</td><td class="mono">${esc(m[2])}</td><td>v${m[3]}</td></tr>`).join(""):'<tr><td colspan="4" class="sub">No mapping changes between these versions.</td></tr>'}</tbody></table></div></section>`);
+    <h4 class="h4">Mappings</h4><div class="tbl" style="margin-top:6px"><table style="min-width:800px"><thead><tr><th>Change</th><th>Target</th><th>Transformation</th><th>In version</th></tr></thead><tbody>${d.mp.length?d.mp.map(m=>`<tr><td><span class="et ${m[0]==="removed"?"":m[0]==="added"?"sync":"warning"}">${m[0][0].toUpperCase()+m[0].slice(1)}</span></td><td class="mono">${m[1]}</td><td class="mono">${esc(m[2])}</td><td>v${m[3]}</td></tr>`).join(""):'<tr><td colspan="4" class="sub">No mapping changes between these versions.</td></tr>'}</tbody></table></div></section>
+  <section class="panel mc-coll ${state.vopen?"open":""}">
+   <div class="ph" id="mchead" role="button" tabindex="0" aria-expanded="${!!state.vopen}"><div><h3>Version history</h3><p class="mnote">A new version is created only when a harvest's fingerprint differs from the last one. Every version is written to the hash-chained audit log.</p></div><div class="msum">${VERSIONS.length} versions · latest v${VERSIONS.length}, ${mcFmt(VERSIONS[VERSIONS.length-1])}${MC_CHEV}</div></div>
+   ${state.vopen?`<div class="ph" style="margin-top:12px;justify-content:flex-start;gap:12px"><label class="toggle" style="padding:0;font-size:13.5px"><input type="checkbox" class="swi" id="simc" ${pendingChange?"checked":""}><span class="sw"></span>Simulate a source change</label><button class="btn xs" id="refresh">${I.sync}Trigger refresh</button><button class="btn xs" id="audit">View audit evidence</button><span class="sub2" style="margin-left:auto">Click a row to compare up to it</span></div>
+   <div class="tbl mc-scroll" style="margin-top:10px"><table style="min-width:980px"><thead><tr><th>Version</th><th>Captured</th><th>Trigger</th><th class="r">Assets</th><th class="r">Columns</th><th class="r">Mappings</th><th>Changes</th><th>Fingerprint</th><th>Audit</th></tr></thead><tbody>
+   ${rows.map((x,i)=>{const n=mcN(x);const inr=x.v>=state.vfrom&&x.v<=state.vto;const edge=x.v==state.vfrom||x.v==state.vto;return `<tr class="mcrow ${inr?"inr":""} ${edge?"edge":""}" data-v="${x.v}"><td><b style="font-weight:500">v${x.v}</b>${i==0?' <span class="tg">Current</span>':""}${x.v==state.vfrom?' <span class="tg">From</span>':""}${x.v==state.vto&&i!=0?' <span class="tg">To</span>':""}</td><td class="nw">${mcFmt(x)}</td><td><span class="et ${x.trig=="Event-driven"?"sync":""}">${x.trig}</span></td><td class="num r">${x.a.toLocaleString("en-GB")}</td><td class="num r">${x.c.toLocaleString("en-GB")}</td><td class="num r">${x.m}</td><td class="sub2">${x.ch?`${n} change${n==1?"":"s"}`:"Baseline"}</td><td class="mono">sha256:${x.fp}…</td><td class="mono sub2">#${x.audit}${x.v>1?` ← #${x.audit-4}`:" (genesis)"}</td></tr>`}).join("")}
+   </tbody></table></div>`:""}
+  </section>`);
   wireShell();
-  $("#vf").onchange=e=>{state.vfrom=+e.target.value;render()};$("#vt").onchange=e=>{state.vto=+e.target.value;render()};
-  $("#simc").onchange=e=>{pendingChange=e.target.checked};
-  $("#audit").onclick=()=>toast("Opens Dashboard → Audit evidence: each version's entry holds its fingerprint and the previous entry's hash");
-  $("#refresh").onclick=()=>{const L=VERSIONS[VERSIONS.length-1];addHarvest("Manual",pendingChange?["Rplus_DWH"]:[],pendingChange?"1 change":"No change");
-    if(!pendingChange){toast("Harvest complete. Fingerprint unchanged, so no new version was created.");return}
-    const nv={v:L.v+1,t:"26 Sep 2026, "+new Date().toTimeString().slice(0,5),trig:"Manual",a:L.a,c:L.c+1,m:L.m,fp:Math.random().toString(16).slice(2,12),ch:{aa:[],ar:[],ac:[{a:"INT.CUSTOMER",add:["EMAIL_OPT_IN"],rem:[],rt:[],key:[],part:[]}],mp:[]}};
-    VERSIONS.push(nv);pendingChange=false;state.vto=nv.v;state.vfrom=L.v;render();toast(`Fingerprint changed. v${nv.v} created and written to the audit log.`)};
+  $("#vf").onchange=e=>{state.vfrom=+e.target.value;state.vpreset=null;render()};
+  $("#vt").onchange=e=>{state.vto=+e.target.value;if(state.vfrom>=state.vto)state.vfrom=state.vto-1;state.vpreset=null;render()};
+  document.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>{const r=mcPreset(b.dataset.preset);state.vpreset=b.dataset.preset;state.vfrom=r.from;state.vto=r.to;render()});
+  const mh=$("#mchead");if(mh){mh.onclick=()=>{state.vopen=!state.vopen;render()};mh.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();state.vopen=!state.vopen;render()}}}
+  if(state.vopen){
+    document.querySelectorAll("tr.mcrow").forEach(tr=>tr.onclick=()=>{const v=+tr.dataset.v;if(v===1){state.vfrom=1;state.vto=2}else{state.vto=v;if(state.vfrom>=v)state.vfrom=v-1}state.vpreset=null;render()});
+    const sc=$("#simc");if(sc)sc.onchange=e=>{pendingChange=e.target.checked};
+    const au=$("#audit");if(au)au.onclick=()=>toast("Opens Dashboard → Audit evidence: each version holds its fingerprint and the previous entry's hash");
+    const rf=$("#refresh");if(rf)rf.onclick=()=>{const L=VERSIONS[VERSIONS.length-1];addHarvest("Manual",pendingChange?["Rplus_DWH"]:[],pendingChange?"1 change":"No change");
+      if(!pendingChange){toast("Harvest complete. Fingerprint unchanged, so no new version was created.");return}
+      const now=new Date(L.dt.getTime()+36e5*5);const nv={v:L.v+1,d:"",dt:now,trig:"Manual",a:L.a,c:L.c+1,m:L.m,fp:Math.random().toString(16).slice(2,12),audit:L.audit+4,ch:{aa:[],ar:[],ac:[{a:"INT.CUSTOMER",add:["EMAIL_OPT_IN"],rem:[],rt:[],key:[],part:[]}],mp:[]}};
+      VERSIONS.push(nv);pendingChange=false;const r=mcPreset(state.vpreset||"1w");state.vfrom=r.from;state.vto=r.to;render();toast(`Fingerprint changed. v${nv.v} created and written to the audit log.`)};
+  }
 }
 /* ---------- Recent ingestion activity + event trigger (CON-02, CON-03, TMM-07) ---------- */
 let HARVESTS=[

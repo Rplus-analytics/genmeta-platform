@@ -1,0 +1,21 @@
+/* Metadata change history for Data assets > Metadata changes and the Data sources
+   > Metadata changes tab. Copied from docs/metadata-changes-v1.html (the V array):
+   14 versions, v1 (3 Jul 2026) → v14 (26 Sep 2026); latest estate = 1,284 tables /
+   14,902 columns. A new version is created only when a harvest's fingerprint differs
+   from the last one; each carries its change details (ch) for the diff view. */
+export const VERSIONS = [
+  { v: 1, d: '2026-07-03T02:00', trig: 'Scheduled', a: 1092, c: 12410, m: 361, fp: '1d7a0c44e2', ch: null },
+  { v: 2, d: '2026-07-10T02:00', trig: 'Scheduled', a: 1104, c: 12560, m: 366, fp: '6be2f09a13', ch: { aa: ['SRC.SUPPLIER', 'SRC.PARTSUPP'], ar: [], ac: [], mp: [['added', 'STG.SUPPLIER_SUMMARY.TOTAL_COST', 'SUM(ps.SUPPLYCOST)']] } },
+  { v: 3, d: '2026-07-24T14:12', trig: 'Event-driven', a: 1118, c: 12744, m: 371, fp: 'c03d8e71fa', ch: { aa: ['raw/orders_2026_07.parquet'], ar: [], ac: [{ a: 'SRC.CUSTOMER', add: ['EMAIL'], rem: [], rt: [], key: [], part: [] }], mp: [] } },
+  { v: 4, d: '2026-08-07T02:00', trig: 'Scheduled', a: 1131, c: 12950, m: 379, fp: '8f41b2d06c', ch: { aa: ['BI.Fulfilment Live'], ar: ['dbo.ORDERS_OLD'], ac: [], mp: [['added', 'BI.Fulfilment Live.LATE_ORDERS', 'COUNT(*) WHERE SHIPDATE > COMMITDATE']] } },
+  { v: 5, d: '2026-08-21T10:40', trig: 'Manual', a: 1152, c: 13312, m: 386, fp: 'e5a90c3b7d', ch: { aa: ['SQL_OPS.CASE_SLA'], ar: [], ac: [{ a: 'SQL_OPS.CASES', add: [], rem: [], rt: [['OPENED_AT', 'date', 'timestamp']], key: [], part: [] }], mp: [] } },
+  { v: 6, d: '2026-09-04T02:00', trig: 'Scheduled', a: 1178, c: 13701, m: 395, fp: '2b6f1e98c0', ch: { aa: ['STREAMING.order-events'], ar: [], ac: [{ a: 'INT.ORDERS', add: ['ORDER_STATUS'], rem: [], rt: [], key: [], part: [] }], mp: [['added', 'INT.ORDERS.ORDER_STATUS', 'SRC.ORDERS.ORDERSTATUS']] } },
+  { v: 7, d: '2026-09-12T02:00', trig: 'Scheduled', a: 1201, c: 13980, m: 402, fp: '9c1e44a0b7', ch: { aa: ['S3_ENR.CUSTOMER_SUMMARY'], ar: [], ac: [], mp: [] } },
+  { v: 8, d: '2026-09-15T09:14', trig: 'Event-driven', a: 1219, c: 14150, m: 410, fp: '3fa81c02de', ch: { aa: ['STG.CUSTOMER_ORDER_LIVE_RPLUS'], ar: [], ac: [{ a: 'SRC.ORDERS', add: ['ORDER_CHANNEL'], rem: [], rt: [], key: [], part: [] }], mp: [['added', 'STG.CUSTOMER_ORDER_LIVE_RPLUS.TOTAL', 'SUM(l.EXTENDEDPRICE)']] } },
+  { v: 9, d: '2026-09-18T02:00', trig: 'Scheduled', a: 1236, c: 14311, m: 414, fp: 'b27d905e1f', ch: { aa: ['gold.customer_360'], ar: ['dbo.PAYMENT_TMP'], ac: [], mp: [['added', 'gold.customer_360.LIFETIME_VALUE', 'SUM(o.TOTALPRICE)']] } },
+  { v: 10, d: '2026-09-20T14:30', trig: 'Manual', a: 1240, c: 14360, m: 414, fp: 'd0e6a1733c', ch: { aa: [], ar: [], ac: [{ a: 'SRC.ORDERS', add: [], rem: [], rt: [['TOTAL_PRICE', 'number(12,2)', 'number(18,2)']], key: [], part: [] }], mp: [] } },
+  { v: 11, d: '2026-09-22T02:00', trig: 'Scheduled', a: 1251, c: 14502, m: 418, fp: '5e9b2f8810', ch: { aa: ['cleansed/customers_v2.parquet'], ar: [], ac: [{ a: 'INT.LINEITEM', add: [], rem: [], rt: [], key: ['Primary key declared: (ORDERKEY, LINENUMBER)'], part: [] }], mp: [['re-expressed', 'INT.LINEITEM.NET_PRICE', 'EXTENDEDPRICE*(1-DISCOUNT) → ROUND(EXTENDEDPRICE*(1-DISCOUNT),2)']] } },
+  { v: 12, d: '2026-09-24T11:02', trig: 'Event-driven', a: 1266, c: 14630, m: 421, fp: 'a41c7d09e2', ch: { aa: ['ml_features.churn_inputs'], ar: ['dbo.CASE_NOTES_TMP'], ac: [{ a: 'INT.CUSTOMER', add: ['SEGMENT'], rem: [], rt: [], key: [], part: [] }], mp: [['added', 'INT.CUSTOMER.SEGMENT', 'SRC.CUSTOMER.MKTSEGMENT']] } },
+  { v: 13, d: '2026-09-25T02:00', trig: 'Scheduled', a: 1279, c: 14811, m: 423, fp: '7b33e5c6a9', ch: { aa: ['bronze.web_events_raw'], ar: [], ac: [{ a: 'bronze.web_events', add: [], rem: [], rt: [], key: [], part: ['Partitioned by EVENT_DATE (was unpartitioned)'] }, { a: 'INT.ORDERS', add: [], rem: ['LEGACY_FLAG'], rt: [], key: [], part: [] }], mp: [['removed', 'INT.ORDERS.LEGACY_FLAG', 'CASE WHEN ... END']] } },
+  { v: 14, d: '2026-09-26T09:46', trig: 'Scheduled', a: 1284, c: 14902, m: 425, fp: 'e8f2019bd4', ch: { aa: ['gold.orders_daily'], ar: [], ac: [{ a: 'INT.NATION', add: [], rem: [], rt: [['NATION_ID', 'number', 'varchar(3)']], key: [], part: [] }], mp: [['added', 'gold.orders_daily.ORDER_COUNT', 'COUNT(DISTINCT o.ORDERKEY)']] } },
+];
