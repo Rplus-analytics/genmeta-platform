@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   CRIT, SENS, PRINC, CHECK, D, score, sclass, ini, ainfo, downstream, typGlyph,
 } from '../../data/products.js';
+import { Box, Megaphone } from 'lucide-react';
 import {
-  useProducts, paths, Svg, DomainIcon, Person, Crumbs, crumbDomainParts, EntityHead, LineageGraph, requestAccessModal, quarantinedAssets,
+  useProducts, paths, Svg, DomainIcon, Person, EntityHead, LineageGraph, requestAccessModal, quarantinedAssets,
 } from './shared.jsx';
+import { Tabs, Button } from '../../components/ui.jsx';
 import { I, gaugeHTML, ringIconHTML } from './icons.js';
 
-const TABS = [['overview', 'Overview'], ['assets', 'Assets'], ['lineage', 'Lineage'], ['activity', 'Activity'], ['contracts', 'Contracts']];
+const TABS = [{ value: 'overview', label: 'Overview' }, { value: 'assets', label: 'Assets' }, { value: 'lineage', label: 'Lineage' }, { value: 'activity', label: 'Activity' }, { value: 'contracts', label: 'Contracts' }];
 
 export default function Product() {
   const { id } = useParams();
@@ -17,29 +19,28 @@ export default function Product() {
   const p = store.PR(id);
   const [tab, setTab] = useState('overview');
 
-  if (!p) return <div className="dp"><Crumbs parts={[]} /><div className="pad"><div className="acardbox empty">Product not found.</div></div></div>;
+  if (!p) return <div className="page dp"><div className="dash-card">Product not found.</div></div>;
   const d = D(p.domain), s = score(p);
 
   return (
-    <div className="dp">
-      <Crumbs parts={[...crumbDomainParts(d.id, nav), <b className="crb"><Svg html={I.boxS} /> {p.name}</b>]} />
-      <EntityHead cover={`linear-gradient(115deg, ${d.color} 0%, #4D8CFF 55%, #A9D3FF 100%)`} icon={I.boxW} iconBg="#0E2A57"
-        title={p.name} tick={p.cert === 'Verified'} kind={<><Svg html={I.boxS} /> PRODUCT in <span className="tlink" onClick={() => nav(paths.domain(d.id))}>{d.name}</span></>}
-        edited="2 months ago" people={[p.owner, ...p.experts]} status={p.status} id={p.id} isProduct
+    <div className="page fade-in dp">
+      <EntityHead icon={Box} title={p.name} tick={p.cert === 'Verified'}
+        kind={<>Product in <span className="gl-tlink" onClick={() => nav(paths.domain(d.id))}>{d.name}</span></>}
+        status={p.status} id={p.id} isProduct
         onAddProduct={() => nav(paths.create, { state: { prefill: { domain: d.id } } })} />
       {p.status === 'draft' && (() => {
         const q = quarantinedAssets(p);
         return (
-          <div className="banner">
-            <Svg html={I.boxS} />
+          <div className="dp-banner">
+            <Box size={16} strokeWidth={1.7} />
             <span><b>Draft.</b> Only owners can see this product.{q.length > 0 && <> Publishing is blocked because <code className="mono">{q[0]}</code> is quarantined by Data quality.</>}</span>
-            <button className="btn primary sm" disabled={q.length > 0} title={q.length > 0 ? `${q[0]} is quarantined` : undefined} onClick={() => store.setStatus(p.id, 'published')}>Publish</button>
+            <Button variant="primary" size="sm" disabled={q.length > 0} title={q.length > 0 ? `${q[0]} is quarantined` : undefined} onClick={() => store.setStatus(p.id, 'published')}>Publish</Button>
           </div>
         );
       })()}
-      {p.announce && <div className="annc"><Svg html={I.mega} /><span><b>Announcement.</b> {p.announce}</span></div>}
-      <div className="atabs">{TABS.map(([k, l]) => <button key={k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
-      <div className="pad">
+      {p.announce && <div className="dp-banner dp-banner-warn"><Megaphone size={16} strokeWidth={1.7} /><span><b>Announcement.</b> {p.announce}</span></div>}
+      <Tabs items={TABS} value={tab} onChange={setTab} />
+      <div className="dp-tabbody">
         {tab === 'overview' && <ProdOverview p={p} d={d} s={s} />}
         {tab === 'assets' && <ProdAssets p={p} />}
         {tab === 'lineage' && <LineageGraph ids={[p.id]} />}

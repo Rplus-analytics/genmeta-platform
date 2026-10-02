@@ -1,0 +1,381 @@
+{
+ "source": "dev.genmeta.rplusanalytics.co.uk > Data Sources > Metadata changes, captured 2 Oct 2026",
+ "versions": [
+  {
+   "version": "v39",
+   "captured": "2026-10-01T22:33:00",
+   "trigger": "scheduled",
+   "assets": 215,
+   "columns": 3485,
+   "mappings": 962,
+   "fingerprint": "a4b8d86b7ee7"
+  },
+  {
+   "version": "v38",
+   "captured": "2026-10-01T19:09:00",
+   "trigger": "scheduled",
+   "assets": 215,
+   "columns": 3485,
+   "mappings": 947,
+   "fingerprint": "a0988a44210b"
+  },
+  {
+   "version": "v37",
+   "captured": "2026-10-01T13:16:00",
+   "trigger": "scheduled",
+   "assets": 215,
+   "columns": 3480,
+   "mappings": 947,
+   "fingerprint": "adcb03048535"
+  },
+  {
+   "version": "v36",
+   "captured": "2026-10-01T12:58:00",
+   "trigger": "scheduled",
+   "assets": 215,
+   "columns": 3480,
+   "mappings": 947,
+   "fingerprint": "e3980e421220"
+  },
+  {
+   "version": "v35",
+   "captured": "2026-10-01T10:24:00",
+   "trigger": "source-added:Rplus Data Lake (ADLS)",
+   "assets": 215,
+   "columns": 3480,
+   "mappings": 947,
+   "fingerprint": "518fc653c45c"
+  },
+  {
+   "version": "v34",
+   "captured": "2026-09-30T18:30:00",
+   "trigger": "scheduled",
+   "assets": 202,
+   "columns": 3386,
+   "mappings": 916,
+   "fingerprint": "f4e0e5d41036"
+  },
+  {
+   "version": "v33",
+   "captured": "2026-09-30T02:01:00",
+   "trigger": "scheduled",
+   "assets": 339,
+   "columns": 6176,
+   "mappings": 2115,
+   "fingerprint": "65c84d8a8629"
+  },
+  {
+   "version": "v32",
+   "captured": "2026-09-29T23:00:00",
+   "trigger": "scheduled",
+   "assets": 339,
+   "columns": 6176,
+   "mappings": 2115,
+   "fingerprint": "4ad9fc7e911b"
+  },
+  {
+   "version": "v31",
+   "captured": "2026-09-29T21:06:00",
+   "trigger": "scheduled",
+   "assets": 339,
+   "columns": 6176,
+   "mappings": 2115,
+   "fingerprint": "9b243a4dd418"
+  },
+  {
+   "version": "v30",
+   "captured": "2026-09-29T21:00:00",
+   "trigger": "source-added:TestDB",
+   "assets": 339,
+   "columns": 6176,
+   "mappings": 244,
+   "fingerprint": "a67007fadb52"
+  },
+  {
+   "version": "v29",
+   "captured": "2026-09-29T20:42:00",
+   "trigger": "source-added:Rplus_Databricks",
+   "assets": 202,
+   "columns": 3386,
+   "mappings": 164,
+   "fingerprint": "582cd8b11854"
+  },
+  {
+   "version": "v28",
+   "captured": "2026-09-29T20:21:00",
+   "trigger": "scheduled",
+   "assets": 187,
+   "columns": 3110,
+   "mappings": 233,
+   "fingerprint": "24ee0c6cb547"
+  },
+  {
+   "version": "v27",
+   "captured": "2026-09-29T20:09:00",
+   "trigger": "scheduled",
+   "assets": 187,
+   "columns": 3110,
+   "mappings": 153,
+   "fingerprint": "11703e598342"
+  },
+  {
+   "version": "v26",
+   "captured": "2026-09-29T19:53:00",
+   "trigger": "scheduled",
+   "assets": 187,
+   "columns": 3110,
+   "mappings": 153,
+   "fingerprint": "9b32985f55cf"
+  },
+  {
+   "version": "v25",
+   "captured": "2026-09-29T13:33:00",
+   "trigger": "source-added:Rplus Databricks",
+   "assets": 185,
+   "columns": 3059,
+   "mappings": 153,
+   "fingerprint": "6020754100d4"
+  },
+  {
+   "version": "v24",
+   "captured": "2026-09-22T12:06:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v23",
+   "captured": "2026-09-22T11:37:00",
+   "trigger": "source-added:Rplus Databricks",
+   "assets": 202,
+   "columns": 3386,
+   "mappings": 153,
+   "fingerprint": "6c0c871d36d9"
+  },
+  {
+   "version": "v22",
+   "captured": "2026-09-22T11:21:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v21",
+   "captured": "2026-09-22T10:53:00",
+   "trigger": "source-added:Rplus Databricks",
+   "assets": 202,
+   "columns": 3386,
+   "mappings": 153,
+   "fingerprint": "6c0c871d36d9"
+  },
+  {
+   "version": "v20",
+   "captured": "2026-09-21T20:01:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v19",
+   "captured": "2026-09-21T18:25:00",
+   "trigger": "source-added:Rplus Databricks",
+   "assets": 202,
+   "columns": 3386,
+   "mappings": 153,
+   "fingerprint": "6c0c871d36d9"
+  },
+  {
+   "version": "v18",
+   "captured": "2026-09-21T17:41:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v17",
+   "captured": "2026-09-21T14:35:00",
+   "trigger": "scheduled",
+   "assets": 202,
+   "columns": 3386,
+   "mappings": 153,
+   "fingerprint": "6c0c871d36d9"
+  },
+  {
+   "version": "v16",
+   "captured": "2026-09-21T13:56:00",
+   "trigger": "scheduled",
+   "assets": 181,
+   "columns": 2745,
+   "mappings": 153,
+   "fingerprint": "4bc7406dcec8"
+  },
+  {
+   "version": "v15",
+   "captured": "2026-09-21T13:44:00",
+   "trigger": "source-added:Rplus Databricks",
+   "assets": 143,
+   "columns": 1359,
+   "mappings": 153,
+   "fingerprint": "f4e3052c3ffa"
+  },
+  {
+   "version": "v14",
+   "captured": "2026-09-21T13:34:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v13",
+   "captured": "2026-09-21T13:12:00",
+   "trigger": "scheduled",
+   "assets": 175,
+   "columns": 2709,
+   "mappings": 153,
+   "fingerprint": "a80045aff9d4"
+  },
+  {
+   "version": "v12",
+   "captured": "2026-09-21T13:00:00",
+   "trigger": "scheduled",
+   "assets": 175,
+   "columns": 377,
+   "mappings": 153,
+   "fingerprint": "c472139cc7a7"
+  },
+  {
+   "version": "v11",
+   "captured": "2026-09-21T12:55:00",
+   "trigger": "source-added:Databricks_DWH",
+   "assets": 143,
+   "columns": 377,
+   "mappings": 153,
+   "fingerprint": "2853e81e2b0b"
+  },
+  {
+   "version": "v10",
+   "captured": "2026-09-18T18:52:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v9",
+   "captured": "2026-09-18T18:49:00",
+   "trigger": "source-added:ZZ Test RNAcentral",
+   "assets": 250,
+   "columns": 2097,
+   "mappings": 153,
+   "fingerprint": "2e1255f3cc30"
+  },
+  {
+   "version": "v8",
+   "captured": "2026-09-18T12:04:00",
+   "trigger": "disconnect-test: schema dropped",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v7",
+   "captured": "2026-09-18T12:01:00",
+   "trigger": "disconnect-test: schema added",
+   "assets": 51,
+   "columns": 322,
+   "mappings": 153,
+   "fingerprint": "62410cec4b2c"
+  },
+  {
+   "version": "v6",
+   "captured": "2026-09-18T10:27:00",
+   "trigger": "compliance-test",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v5",
+   "captured": "2026-09-18T10:25:00",
+   "trigger": "source-added:RNAcentral Public",
+   "assets": 250,
+   "columns": 2097,
+   "mappings": 153,
+   "fingerprint": "f05d1e003dfc"
+  },
+  {
+   "version": "v4",
+   "captured": "2026-09-18T10:23:00",
+   "trigger": "scheduled",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v3",
+   "captured": "2026-09-18T10:19:00",
+   "trigger": "source-added:RNAcentral Public",
+   "assets": 51,
+   "columns": 322,
+   "mappings": 153,
+   "fingerprint": "ab6b2ab6e757"
+  },
+  {
+   "version": "v2",
+   "captured": "2026-09-18T10:19:00",
+   "trigger": "source-added:Petstore API",
+   "assets": 50,
+   "columns": 320,
+   "mappings": 153,
+   "fingerprint": "36a5d7c0f3ed"
+  },
+  {
+   "version": "v1",
+   "captured": "2026-09-18T09:41:00",
+   "trigger": "scheduled",
+   "assets": 31,
+   "columns": 233,
+   "mappings": 153,
+   "fingerprint": "8a2aef282e4d"
+  }
+ ],
+ "exampleDiff": {
+  "from": "v38",
+  "to": "v39",
+  "assetsAdded": 0,
+  "assetsRemoved": 0,
+  "assetsChanged": 0,
+  "columnsRetyped": 0,
+  "columnsAdded": 0,
+  "columnsRemoved": 0,
+  "mappingsAdded": 15,
+  "mappingsRemoved": 0,
+  "unchangedAssets": 215,
+  "mappings": [
+   "BI.CUSTOMER 360 DASHBOARD.ACCOUNT_BALANCE <- INT.CUSTOMER.ACCOUNT_BALANCE",
+   "BI.CUSTOMER 360 DASHBOARD.CUSTOMER_ID <- INT.CUSTOMER.CUSTOMER_ID",
+   "BI.CUSTOMER 360 DASHBOARD.CUSTOMER_ID <- S3_ENR.CUSTOMER_ORDERS.CUSTOMER_ID",
+   "BI.CUSTOMER 360 DASHBOARD.CUSTOMER_NAME <- INT.CUSTOMER.CUSTOMER_NAME",
+   "BI.CUSTOMER 360 DASHBOARD.CUSTOMER_NAME <- S3_ENR.CUSTOMER_ORDERS.CUSTOMER_NAME",
+   "BI.CUSTOMER 360 DASHBOARD.CUSTOMER_SEGMENT <- S3_ENR.CUSTOMER_ORDERS.CUSTOMER_SEGMENT",
+   "BI.CUSTOMER CHURN ANALYSIS.CUSTOMER_ID <- S3_ENR.CUSTOMER_SUMMARY.CUSTOMER_ID",
+   "BI.ORDER REVENUE REPORT.ORDER_ID <- PRL.ORDER_MASTER.ORDER_ID",
+   "BI.ORDER REVENUE REPORT.ORDER_ID <- STG.ORDER_ITEM_SUMMARY.ORDER_ID",
+   "BI.ORDER REVENUE REPORT.ORDER_MONTH <- PRL.ORDER_MASTER.ORDER_MONTH"
+  ]
+ }
+}

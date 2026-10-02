@@ -979,26 +979,47 @@
   .dq-inc-grid { grid-template-columns: 1fr; }
 }
 
-/* Data quality sub-tabs nested under "Data quality" in the inner menu */
-/* parent: when a sub-item is active, no fill — keep the bold label, royal icon */
-.admin-link.dq-parent { background: transparent; color: var(--navy); font-weight: 600; box-shadow: none; }
-.admin-link.dq-parent svg { color: var(--royal); }
+/* ===== Data assets > Metadata changes — layout-only helpers (no copied CSS; app
+   classes do the styling: .page/.page-head/.tiles-sm/.dash-card/.block-head/.table-wrap/
+   .tbl/.select/.seg2/.badge/.tag/.mono). ===== */
+/* compare bar: one line, every control 32px (--h-md), 12px gaps, vertically centred */
+.mc-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 16px; }
+.mc-bar .select, .mc-bar .seg2 { height: var(--h-md); min-height: var(--h-md); flex: none; box-sizing: border-box; margin: 0; align-self: center; }
+.mc-bar .seg2 button { height: 100%; }
+.mc-lbl { font-size: 13px; color: var(--muted); }
+.mc-arrow { color: var(--faint); }
+.mc-range { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.mc-range b { color: var(--navy); font-weight: 600; font-size: 12px; background: var(--ice); border-radius: 6px; padding: 3px 8px; }
+.mc-added { margin: 0 0 4px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.mc-added b { font-weight: 600; color: var(--navy); }
+.mc .table-wrap { overflow-x: auto; }
+.mc .dash-card .tbl td, .mc .dash-card .tbl th { padding-left: 0; padding-right: 16px; }
+.mc .badge.neutral { background: var(--ice); color: var(--muted); }
+.mc .badge.neutral i { background: var(--faint); }
+/* version history: title + summary/chevron on one line, note under; scroll with sticky head */
+.mc-hist:not(.open) { padding: 16px 20px; }
+.mc-histhead { width: 100%; text-align: left; background: none; border: 0; cursor: pointer; margin-bottom: 0; align-items: center; flex-wrap: nowrap; gap: 16px; }
+.mc-hist:not(.open) .mc-histhead { margin-bottom: 0; }
+.mc-histhead > div:first-child { flex: 1; min-width: 0; }
+.mc-histhead .block-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-hist.open .mc-histhead { margin-bottom: 14px; }
+.mc-histhead:hover h2 { color: var(--royal); }
+.mc-hsum { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.mc-chev { color: var(--faint); transition: transform .15s; flex: none; }
+.mc-hist.open .mc-chev { transform: rotate(180deg); }
+.mc-histctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.mc-sim { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--navy); }
+.mc-sim input { accent-color: var(--royal); }
+.mc-ctlnote { margin-left: auto; font-size: 12.5px; }
+.mc-scroll { max-height: 480px; overflow: auto; }
+.mc-vtable thead th { position: sticky; top: 0; background: var(--white); box-shadow: inset 0 -1px 0 var(--line); z-index: 1; }
+.mc-vtable tbody tr { cursor: pointer; }
+.mc-vtable tbody tr:hover td { background: var(--mist); }
+.mc-toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 60; box-shadow: var(--shadow-1); }
 
-/* chevron toggle on the right of "Data quality" */
-.dq-qrow { position: relative; }
-.dq-chev { position: absolute; top: 0; right: 12px; height: 32px; width: 20px; display: grid; place-items: center; border: 0; background: none; color: var(--faint); cursor: pointer; transition: transform .15s, color .15s; }
-.dq-chev:hover { color: var(--navy); }
-.dq-chev.open { transform: rotate(0deg); }
-.dq-chev:not(.open) { transform: rotate(-90deg); }
-
-/* nested sub-list with a 1px guide line under the centre of the Data quality icon */
-.dq-submenu { position: relative; margin: 4px 0; }
-.dq-submenu::before { content: ''; position: absolute; left: 24px; top: 0; bottom: 0; width: 1px; background: var(--line); }
-
-/* sub-items: small and tidy; text sits 8px right of the guide line (guide 24px → text 32px) */
-.admin-subitem { height: 28px; line-height: 28px; padding-left: 24px; font-size: 12.5px; font-weight: 500; color: var(--muted); position: relative; }
-.admin-subitem span { color: inherit; }
-.admin-subitem:hover { background: var(--mist); color: var(--navy); }
-/* active: no full-width fill — navy bold text plus a 2px royal bar on the guide line */
-.admin-subitem.on { background: none; color: var(--navy); font-weight: 600; }
-.admin-subitem.on::before { content: ''; position: absolute; left: 15px; top: 3px; bottom: 3px; width: 2px; border-radius: 2px; background: var(--royal); }
+/* Data quality > Overview: "Needs attention" dash-card (match sibling, h2 15px, table flush) */
+.dq-two .dash-card { margin-bottom: 0; }
+.dq-attn .block-head { align-items: center; margin-bottom: 16px; }
+.dq-attn .block-head h2 { font-size: 15px; }
+.dq-attn .table-wrap { padding: 0; }
+.dq-attn .tbl th, .dq-attn .tbl td { padding-left: 0; }
