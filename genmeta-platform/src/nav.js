@@ -25,6 +25,14 @@ export const NAV = [
   { to: '/app/admin', label: 'Admin', group: 'Admin', icon: 'ShieldCheck' },
 ];
 
+/* Inner menu for the Governance section (Govern › Governance). */
+export const GOVERNANCE_NAV = [
+  { to: '', label: 'Governance overview', icon: 'Landmark' },
+  { to: 'policies', label: 'Policies', icon: 'ShieldCheck' },
+  { to: 'dpia', label: 'DPIA', icon: 'ScrollText' },
+  { to: 'access', label: 'Access', icon: 'KeyRound' },
+];
+
 /* Left-hand rail inside Admin. `section` starts a labelled sub-group. */
 export const ADMIN_NAV = [
   { to: '', label: 'Overview', icon: 'LayoutDashboard' },
@@ -50,6 +58,7 @@ export const ADMIN_CRUMBS = {
   'sso/configure': 'SSO configure', 'sso/mapping': 'SSO group mapping',
 };
 NAV.find((n) => n.to === '/app/admin').crumbs = ADMIN_CRUMBS;
+NAV.find((n) => n.to === '/app/governance').crumbs = { policies: 'Policies', dpia: 'DPIA', access: 'Access' };
 
 /* Is this path part of the Data assets section? */
 export const isDataAssets = (pathname) => DATA_ASSETS_NAV.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));

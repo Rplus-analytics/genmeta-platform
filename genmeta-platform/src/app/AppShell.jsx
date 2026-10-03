@@ -142,7 +142,7 @@ export default function AppShell() {
             <Route path="metadata-changes" element={<DataAssets />} />
             <Route path="graph/*" element={<KnowledgeGraph />} />
             <Route path="ask" element={<AskGenMeta />} />
-            <Route path="governance" element={<Governance />} />
+            <Route path="governance/*" element={<Governance />} />
             <Route path="classification" element={<Classification />} />
             <Route path="products/*" element={<DataProducts />} />
             <Route path="stewardship" element={<Stewardship />} />
