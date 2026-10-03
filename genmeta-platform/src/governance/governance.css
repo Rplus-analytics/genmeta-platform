@@ -76,7 +76,7 @@
 .gv-menu-item:hover { background: var(--mist); color: var(--navy); }
 
 /* drawers */
-.gv-drawer.wide { width: 620px; }
+.gv-drawer.wide { width: 760px; }
 .gv-drawer .tabs { margin: -6px 0 14px; border-bottom: 1px solid var(--line); }
 .gv-section-label { font-size: 12px; font-weight: 600; color: var(--muted); margin: 16px 0 8px; }
 .gv-modal { width: 560px; top: 20%; max-height: 80vh; overflow: auto; }
@@ -171,3 +171,38 @@
 .gv .seg2 button { text-transform: none; }
 .gv .gl-fld select.select { width: 100%; }
 .gv > .tabs { overflow-x: auto; scrollbar-width: none; }
+/* v2 */
+.gv-jump { display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer; transition: border-color .15s; }
+.gv-jump:hover { border-color: var(--royal); }
+.gv-jump b { font-size: 17px; font-weight: 600; color: var(--navy); }
+.gv-jump small { font-size: 12.5px; color: var(--muted); }
+.gv-jump .gl-tlink { margin-top: 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--royal); }
+.gv-region b { font-size: 22px; font-weight: 600; color: var(--navy); font-variant-numeric: tabular-nums; }
+.gv-region small { font-size: 12.5px; color: var(--muted); }
+.gv-region .tag { white-space: normal; height: auto; min-height: 20px; padding: 2px 8px; }
+/* DPIA guided path */
+.gv-path { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.gv-path button { display: flex; align-items: flex-start; gap: 10px; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--white); transition: border-color .15s; }
+.gv-path button:hover { border-color: var(--royal); }
+.gv-path button.on { border-color: var(--royal); background: var(--ice); }
+.gv-path i { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11.5px; font-weight: 600; border: 1.5px solid var(--line2); color: var(--muted); }
+.gv-path .done i { background: var(--royal); border-color: var(--royal); color: var(--white); }
+.gv-path b { display: block; font-size: 13px; color: var(--navy); font-weight: 600; }
+.gv-path small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+@media (max-width: 1100px) { .gv-path { grid-template-columns: 1fr 1fr; } }
+/* risk heatmap */
+.gv-heat { border-collapse: separate; border-spacing: 4px; margin: 0 auto; }
+.gv-heat th { font-size: 12px; font-weight: 500; color: var(--muted); text-align: right; padding-right: 8px; }
+.gv-heat th.x { text-align: center; padding: 4px 0 0; }
+.gv-heat td { width: 92px; height: 56px; border-radius: var(--r-ctl); text-align: center; font-size: 18px; font-weight: 600; color: var(--navy); }
+.gv-heat td.lv-low { background: var(--mist); border: 1px solid var(--line); }
+.gv-heat td.lv-medium { background: var(--ice); }
+.gv-heat td.lv-high { background: var(--navy); color: var(--white); }
+.gv-bars > div.click:hover span { color: var(--royal); }
+/* access decision trace */
+.gv-trace { list-style: none; margin: 8px 0 0; padding: 0; }
+.gv-trace li { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.gv-trace li:first-child { border-top: 0; }
+.gv-trace i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11.5px; font-weight: 600; background: var(--ice); color: var(--navy); }
+.gv-trace b { display: block; font-size: 13px; color: var(--navy); }
+.gv-trace small { display: block; font-size: 12.5px; color: var(--muted); }

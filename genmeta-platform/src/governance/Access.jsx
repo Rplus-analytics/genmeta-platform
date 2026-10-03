@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { Send, KeyRound, ShieldQuestion, RefreshCw, Plus } from 'lucide-react';
-import { PageHead, Tabs, Button } from '../components/ui.jsx';
+import { Send, KeyRound, ShieldQuestion, RefreshCw, Plus, Check, X, HelpCircle } from 'lucide-react';
+import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import { Switch } from '../pages/admin/kit.jsx';
 import {
-  ASSET_NAMES, PERMISSIONS, ROLES, APPROVERS, ACCESS_POLICIES, SOD, ACCESS_RULES, DIRECTORY, PLATFORMS, PD_MAP, sensitivityOf, ownerOf,
+  REVIEW_ITEMS, recommend, ASSET_NAMES, PERMISSIONS, ROLES, APPROVERS, ACCESS_POLICIES, SOD, ACCESS_RULES, DIRECTORY, PLATFORMS, PD_MAP, sensitivityOf, ownerOf,
 } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, ChipPick, toast } from './kit.jsx';
 
-const TABS = ['Requests & grants', 'Roles & people', 'Permissions by level', 'Separation of duties', 'Access rules', 'Directory & identity', 'Platform consistency']
-  .map((label, i) => ({ value: ['requests', 'roles', 'scopes', 'sod', 'rules', 'directory', 'platforms'][i], label }));
+const TABS = ['Requests & grants', 'Access reviews', 'Roles & people', 'Permissions by level', 'Separation of duties', 'Access rules', 'Directory & identity', 'Platform consistency']
+  .map((label, i) => ({ value: ['requests', 'reviews', 'roles', 'scopes', 'sod', 'rules', 'directory', 'platforms'][i], label }));
 const ME = 'Admin';
 const AssetSelect = ({ value, onChange }) => <select className="select" value={value} onChange={onChange}><option value="">Choose…</option>{ASSET_NAMES.map((a) => <option key={a}>{a}</option>)}</select>;
 const clearanceOf = (roleKey) => ROLES.find((r) => r.key === roleKey)?.clearance || 'L1';
@@ -21,7 +21,9 @@ export default function Access() {
   const [scopes, setScopes] = useState([]);
   const [sod, setSod] = useState(SOD.map((s) => ({ ...s, on: true })));
   const [synced, setSynced] = useState(null);
-  const top = tab === 'requests'
+  const top = tab === 'reviews'
+    ? [{ l: 'Reviews open', v: 1, s: 'quarterly · Restricted data' }, { l: 'Grants to review', v: REVIEW_ITEMS.length, s: 'reviewed by each asset\'s owner' }, { l: 'Recommended to revoke', v: REVIEW_ITEMS.filter((r) => recommend(r)[0] === 'Revoke').length, s: 'not used in 30 days' }]
+    : tab === 'requests'
     ? [{ l: 'Requests pending', v: requests.filter((r) => r.status === 'pending').length, s: 'routed to owners and stewards' }, { l: 'Active grants', v: grants.filter((g) => g.status === 'active').length, s: 'each with an expiry' }, { l: 'Access policies', v: ACCESS_POLICIES.length, s: 'one per sensitivity level' }]
     : [{ l: 'Roles', v: ROLES.length, s: '0 defined here' }, { l: 'Role assignments', v: assign.length, s: `${synced ? assign.length : 0} from the directory` }, { l: 'Scopes', v: scopes.length, s: `${new Set(scopes.map((s) => s.level)).size} level(s) in use` }, { l: 'Identities synchronised', v: synced ? 7 : 0, s: synced ? `last ${synced}` : 'not yet synchronised' }];
   return (
@@ -31,6 +33,7 @@ export default function Access() {
       <Tabs items={TABS} value={tab} onChange={setTab} />
       <Tiles items={top} />
       {tab === 'requests' && <Requests requests={requests} setRequests={setRequests} grants={grants} setGrants={setGrants} />}
+      {tab === 'reviews' && <Reviews />}
       {tab === 'roles' && <Roles assign={assign} setAssign={setAssign} sod={sod} />}
       {tab === 'scopes' && <Scopes scopes={scopes} setScopes={setScopes} />}
       {tab === 'sod' && <Sod sod={sod} setSod={setSod} assign={assign} />}
@@ -63,17 +66,25 @@ function Requests({ requests, setRequests, grants, setGrants }) {
     setRequests((all) => all.map((x, k) => (k === i ? { ...x, status } : x)));
     if (status === 'approved') setGrants((g) => [...g, { asset: r.asset, person: r.by, by: r.approvers, expires: `${r.days} days`, status: 'active' }]);
   };
+  /* Atlan-style evaluation: every source is checked in order and any deny wins. */
   const check = () => {
     const sens = sensitivityOf(chk.asset);
-    const cls = PD_MAP.find((x) => x.asset === chk.asset) ? ['PII', 'FINANCIAL'] : [];
-    const cl = clearanceOf(chk.role);
-    const granted = grants.some((g) => g.asset === chk.asset && g.person === (chk.person || ME) && g.status === 'active');
+    const pii = PD_MAP.find((x) => x.asset === chk.asset);
+    const role = ROLES.find((r) => r.key === chk.role);
+    const cl = role.clearance;
+    const who = chk.person || ME;
+    const granted = grants.some((g) => g.asset === chk.asset && g.person === who && g.status === 'active');
     const p = policyFor(chk.asset);
-    const out = [];
-    if (cls.length && cl < 'L2') out.push(['mask', 'Personal and financial detail is masked below L2 (rule-pii-mask)']);
-    if (sens === 'Restricted' && !granted && p.mask) out.push(['mask', `Restricted data without a grant — sensitive detail masked (${p.s} policy)`]);
-    if (sens === 'Restricted') out.push(['mask', 'Restricted data needs a stated purpose (rule-purpose)']);
-    setResult({ effect: out.length ? 'mask' : 'allow', sens, cl, granted, reasons: out.length ? out : [['allow', 'No rule restricts this view']] });
+    const steps = [
+      ['Role and clearance', `${role.name} · clearance ${cl} · may ${role.may.includes('read_sensitive') ? 'read sensitive detail' : 'read metadata'}`, 'allow'],
+      ['Access policy', `${p.s}: approved by ${p.ap.toLowerCase()}, up to ${p.days} days${p.mask ? ', sensitive detail masked without a grant' : ''}`, sens === 'Restricted' && !granted && p.mask && !role.may.includes('read_sensitive') ? 'mask' : 'allow'],
+      ['Grants', granted ? `${who} holds an active grant` : `${who} holds no grant on this asset`, granted ? 'allow' : sens === 'Public' || sens === 'Internal' ? 'allow' : 'mask'],
+      ['rule-pii-mask', pii ? (cl < 'L2' ? 'Personal and financial columns, clearance below L2' : 'clearance L2 or above — not applied') : 'no personal data — not applied', pii && cl < 'L2' ? 'mask' : 'allow'],
+      ['rule-purpose', sens === 'Restricted' ? 'Restricted data needs a stated purpose (none given in this check)' : 'not Restricted — not applied', sens === 'Restricted' ? 'mask' : 'allow'],
+      ['rule-offshore', 'request from the United Kingdom — not applied', 'allow'],
+    ];
+    const effect = steps.some((x) => x[2] === 'deny') ? 'deny' : steps.some((x) => x[2] === 'mask') ? 'mask' : 'allow';
+    setResult({ effect, sens, cl, granted, steps });
   };
   return (
     <>
@@ -141,7 +152,8 @@ function Requests({ requests, setRequests, grants, setGrants }) {
         {result && (
           <div className="gv-result">
             <header><StatusBadge s={result.effect === 'allow' ? 'allow' : 'warn'}>{result.effect === 'allow' ? 'Allowed' : 'Allowed, masked'}</StatusBadge><b>{chk.asset}</b><span className="gv-faint">{result.sens} · clearance {result.cl} · {result.granted ? 'has a grant' : 'no grant'}</span></header>
-            <ul className="gv-lines">{result.reasons.map(([e, t], i) => <li key={i}><span className="tag">{e}</span> {t}</li>)}</ul>
+            <ol className="gv-trace">{result.steps.map(([k, t, e], i) => <li key={k}><i>{i + 1}</i><div><b>{k}</b><small>{t}</small></div><StatusBadge s={e === 'allow' ? 'allow' : e === 'deny' ? 'deny' : 'warn'}>{e}</StatusBadge></li>)}</ol>
+            <Note>Every source is evaluated and any deny wins; a mask from any step hides the sensitive columns.</Note>
           </div>
         )}
       </Card>
@@ -150,6 +162,12 @@ function Requests({ requests, setRequests, grants, setGrants }) {
 }
 
 /* ------------------------------------------------------------------ roles & people */
+const sees = (r, s) => {
+  if (s === 'Public' || s === 'Internal') return ['Full', 'ok'];
+  if (s === 'Confidential') return r.clearance >= 'L2' ? ['Full', 'ok'] : ['Masked', 'warn'];
+  if (r.may.includes('read_sensitive')) return ['Full', 'ok'];
+  return r.clearance >= 'L2' ? ['Request', 'warn'] : ['Masked · request', 'fail'];
+};
 function Roles({ assign, setAssign, sod }) {
   const [f, setF] = useState({ person: '', role: ROLES[0].key });
   const add = () => {
@@ -160,6 +178,16 @@ function Roles({ assign, setAssign, sod }) {
   };
   return (
     <>
+      <Card title="Who can see what" sub="Each role's clearance decides what it sees at every sensitivity level before any grant. Like a persona: one row, one view of the estate.">
+        <div className="table-wrap"><table className="tbl">
+          <thead><tr><th>Role</th><th>Clearance</th>{['Public', 'Internal', 'Confidential', 'Restricted'].map((s) => <th key={s}>{s}</th>)}</tr></thead>
+          <tbody>{ROLES.map((r) => (
+            <tr key={r.key}><td className="gv-strong">{r.name}</td><td><span className="tag">{r.clearance}</span></td>
+              {['Public', 'Internal', 'Confidential', 'Restricted'].map((s) => { const [v, tone] = sees(r, s); return <td key={s}><StatusBadge s={tone}>{v}</StatusBadge></td>; })}</tr>
+          ))}</tbody>
+        </table></div>
+        <Note>Full: columns and profiles shown. Masked: PII and FINANCIAL columns hidden. Request: visible in the catalogue, detail needs a grant from the owner.</Note>
+      </Card>
       <Card title="Roles">
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Role</th><th>Clearance</th><th>May do</th><th>Held by</th></tr></thead>
@@ -296,5 +324,50 @@ function Platforms() {
       </table></div>
       <Note>Where a platform cannot report its grants, it says so and why — the register is never presented as confirmed when it has not been checked.</Note>
     </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ access reviews
+   v2: Microsoft Entra access reviews — a recurring campaign, the owner decides keep or revoke for each
+   grant, with a recommendation from last use; results are applied in one step. */
+function Reviews() {
+  const [dec, setDec] = useState({});
+  const [applied, setApplied] = useState(false);
+  const [f, setF] = useState('all');
+  const done = Object.keys(dec).length;
+  const rows = REVIEW_ITEMS.filter((r) => f === 'all' || (f === 'pending' ? !dec[r.id] : dec[r.id]));
+  const acceptAll = () => setDec(Object.fromEntries(REVIEW_ITEMS.map((r) => [r.id, recommend(r)[0] === 'Keep' ? 'Approve' : 'Deny'])));
+  const DEC_TONE = { Approve: 'ok', Deny: 'fail', "Don't know": 'warn' };
+  return (
+    <>
+      <Card title="Quarterly review — Restricted data, Q4 2026" sub="Started 1 Oct 2026 · ends 31 Oct 2026 · reviewers: each asset's owner · repeats every 3 months · if a reviewer does not respond: keep access and flag it"
+        actions={<>
+          <Button variant="secondary" size="md" onClick={acceptAll} disabled={applied}>Accept recommendations</Button>
+          <Button variant="primary" size="md" disabled={!done || applied} onClick={() => { setApplied(true); toast(`Applied: ${Object.values(dec).filter((d) => d === 'Deny').length} grant(s) revoked, written to the audit trail`); }}>Apply results</Button>
+        </>}>
+        <div className="gv-bars" style={{ marginBottom: 6 }}><div><span>{done} of {REVIEW_ITEMS.length} reviewed</span><i><em style={{ width: `${(done / REVIEW_ITEMS.length) * 100}%` }} /></i><b>{Math.round((done / REVIEW_ITEMS.length) * 100)}%</b></div></div>
+        {applied && <Note>Results applied on {new Date().toLocaleDateString('en-GB')}. Revoked grants are removed from the platforms that publish their grants (Rplus_DWH); the others get the statement to run.</Note>}
+      </Card>
+      <Card title="Grants to review" count={rows.length} actions={<Segmented size="sm" value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'pending', label: 'Not reviewed' }, { value: 'done', label: 'Reviewed' }]} />}>
+        <div className="table-wrap"><table className="tbl">
+          <thead><tr><th>Person</th><th>Asset</th><th>Granted</th><th>Last used</th><th>Recommendation</th><th>Decision</th></tr></thead>
+          <tbody>{rows.map((r) => { const [rec, why] = recommend(r); return (
+            <tr key={r.id}>
+              <td><span className="gv-strong">{r.person}</span><span className="gv-sub">{r.role} · {r.why}</span></td>
+              <td><Mono>{r.asset}</Mono><span className="gv-sub">{r.sens} · owner {ownerOf(r.asset) || '—'}</span></td>
+              <td>{r.granted}</td><td>{r.lastUsed}</td>
+              <td><StatusBadge s={rec === 'Keep' ? 'ok' : 'fail'}>{rec}</StatusBadge><span className="gv-sub">{why}</span></td>
+              <td style={{ whiteSpace: 'nowrap' }}>{dec[r.id] ? <><StatusBadge s={DEC_TONE[dec[r.id]]}>{dec[r.id]}</StatusBadge> {!applied && <Button variant="link" onClick={() => setDec((d) => { const n = { ...d }; delete n[r.id]; return n; })}>Change</Button>}</> : (
+                <span className="gv-actions">
+                  <Button variant="secondary" size="sm" icon={Check} onClick={() => setDec((d) => ({ ...d, [r.id]: 'Approve' }))}>Approve</Button>
+                  <Button variant="secondary" size="sm" icon={X} onClick={() => setDec((d) => ({ ...d, [r.id]: 'Deny' }))}>Deny</Button>
+                  <Button variant="subtle" size="sm" icon={HelpCircle} onClick={() => setDec((d) => ({ ...d, [r.id]: "Don't know" }))}>Don't know</Button>
+                </span>
+              )}</td>
+            </tr>
+          ); })}</tbody>
+        </table></div>
+      </Card>
+    </>
   );
 }

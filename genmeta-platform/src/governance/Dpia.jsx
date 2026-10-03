@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Download, Play, Copy } from 'lucide-react';
-import { PageHead, Tabs, Button } from '../components/ui.jsx';
+import { Download, Play, Copy, Plus } from 'lucide-react';
+import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
   ORG, PD_MAP, colKind, DPIA_TILES, DOMAIN_SYSTEMS, ROPA_DOMAINS, LAWFUL_BASES, SPECIAL_CONDITIONS, SECURITY_DEFAULT,
   HANDLING_RULES, ownerOf, UNUSED, SCREEN_INDICATORS, ICO_TEMPLATE, SYSTEMS, AUDIT,
+  LIKELIHOOD, SEVERITY, riskLevel, EFFECTS, SUGGESTED_RISKS,
 } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, KV, downloadCsv, toast } from './kit.jsx';
 
@@ -34,45 +35,97 @@ export default function Dpia() {
   const accepted = records.filter((r) => r.status === 'accepted');
   const drafts = records.filter((r) => r.status === 'draft');
   const tiles = DPIA_TILES.map((t) => (t.l === 'Accepted records of processing' ? { ...t, v: accepted.length, s: `${drafts.length} draft` }
-    : t.l === 'Assessments required' ? { ...t, v: assessments.filter((a) => a.stage !== 'Approved').length, s: `${accepted.length} activities screened` } : t));
+    : t.l === 'Assessments required' ? { ...t, v: assessments.filter((a) => a.stage !== 'Approved').length, s: `${records.length} activities screened` } : t));
+  /* OneTrust-style guided path: each step shows progress and opens its tab */
+  const failing = HANDLING_RULES.reduce((n, r) => n + r.fail.length, 0);
+  const path = [
+    ['map', 'Find personal data', `${PD_MAP.length} of ${PD_MAP.length} assets mapped`, true],
+    ['ropa', 'Record the processing', `${accepted.length} of ${records.length} records accepted`, accepted.length === records.length],
+    ['rules', 'Fix the handling rules', `${150 - failing} of 150 checks passing`, failing === 0],
+    ['assess', 'Assess the high-risk activities', `${assessments.length} assessment(s) started`, assessments.length > 0 && assessments.every((a) => a.stage === 'Approved')],
+    ['pack', 'Produce the accountability pack', 'ready when the steps above are done', false],
+  ];
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="DPIA & GDPR"
         sub="Where personal data is identified, processed, stored and shared; the records of processing and the basis for each; the rules that govern personal data, monitored; and the impact assessments behind them." />
+      <div className="gv-path" role="list" aria-label="Path to accountability">
+        {path.map(([k, t, s, done], i) => (
+          <button key={k} type="button" role="listitem" className={`${done ? 'done' : ''} ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
+            <i>{done ? '✓' : i + 1}</i><span><b>{t}</b><small>{s}</small></span>
+          </button>
+        ))}
+      </div>
       <Tabs items={TABS} value={tab} onChange={setTab} />
       {tab !== 'assess' && tab !== 'templates' && tab !== 'pack' && <Tiles items={tiles} />}
       {tab === 'map' && <PersonalDataMap />}
       {tab === 'ropa' && <Ropa records={records} setRecords={setRecords} />}
       {tab === 'lawful' && <Lawful accepted={accepted} />}
       {tab === 'rules' && <HandlingRules />}
-      {tab === 'assess' && <Assessments accepted={accepted} list={assessments} setList={setAssessments} />}
+      {tab === 'assess' && <Assessments records={records} list={assessments} setList={setAssessments} />}
       {tab === 'templates' && <Templates />}
       {tab === 'pack' && <Pack records={records} assessments={assessments} />}
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ personal data map */
+/* ------------------------------------------------------------------ personal data map
+   v2: OneTrust data map — filter by system, domain and region, and see where personal data
+   concentrates before opening an asset. */
 function PersonalDataMap() {
   const [sel, setSel] = useState(null);
+  const [f, setF] = useState({ system: 'all', domain: 'all', region: 'all' });
   const r = sel && PD_MAP.find((x) => x.asset === sel);
   const comesFrom = (a) => PD_MAP.filter((x) => x.shared.includes(a)).map((x) => x.asset);
+  const rows = PD_MAP.filter((x) => (f.system === 'all' || x.system === f.system) && (f.domain === 'all' || x.domain === f.domain) && (f.region === 'all' || x.region === f.region));
+  const bySystem = [...SYSTEMS].sort().map((s) => [s, PD_MAP.filter((x) => x.system === s)]);
+  const maxCols = Math.max(...bySystem.map(([, l]) => l.reduce((n, x) => n + x.cols.length, 0)));
+  const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }));
   return (
-    <Card title="Personal data map" count={PD_MAP.length}
-      sub={`Built from the classifier, lineage, data products, models, the ownership register and access grants — 25 of 37 catalogued assets hold personal data (${piiCols} PII, ${finCols} FINANCIAL columns) across ${[...SYSTEMS].sort().join(', ')}.`}>
-      <div className="table-wrap">
-        <table className="tbl">
-          <thead><tr><th>Asset</th><th>Personal data</th><th>Shared with</th><th>Owner / steward</th><th>Retention</th><th>Region</th></tr></thead>
-          <tbody>{PD_MAP.map((x) => (
-            <tr key={x.asset} className={`click ${sel === x.asset ? 'on' : ''}`} onClick={() => setSel(x.asset)}>
-              <td><Mono>{x.asset}</Mono><span className="gv-sub">{x.system} · {x.sensitivity}</span></td>
-              <td><div className="gv-tags">{x.cols.map((c) => <span key={c} className="tag mono">{c}</span>)}</div></td>
-              <td>{x.shared.join(', ') || '—'}</td><td>{x.owner}</td><td className="gv-muted">none</td><td>{x.region}</td>
-            </tr>
-          ))}</tbody>
-        </table>
+    <>
+      <div className="gv-two">
+        <Card title="Where personal data sits" sub="Personal-data columns per system. Click a system to filter the map.">
+          <div className="gv-bars">
+            {bySystem.map(([s, l]) => { const n = l.reduce((a, x) => a + x.cols.length, 0); return (
+              <div key={s} className="click" onClick={() => setF((o) => ({ ...o, system: o.system === s ? 'all' : s }))} style={{ cursor: 'pointer', fontWeight: f.system === s ? 600 : 400 }}>
+                <span>{s}</span><i><em style={{ width: `${(n / maxCols) * 100}%` }} /></i><b>{n}</b>
+              </div>
+            ); })}
+          </div>
+        </Card>
+        <Card title="What kind of personal data" sub="From the classifier — names and contact details (PII) and money values linked to a person (FINANCIAL).">
+          <div className="gv-health-n" style={{ marginBottom: 12 }}>
+            <div><b>{piiCols}</b><span>PII columns</span></div>
+            <div><b>{finCols}</b><span>FINANCIAL columns</span></div>
+            <div><b>{PD_MAP.filter((x) => x.region === 'not recorded').length}</b><span>assets, region unknown</span></div>
+          </div>
+          <Note>No special-category data has been found. Nothing is held under a retention requirement yet.</Note>
+        </Card>
       </div>
-      <Note>Select an asset to see where its personal data comes from and goes.</Note>
+      <Card title="Personal data map" count={rows.length}
+        sub={`Built from the classifier, lineage, data products, models, the ownership register and access grants — 25 of 37 catalogued assets hold personal data (${piiCols} PII, ${finCols} FINANCIAL columns) across ${[...SYSTEMS].sort().join(', ')}.`}
+        actions={<>
+          <select className="select" value={f.system} onChange={set('system')} aria-label="System"><option value="all">All systems</option>{[...SYSTEMS].sort().map((s) => <option key={s}>{s}</option>)}</select>
+          <select className="select" value={f.domain} onChange={set('domain')} aria-label="Domain"><option value="all">All domains</option>{ROPA_DOMAINS.map((s) => <option key={s}>{s}</option>)}</select>
+          <select className="select" value={f.region} onChange={set('region')} aria-label="Region"><option value="all">Any region</option><option>eu-west-2 (London)</option><option>not recorded</option></select>
+        </>}>
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Asset</th><th>Personal data</th><th>Shared with</th><th>Owner / steward</th><th>Retention</th><th>Region</th></tr></thead>
+            <tbody>{rows.map((x) => (
+              <tr key={x.asset} className={`click ${sel === x.asset ? 'on' : ''}`} onClick={() => setSel(x.asset)}>
+                <td><Mono>{x.asset}</Mono><span className="gv-sub">{x.system} · {x.sensitivity} · {x.domain}</span></td>
+                <td><div className="gv-tags">{x.cols.map((c) => <span key={c} className="tag mono">{c}</span>)}</div></td>
+                <td>{x.shared.join(', ') || '—'}</td><td>{x.owner}</td><td className="gv-muted">none</td>
+                <td>{x.region === 'not recorded' ? <StatusBadge s="warn">not recorded</StatusBadge> : x.region}</td>
+              </tr>
+            ))}
+            {!rows.length && <tr><td colSpan={6}><Empty>No assets match these filters.</Empty></td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <Note>Select an asset to see where its personal data comes from and goes.</Note>
+      </Card>
       {r && (
         <Drawer title={r.asset} onClose={() => setSel(null)}>
           <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 14px' }}>{r.system} · {r.sensitivity}</p>
@@ -88,7 +141,7 @@ function PersonalDataMap() {
           <KV rows={[['Data products', '—'], ['Models', '—'], ['Access', '0 active grant(s)'], ['Retention', 'no retention requirement applies'], ['Held in', r.region], ['Owner / steward', r.owner]]} />
         </Drawer>
       )}
-    </Card>
+    </>
   );
 }
 
@@ -233,55 +286,149 @@ function HandlingRules() {
   );
 }
 
-/* ------------------------------------------------------------------ assessments */
-function Assessments({ accepted, list, setList }) {
+/* ------------------------------------------------------------------ assessments
+   v2: ICO DPIA template as a real workspace (likelihood × severity → overall risk, measures with
+   effect, residual risk and approval) and a OneTrust-style inherent vs residual heatmap. */
+const residual = (r) => {
+  if (r.effect === 'Eliminated') return ['Remote', 'Minimal'];
+  if (r.effect === 'Reduced') return [LIKELIHOOD[Math.max(0, LIKELIHOOD.indexOf(r.l) - 1)], r.s];
+  return [r.l, r.s];
+};
+const LEVEL_TONE = { High: 'fail', Medium: 'warn', Low: 'ok' };
+function Heatmap({ risks, mode }) {
+  const cell = (l, s) => risks.filter((r) => { const [a, b] = mode === 'residual' ? residual(r) : [r.l, r.s]; return a === l && b === s; }).length;
+  return (
+    <table className="gv-heat">
+      <tbody>
+        {[...LIKELIHOOD].reverse().map((l) => (
+          <tr key={l}><th>{l}</th>{SEVERITY.map((s) => { const n = cell(l, s); const lv = riskLevel(l, s); return <td key={s} className={`lv-${lv.toLowerCase()}`} title={`${l} × ${s}: ${lv}`}>{n || ''}</td>; })}</tr>
+        ))}
+        <tr><th />{SEVERITY.map((s) => <th key={s} className="x">{s}</th>)}</tr>
+      </tbody>
+    </table>
+  );
+}
+function Assessments({ records, list, setList }) {
   const [ind, setInd] = useState({});
+  const [open, setOpen] = useState(null);
+  const [mode, setMode] = useState('inherent');
   const ticked = SCREEN_INDICATORS.filter((i) => ind[i]);
-  const verdict = (r) => (r.special !== 'not_applicable' || ticked.length >= 2 ? ['DPIA required', `${ticked.length} indicator(s)${r.special !== 'not_applicable' ? ' · special category data' : ''}`] : ticked.length === 1 ? ['Consider a DPIA', ticked[0]] : ['Not required', 'no high-risk indicators']);
-  const start = (r) => { setList((l) => [...l, { id: r.id, name: `DPIA — ${r.activity}`, stage: 'Completion', template: 'ICO standard DPIA v1', risks: 0, assignees: 'assessor' }]); toast('Assessment started from the ICO template'); };
-  const covered = new Set(accepted.flatMap((r) => r.assets));
-  const notIn = PD_ASSETS.filter((a) => !covered.has(a));
+  const auto = (r) => [r.assets.length >= 10 && 'Large-scale processing of personal data', PD_MAP.filter((x) => r.assets.includes(x.asset)).some((x) => x.shared.length) && 'Datasets combined or matched'].filter(Boolean);
+  const verdict = (r) => { const n = new Set([...auto(r), ...ticked]).size; return r.special !== 'not_applicable' || n >= 2 ? ['DPIA required', n] : n === 1 ? ['Consider a DPIA', n] : ['Not required', 0]; };
+  const start = (r) => {
+    const a = { id: r.id, name: `DPIA — ${r.activity}`, domain: r.id, stage: 'Completion', template: 'ICO standard DPIA v1', assignees: 'assessor',
+      risks: (SUGGESTED_RISKS[r.id] || []).map(([t, l, s, m]) => ({ t, l, s, measure: m, effect: 'Reduced', approved: false })),
+      need: `${r.purpose} Screening found: ${[...new Set([...auto(r), ...ticked])].join(', ') || 'no high-risk indicators'}.`, dpo: '', acceptedBy: '', ico: 'No' };
+    setList((l) => [...l, a]); setOpen(a.id); toast('Assessment started from the ICO template, pre-filled from GenMeta\'s metadata');
+  };
+  const allRisks = list.flatMap((a) => a.risks);
+  const cur = list.find((a) => a.id === open);
+  const update = (id, patch) => setList((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   return (
     <>
       <Tiles items={[
-        { l: 'DPIA required, not started', v: accepted.filter((r) => verdict(r)[0] === 'DPIA required' && !list.some((a) => a.id === r.id)).length, s: 'from sensitivity, processing and risk indicators' },
+        { l: 'DPIA required, not started', v: records.filter((r) => verdict(r)[0] === 'DPIA required' && !list.some((a) => a.id === r.id)).length, s: 'from sensitivity, processing and risk indicators' },
         { l: 'In progress', v: list.filter((a) => a.stage !== 'Approved').length, s: 'completion, review or approval' },
         { l: 'Approved', v: list.filter((a) => a.stage === 'Approved').length, s: '0 overdue review(s)' },
-        { l: 'Risks recorded', v: 0, s: '0 high residual' },
+        { l: 'Risks recorded', v: allRisks.length, s: `${allRisks.filter((r) => riskLevel(...residual(r)) === 'High').length} high residual` },
       ]} />
-      <Card title="When a DPIA may be needed" sub="Screened automatically for each record of processing from data sensitivity, the kind of processing and risk indicators GenMeta can see. Tick anything it cannot see before starting, and it is added to the assessment.">
-        <div className="gv-checks" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))' }}>
-          {SCREEN_INDICATORS.map((i) => <label key={i}><input type="checkbox" checked={!!ind[i]} onChange={(e) => setInd((o) => ({ ...o, [i]: e.target.checked }))} />{i}</label>)}
-        </div>
+      <div className="gv-two wide-l">
+        <Card title="When a DPIA may be needed" sub="Screened automatically for each activity from data sensitivity, the kind of processing and risk indicators GenMeta can see. Tick anything it cannot see; it is added to the assessment.">
+          <div className="gv-checks" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))' }}>
+            {SCREEN_INDICATORS.map((i) => <label key={i}><input type="checkbox" checked={!!ind[i]} onChange={(e) => setInd((o) => ({ ...o, [i]: e.target.checked }))} />{i}</label>)}
+          </div>
+          <div className="table-wrap">
+            <table className="tbl">
+              <thead><tr><th>Activity</th><th>Record</th><th>Verdict</th><th>Why</th><th /></tr></thead>
+              <tbody>{records.map((r) => { const [v] = verdict(r); const a = list.find((x) => x.id === r.id); const why = [...new Set([...auto(r), ...ticked])]; return (
+                <tr key={r.id}><td className="gv-strong">{r.activity}</td><td><StatusBadge s={r.status === 'accepted' ? 'accepted' : 'warn'}>{r.status}</StatusBadge></td>
+                  <td><StatusBadge s={v === 'Not required' ? 'ok' : v === 'DPIA required' ? 'fail' : 'warn'}>{v}</StatusBadge></td>
+                  <td className="gv-muted">{why.join(', ') || 'no high-risk indicators'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{a ? <Button variant="secondary" size="sm" onClick={() => setOpen(a.id)}>Open</Button> : v !== 'Not required' && <Button variant="secondary" size="sm" onClick={() => start(r)}>Start assessment</Button>}</td></tr>
+              ); })}</tbody>
+            </table>
+          </div>
+        </Card>
+        <Card title="Risk heatmap" sub="Every risk recorded across assessments, by likelihood and severity (ICO scales)."
+          actions={<Segmented size="sm" value={mode} onChange={setMode} options={[{ value: 'inherent', label: 'Inherent' }, { value: 'residual', label: 'Residual' }]} />}>
+          <Heatmap risks={allRisks} mode={mode} />
+          <Note>{allRisks.length ? `${allRisks.length} risk(s). Residual applies each measure's effect: eliminated → low, reduced → one step less likely.` : 'Start an assessment to record risks.'}</Note>
+        </Card>
+      </div>
+      <Card title="Assessments" count={list.length} actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('dpia-register.csv', [['Assessment', 'Stage', 'Template', 'Risks', 'Highest residual', 'Assignees'], ...list.map((a) => [a.name, a.stage, a.template, a.risks.length, highest(a), a.assignees])])}>Export register (CSV)</Button>}>
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>Activity</th><th>Verdict</th><th>Why</th><th>Assessment</th><th /></tr></thead>
-            <tbody>
-              {accepted.map((r) => { const [v, why] = verdict(r); const a = list.find((x) => x.id === r.id); return (
-                <tr key={r.id}><td className="gv-strong">{r.activity}</td><td><StatusBadge s={v === 'Not required' ? 'ok' : v === 'DPIA required' ? 'fail' : 'warn'}>{v}</StatusBadge></td><td className="gv-muted">{why}</td><td>{a ? a.stage : '—'}</td>
-                  <td>{!a && v !== 'Not required' && <Button variant="secondary" size="sm" onClick={() => start(r)}>Start assessment</Button>}</td></tr>
-              ); })}
-              {!accepted.length && <tr><td colSpan={5}><Empty>No accepted records of processing to screen yet.</Empty></td></tr>}
-            </tbody>
-          </table>
-        </div>
-        {notIn.length > 0 && <Note>Personal data not in any record of processing yet: {notIn.join(', ')}</Note>}
-      </Card>
-      <Card title="Assessments" count={list.length} actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('dpia-register.csv', [['Assessment', 'Stage', 'Template', 'Risks', 'Assignees'], ...list.map((a) => [a.name, a.stage, a.template, a.risks, a.assignees])])}>Export register (CSV)</Button>}>
-        <div className="table-wrap">
-          <table className="tbl">
-            <thead><tr><th>Assessment</th><th>Stage</th><th>Template</th><th className="num">Risks</th><th>Assignees</th><th /></tr></thead>
+            <thead><tr><th>Assessment</th><th>Stage</th><th>Template</th><th className="num">Risks</th><th>Highest residual</th><th>Assignees</th><th /></tr></thead>
             <tbody>
               {list.map((a) => (
-                <tr key={a.id}><td className="gv-strong">{a.name}</td><td><StatusBadge s={a.stage === 'Approved' ? 'approved' : 'pending'}>{a.stage}</StatusBadge></td><td>{a.template}</td><td className="num">{a.risks}</td><td>{a.assignees}</td>
-                  <td>{a.stage !== 'Approved' && <Button variant="secondary" size="sm" onClick={() => setList((l) => l.map((x) => (x.id === a.id ? { ...x, stage: x.stage === 'Completion' ? 'DPO review' : 'Approved', assignees: x.stage === 'Completion' ? 'dpo' : 'governance-lead' } : x)))}>{a.stage === 'Completion' ? 'Send to DPO review' : 'Approve'}</Button>}</td></tr>
+                <tr key={a.id} className="click" onClick={() => setOpen(a.id)}><td className="gv-strong">{a.name}</td><td><StatusBadge s={a.stage === 'Approved' ? 'approved' : 'pending'}>{a.stage}</StatusBadge></td><td>{a.template}</td><td className="num">{a.risks.length}</td>
+                  <td>{a.risks.length ? <StatusBadge s={LEVEL_TONE[highest(a)]}>{highest(a)}</StatusBadge> : '—'}</td><td>{a.assignees}</td><td><span className="gl-tlink">Open</span></td></tr>
               ))}
-              {!list.length && <tr><td colSpan={6}><Empty>No assessments yet.</Empty></td></tr>}
+              {!list.length && <tr><td colSpan={7}><Empty>No assessments yet — start one from the screening table above.</Empty></td></tr>}
             </tbody>
           </table>
         </div>
       </Card>
+      {cur && <AssessmentDrawer a={cur} onClose={() => setOpen(null)} onUpdate={(p) => update(cur.id, p)} />}
     </>
+  );
+}
+const highest = (a) => ['High', 'Medium', 'Low'].find((lv) => a.risks.some((r) => riskLevel(...residual(r)) === lv)) || '—';
+const STAGE_NEXT = { Completion: ['Send to DPO review', 'DPO review', 'dpo'], 'DPO review': ['Send for approval', 'Approval', 'governance-lead'], Approval: ['Approve and sign off', 'Approved', '—'] };
+
+function AssessmentDrawer({ a, onClose, onUpdate }) {
+  const [sec, setSec] = useState('risks');
+  const setRisk = (i, patch) => onUpdate({ risks: a.risks.map((r, k) => (k === i ? { ...r, ...patch } : r)) });
+  const next = STAGE_NEXT[a.stage];
+  const stages = ['Completion', 'DPO review', 'Approval', 'Approved'];
+  const blocked = a.stage === 'Approval' && (!a.dpo.trim() || !a.acceptedBy.trim() || a.risks.some((r) => !r.approved));
+  return (
+    <Drawer wide title={a.name} onClose={onClose} footer={<>
+      <Button variant="secondary" size="md" onClick={onClose}>Close</Button>
+      {next && <Button variant="primary" size="md" disabled={blocked} onClick={() => { onUpdate({ stage: next[1], assignees: next[2] }); toast(`${next[0]} — now ${next[1]}`); }}>{next[0]}</Button>}
+    </>}>
+      <div className="gv-steps" style={{ marginBottom: 14 }}>{stages.map((s, i) => <div key={s} className={i < stages.indexOf(a.stage) ? 'done' : s === a.stage ? 'cur' : ''}><i>{i + 1}</i>{s}</div>)}</div>
+      <Tabs items={[{ value: 'need', label: '1–4 Need & processing' }, { value: 'risks', label: `5–6 Risks & measures (${a.risks.length})` }, { value: 'sign', label: '7 Sign off' }]} value={sec} onChange={setSec} />
+      {sec === 'need' && (<>
+        <Fld label="What is the processing and why (pre-filled from the record)"><textarea className="input" rows={4} value={a.need} onChange={(e) => onUpdate({ need: e.target.value })} /></Fld>
+        <KV rows={[['Template', a.template], ['Nature, scope, context', 'pre-filled from the record of processing, lineage and the personal-data map'], ['Consultation', 'DPO, information assurance and the asset owners']]} />
+      </>)}
+      {sec === 'risks' && (<>
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Risk to individuals</th><th>Likelihood</th><th>Severity</th><th>Overall</th></tr></thead>
+            <tbody>{a.risks.map((r, i) => (
+              <tr key={i}><td>{r.t}</td>
+                <td><select className="select" value={r.l} onChange={(e) => setRisk(i, { l: e.target.value })}>{LIKELIHOOD.map((x) => <option key={x}>{x}</option>)}</select></td>
+                <td><select className="select" value={r.s} onChange={(e) => setRisk(i, { s: e.target.value })}>{SEVERITY.map((x) => <option key={x}>{x}</option>)}</select></td>
+                <td><StatusBadge s={LEVEL_TONE[riskLevel(r.l, r.s)]}>{riskLevel(r.l, r.s)}</StatusBadge></td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+        <div className="gv-section-label">Measures to reduce risk</div>
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Measure</th><th>Effect on risk</th><th>Residual</th><th>Approved</th></tr></thead>
+            <tbody>{a.risks.map((r, i) => (
+              <tr key={i}><td><input className="input" value={r.measure} onChange={(e) => setRisk(i, { measure: e.target.value })} /></td>
+                <td><select className="select" value={r.effect} onChange={(e) => setRisk(i, { effect: e.target.value })}>{EFFECTS.map((x) => <option key={x}>{x}</option>)}</select></td>
+                <td><StatusBadge s={LEVEL_TONE[riskLevel(...residual(r))]}>{riskLevel(...residual(r))}</StatusBadge></td>
+                <td><label className="gv-check"><input type="checkbox" checked={r.approved} onChange={(e) => setRisk(i, { approved: e.target.checked })} />yes</label></td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: 10 }}><Button variant="secondary" size="sm" icon={Plus} onClick={() => onUpdate({ risks: [...a.risks, { t: 'New risk', l: 'Possible', s: 'Significant', measure: '', effect: 'Reduced', approved: false }] })}>Add a risk</Button></div>
+      </>)}
+      {sec === 'sign' && (<>
+        <Fld label="DPO advice"><textarea className="input" rows={3} value={a.dpo} onChange={(e) => onUpdate({ dpo: e.target.value })} /></Fld>
+        <div className="gv-form">
+          <Fld label="Residual risk accepted by"><input className="input" value={a.acceptedBy} onChange={(e) => onUpdate({ acceptedBy: e.target.value })} /></Fld>
+          <Fld label="ICO consultation needed"><select className="select" value={a.ico} onChange={(e) => onUpdate({ ico: e.target.value })}><option>No</option><option>Yes</option></select></Fld>
+        </div>
+        <Note>Sign-off needs DPO advice, a named person accepting the residual risk, and every measure approved. Any high residual risk means the ICO must be consulted before processing starts.</Note>
+      </>)}
+      {blocked && <Note>To approve: add DPO advice and who accepts the residual risk, and approve every measure.</Note>}
+    </Drawer>
   );
 }
 

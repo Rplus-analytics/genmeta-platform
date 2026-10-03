@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Landmark, Bot, Scale, ScrollText, Globe2, Play, RefreshCw, ExternalLink, Plus } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Landmark, Bot, Scale, ScrollText, Globe2, Play, RefreshCw, ExternalLink, Plus, ArrowRight } from 'lucide-react';
 import { PageHead, Ring, Tabs, Button, Segmented, Badge } from '../components/ui.jsx';
 import {
-  OVERVIEW_TILES, CONTROLS, TIER_LABEL, TIERS, AUDIT, EXPORTS, fmtTs,
+  OVERVIEW_TILES, CONTROLS, TIER_LABEL, TIERS, AUDIT, EXPORTS, fmtTs, BASE, POLICY_ITEMS,
+  IMPROVEMENT_ACTIONS, ACTION_STATUSES, CONTROL_TYPE, scoreOf,
   MODEL_TILES, DISCOVERY, MODELS, RISK_TIERS,
   EVAL_METRICS, EVAL_CONFUSION, EVAL_CATEGORIES, EVAL_BANDS, EVAL_THRESHOLDS, EVAL_RUNS, REVIEW_ROWS, REVIEW_SOURCE, LABELS, DRIFT_NOTE,
 } from './data.js';
@@ -41,79 +42,173 @@ export default function GovernanceOverview() {
   );
 }
 
-/* ------------------------------------------------------------------ Overview */
+/* ------------------------------------------------------------------ Overview
+   v2 patterns: Microsoft Purview Compliance Manager (points-weighted score, score per framework,
+   improvement actions you can assign, track and evidence) and Collibra (one view across policies,
+   privacy and access, with the gaps to close). */
+const STATUS_TONE = { 'Not started': 'fail', 'In progress': 'warn', Implemented: 'warn', Passed: 'ok' };
+const FRAMEWORKS_SCORED = ['UK GDPR', 'DPA 2018', 'ISO/IEC 27001:2022', 'NCSC CAF', 'HMRC residency'];
+
 function OverviewTab() {
+  const nav = useNavigate();
   const [open, setOpen] = useState(null);
+  const [actions, setActions] = useState(IMPROVEMENT_ACTIONS);
+  const [act, setAct] = useState(null);
+  const [aFilter, setAFilter] = useState('todo');
+  const [cStatus, setCStatus] = useState('all');
+  const [cDomain, setCDomain] = useState('all');
   const pass = CONTROLS.filter((c) => c.status === 'Passing').length;
   const warn = CONTROLS.filter((c) => c.status === 'Warning').length;
+  const score = scoreOf(actions);
+  const byFw = FRAMEWORKS_SCORED.map((f) => [f, scoreOf(actions.filter((a) => a.fw.includes(f)))]);
+  const todo = actions.filter((a) => a.status !== 'Passed').sort((a, b) => b.points - a.points);
+  const shownActions = aFilter === 'todo' ? todo : aFilter === 'done' ? actions.filter((a) => a.status === 'Passed') : actions;
+  const controls = CONTROLS.filter((c) => (cStatus === 'all' || c.status === cStatus) && (cDomain === 'all' || c.domain === cDomain));
+  const updateAction = (id, patch) => { setActions((all) => all.map((a) => (a.id === id ? { ...a, ...patch } : a))); setAct((a) => (a && a.id === id ? { ...a, ...patch } : a)); };
+  const actionFor = (c) => actions.find((a) => a.control === c.id && a.status !== 'Passed');
   return (
     <>
-      <Tiles items={OVERVIEW_TILES} />
-      <Card title="Governance health" sub="Overall status across all governance controls and domains.">
-        <div className="gv-health">
-          <Ring value={pass / CONTROLS.length} size={96} stroke={9}><b>{Math.round((pass / CONTROLS.length) * 100)}%</b></Ring>
-          <div className="gv-health-n">
-            <div><b>{pass}</b><span>Passing</span></div>
-            <div><b>{warn}</b><span>Warnings</span></div>
-            <div><b>0</b><span>Critical</span></div>
+      <Tiles items={OVERVIEW_TILES.map((t) => (t.l === 'Compliance posture' ? { ...t, v: `${Math.round(score.pct * 100)}%`, s: `${score.got} of ${score.total} points · ${todo.length} actions open` } : t))} />
+      <div className="gv-two">
+        <Card title="Compliance score" sub="Points for every improvement action that has passed, weighted by risk (preventative 27 · detective 3).">
+          <div className="gv-health">
+            <Ring value={score.pct} size={96} stroke={9}><b>{Math.round(score.pct * 100)}%</b></Ring>
+            <div className="gv-bars" style={{ flex: 1, minWidth: 260 }}>
+              {byFw.map(([f, s]) => <div key={f}><span>{f}</span><i><em style={{ width: `${s.pct * 100}%` }} /></i><b>{Math.round(s.pct * 100)}%</b></div>)}
+            </div>
+          </div>
+          <Note>{score.got} of {score.total} points achieved. The quickest gain: {todo[0].title.toLowerCase()} (+{todo[0].points} points).</Note>
+        </Card>
+        <Card title="Governance health" sub="Overall status across all governance controls and domains.">
+          <div className="gv-health">
+            <Ring value={pass / CONTROLS.length} size={96} stroke={9}><b>{Math.round((pass / CONTROLS.length) * 100)}%</b></Ring>
+            <div className="gv-health-n">
+              <div><b>{pass}</b><span>Passing</span></div>
+              <div><b>{warn}</b><span>Warnings</span></div>
+              <div><b>0</b><span>Critical</span></div>
+            </div>
           </div>
           <Note>{CONTROLS.length - pass - warn} control not connected — shown as unavailable rather than as proof of compliance.</Note>
-        </div>
-      </Card>
-      <Card title="Governance controls" count={CONTROLS.length} sub="Cross-cutting security, privacy and compliance controls checked against the running system. Click a row for evidence.">
+        </Card>
+      </div>
+      <div className="gv-three">
+        {[
+          ['Policies', `${POLICY_ITEMS.length} items in the library`, '3 automated controls · 68% of checks passing', 'policies'],
+          ['DPIA & GDPR', '25 assets hold personal data', '0 of 5 records of processing accepted · 82 rule checks failing', 'dpia'],
+          ['Access', '4 access policies · 4 rules', '6 grants due for review · 0 requests pending', 'access'],
+        ].map(([t, a, b, to]) => (
+          <button key={t} type="button" className="dash-card gv-jump" onClick={() => nav(`${BASE}/${to}`)}>
+            <span className="gv-strong">{t}</span><b>{a}</b><small>{b}</small><span className="gl-tlink">Open {t} <ArrowRight size={13} /></span>
+          </button>
+        ))}
+      </div>
+      <Card title="Improvement actions" count={todo.length} sub="What to do next to raise the score. Assign an owner, record progress and attach evidence; the score updates when an action passes."
+        actions={<Segmented size="sm" value={aFilter} onChange={setAFilter} options={[{ value: 'todo', label: `To do (${todo.length})` }, { value: 'done', label: 'Passed' }, { value: 'all', label: 'All' }]} />}>
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>Control</th><th>Domain</th><th>Tier</th><th>Status</th><th>Evidence</th></tr></thead>
+            <thead><tr><th>Action</th><th>Type</th><th className="num">Points</th><th>Frameworks</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead>
+            <tbody>{shownActions.map((a) => (
+              <tr key={a.id} className="click" onClick={() => setAct(a)}>
+                <td><span className="gv-strong">{a.title}</span><span className="gv-sub"><span className="mono">{a.id}</span> · {CONTROLS.find((c) => c.id === a.control)?.name}</span></td>
+                <td className="gv-muted">{a.type}</td><td className="num gv-strong">+{a.points}</td>
+                <td><div className="gv-tags">{a.fw.map((f) => <span key={f} className="tag">{f}</span>)}</div></td>
+                <td>{a.owner}</td><td>{a.due}</td><td><StatusBadge s={STATUS_TONE[a.status]}>{a.status}</StatusBadge></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </Card>
+      <Card title="Governance controls" count={controls.length} sub="Cross-cutting security, privacy and compliance controls checked against the running system. Click a row for evidence."
+        actions={<>
+          <select className="select" value={cDomain} onChange={(e) => setCDomain(e.target.value)} aria-label="Domain"><option value="all">All domains</option>{[...new Set(CONTROLS.map((c) => c.domain))].map((d) => <option key={d}>{d}</option>)}</select>
+          <Segmented size="sm" value={cStatus} onChange={setCStatus} options={[{ value: 'all', label: 'All' }, { value: 'Passing', label: 'Passing' }, { value: 'Warning', label: 'Warning' }, { value: 'Not connected', label: 'Not connected' }]} />
+        </>}>
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Control</th><th>Domain</th><th>Tier</th><th>Type</th><th>Status</th><th>Evidence</th><th>Next action</th></tr></thead>
             <tbody>
-              {CONTROLS.map((c) => (
+              {controls.map((c) => { const a = actionFor(c); return (
                 <tr key={c.id} className={`click ${open?.id === c.id ? 'on' : ''}`} onClick={() => setOpen(c)}>
-                  <td className="gv-strong">{c.name}</td><td>{c.domain}</td><td>Tier {c.tier}</td>
+                  <td className="gv-strong">{c.name}</td><td>{c.domain}</td><td>Tier {c.tier}</td><td className="gv-muted">{CONTROL_TYPE[c.id]}</td>
                   <td><StatusBadge s={c.status} /></td><td className="gv-muted">{c.evidence}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{a ? <span className="gl-tlink">{a.id} · +{a.points}</span> : <span className="gv-faint">—</span>}</td>
                 </tr>
-              ))}
+              ); })}
+              {!controls.length && <tr><td colSpan={7}><Empty>No controls match.</Empty></td></tr>}
             </tbody>
           </table>
         </div>
       </Card>
-      <>
-        <Card title="The constitution — three tiers">
-          <div className="gv-tiers">
-            {TIERS.map((t) => (
-              <div key={t.n} className="gv-tier">
-                <header><b>Tier {t.n} · {t.name}</b><Badge tone={t.state === 'gated' ? 'warn' : 'ok'}>{t.state}</Badge></header>
-                <p>{t.d}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card title="Recent audit activity" count={50} sub="Tamper-evident, hash-chained. in-memory (no external anchor).">
-          <div className="gv-feed gv-scroll" style={{ maxHeight: 380 }}>
-            {AUDIT.slice(0, 50).map((r) => (
-              <div key={r.seq}>
-                <span className="seq">#{r.seq}</span>
-                <div><span className="act">{r.action}<span className="tag">{r.asset}</span></span><small>{r.what} · {r.category.toLowerCase()} · {fmtTs(r.ts)}</small></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </>
-      {open && <ControlDrawer c={open} onClose={() => setOpen(null)} />}
+      <Card title="The constitution — three tiers">
+        <div className="gv-tiers">
+          {TIERS.map((t) => (
+            <div key={t.n} className="gv-tier">
+              <header><b>Tier {t.n} · {t.name}</b><Badge tone={t.state === 'gated' ? 'warn' : 'ok'}>{t.state}</Badge></header>
+              <p>{t.d}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="Recent audit activity" count={50} sub="Tamper-evident, hash-chained. in-memory (no external anchor).">
+        <div className="gv-feed gv-scroll" style={{ maxHeight: 380 }}>
+          {AUDIT.slice(0, 50).map((r) => (
+            <div key={r.seq}>
+              <span className="seq">#{r.seq}</span>
+              <div><span className="act">{r.action}<span className="tag">{r.asset}</span></span><small>{r.what} · {r.category.toLowerCase()} · {fmtTs(r.ts)}</small></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      {open && <ControlDrawer c={open} action={actionFor(open)} onOpenAction={(a) => { setOpen(null); setAct(a); }} onClose={() => setOpen(null)} />}
+      {act && <ActionDrawer a={act} onClose={() => setAct(null)} onUpdate={updateAction} />}
     </>
   );
 }
 
-function ControlDrawer({ c, onClose }) {
+function ActionDrawer({ a, onClose, onUpdate }) {
+  const [done, setDone] = useState({});
+  const [note, setNote] = useState('');
+  return (
+    <Drawer wide title={`${a.id} · Improvement action`} onClose={onClose}>
+      <h3 className="gv-strong" style={{ margin: '0 0 6px', fontSize: 16 }}>{a.title}</h3>
+      <div className="gv-inline" style={{ alignItems: 'center', marginBottom: 14 }}><StatusBadge s={STATUS_TONE[a.status]}>{a.status}</StatusBadge><span className="tag">+{a.points} points</span><span className="gv-faint">{a.type}</span></div>
+      <p style={{ fontSize: 13.5, margin: '0 0 14px', lineHeight: 1.6 }}>{a.why}</p>
+      <div className="gv-form">
+        <Fld label="Owner"><select className="select" value={a.owner} onChange={(e) => onUpdate(a.id, { owner: e.target.value })}>{['governance-lead', 'platform-ops', 'data-engineer', 'Data Protection Officer', 'product-owner'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
+        <Fld label="Due"><input className="input" value={a.due} onChange={(e) => onUpdate(a.id, { due: e.target.value })} /></Fld>
+        <div className="full"><Fld label="Status"><Segmented size="sm" value={a.status} onChange={(v) => { onUpdate(a.id, { status: v }); toast(v === 'Passed' ? `+${a.points} points — compliance score updated` : `Status set to ${v}`); }} options={ACTION_STATUSES.map((s) => ({ value: s, label: s }))} /></Fld></div>
+      </div>
+      <KV rows={[['Control', CONTROLS.find((c) => c.id === a.control)?.name], ['Frameworks', a.fw.join(', ')]]} />
+      {a.steps.length > 0 && (<>
+        <div className="gv-section-label">How to implement</div>
+        <div className="gv-checks">{a.steps.map((s, i) => <label key={s}><input type="checkbox" checked={!!done[i]} onChange={(e) => setDone((o) => ({ ...o, [i]: e.target.checked }))} />{s}</label>)}</div>
+      </>)}
+      <div className="gv-section-label">Evidence and notes</div>
+      <textarea className="input" rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was done, with a link to the change or the screenshot" />
+      <div style={{ marginTop: 10 }}><Button variant="secondary" size="md" disabled={!note.trim()} onClick={() => { toast('Evidence attached and written to the audit trail'); setNote(''); onUpdate(a.id, { status: a.status === 'Not started' ? 'In progress' : a.status }); }}>Attach evidence</Button></div>
+    </Drawer>
+  );
+}
+
+function ControlDrawer({ c, action, onOpenAction, onClose }) {
   const [t, setT] = useState('overview');
   return (
     <Drawer title="Control detail" onClose={onClose}>
       <h3 className="gv-strong" style={{ margin: '0 0 2px', fontSize: 16 }}>{c.name}</h3>
-      <p className="gv-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>{c.domain} · Tier {c.tier}</p>
+      <p className="gv-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>{c.domain} · Tier {c.tier} · {CONTROL_TYPE[c.id]}</p>
       <div style={{ marginBottom: 14 }}><StatusBadge s={c.status} /></div>
       <Tabs items={[{ value: 'overview', label: 'Overview' }, { value: 'evidence', label: 'Evidence' }]} value={t} onChange={setT} />
       {t === 'overview' ? (
         <>
           <p style={{ fontSize: 13.5, margin: '0 0 14px' }}>{c.evidence}</p>
           <KV rows={[['Domain', c.domain], ['Tier', TIER_LABEL[c.tier]], ['Status', c.status], ['Evidence', c.api ? <a className="gl-tlink" href={c.api} target="_blank" rel="noreferrer">GET {c.api.replace('/api/gm', '/api')} <ExternalLink size={12} /></a> : 'No evidence source connected']]} />
+          {action && (
+            <div className="gv-result">
+              <header><StatusBadge s={STATUS_TONE[action.status]}>{action.status}</StatusBadge><b>To make this pass</b></header>
+              <p style={{ margin: '0 0 8px' }}>{action.title} (+{action.points} points).</p>
+              <Button variant="secondary" size="sm" onClick={() => onOpenAction(action)}>Open improvement action</Button>
+            </div>
+          )}
         </>
       ) : (
         <>

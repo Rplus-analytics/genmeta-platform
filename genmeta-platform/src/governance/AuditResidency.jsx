@@ -233,6 +233,19 @@ export function ResidencyTab() {
         <p style={{ fontSize: 13.5, margin: '0 0 10px' }}>{p.d}</p>
         <div className="gv-tags">{p.allowed.map((r) => <span key={r} className="tag mono">{r}</span>)}</div>
       </Card>
+      <div className="gv-three">
+        {[
+          ['In the United Kingdom', locs.filter((l) => l[6] === 'inside'), 'measured or configured in a UK region'],
+          ['Outside, disclosed', locs.filter((l) => l[6] === 'disclosed'), 'no HMRC data held — processing or delivery only'],
+          ['No region established', locs.filter((l) => l[6] === 'outside'), 'treated as outside the policy until measured or declared'],
+        ].map(([t, list, sub]) => (
+          <div key={t} className="dash-card gv-region">
+            <div className="gv-inline" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}><span className="gv-strong">{t}</span><b>{list.length}</b></div>
+            <small>{sub}</small>
+            <div className="gv-tags" style={{ marginTop: 10 }}>{list.map((l) => <span key={l[0]} className="tag" title={l[1]}>{l[0].replace(/ \(genmeta-demo.*\)/, '')}</span>)}</div>
+          </div>
+        ))}
+      </div>
       <Card title="Where HMRC data and metadata are">
         <div className="table-wrap">
           <table className="tbl">

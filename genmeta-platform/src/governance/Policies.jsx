@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
-import { Plus, Upload, Link2, FolderSearch, Check, X } from 'lucide-react';
-import { PageHead, Tabs, Button } from '../components/ui.jsx';
+import { Plus, Upload, Link2, FolderSearch, Check, X, Search } from 'lucide-react';
+import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
   POLICY_ITEMS, POLICY_TYPES, POLICY_TYPE_LABEL, DOCUMENTS, EXTRACTED_PENDING, APPLY_OPTIONS, APPLY_LABELS,
-  ASSET_NAMES, PD_MAP, systemOf,
+  ASSET_NAMES, PD_MAP, systemOf, LIFECYCLE, REVIEW_DUE, REG_GROUP,
 } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, ChipPick, KV, toast } from './kit.jsx';
 
@@ -45,38 +45,79 @@ export default function Policies() {
   );
 }
 
-/* ------------------------------------------------------------------ Library */
+/* ------------------------------------------------------------------ Library
+   v2 patterns: Collibra Policy Manager (regulation → requirement traceability, lifecycle with
+   approval) and Alation Policy Center (search, type facets, owners and review dates up front). */
+const STEP_NEXT = { draft: ['Submit for review', 'in review'], 'in review': ['Approve', 'approved'], approved: ['Activate', 'active'] };
 function Library({ items, setItems }) {
   const [type, setType] = useState('all');
+  const [q, setQ] = useState('');
+  const [view, setView] = useState('list');
+  const [status, setStatus] = useState('all');
   const [open, setOpen] = useState(null);
   const [creating, setCreating] = useState(false);
-  const rows = items.filter((i) => type === 'all' || i.type === type);
-  const update = (id, patch, what) => { setItems((a) => a.map((i) => (i.id === id ? { ...i, ...patch } : i))); setOpen((o) => (o && o.id === id ? { ...o, ...patch } : o)); if (what) toast(what); };
+  const rows = items.filter((i) => (type === 'all' || i.type === type) && (status === 'all' || i.status === status)
+    && (!q || `${i.title} ${i.statement} ${i.regulation} ${i.id}`.toLowerCase().includes(q.toLowerCase())));
+  const update = (id, patch, what) => { setItems((a) => a.map((i) => (i.id === id ? { ...i, ...patch, history: [[new Date().toLocaleString('en-GB'), 'Admin', what || 'Edited'], ...(i.history || [])] } : i))); setOpen((o) => (o && o.id === id ? { ...o, ...patch } : o)); if (what) toast(what); };
+  const noOwner = items.filter((i) => i.status !== 'retired' && !i.owner);
+  const orphan = items.filter((i) => i.status !== 'retired' && !i.links.length && !items.some((x) => x.links.some(([, to]) => to === i.id)));
+  const noReg = items.filter((i) => i.status !== 'retired' && !i.regulation && !i.source);
+  const groups = [...new Set(rows.map(REG_GROUP))].sort();
+  const row = (i) => (
+    <tr key={i.id} className="click" onClick={() => setOpen(i)}>
+      <td><span className="gv-strong">{i.title}</span><span className="gv-sub mono">{i.id}</span></td>
+      <td><span className="tag">{i.type}</span></td>
+      <td>{i.owner || <StatusBadge s="warn">no owner</StatusBadge>}</td>
+      <td><StatusBadge s={i.status === 'active' ? 'active' : i.status === 'retired' ? 'retired' : 'warn'}>{i.status}</StatusBadge></td>
+      <td className="gv-muted">{i.status === 'retired' ? '—' : REVIEW_DUE[i.type]}</td>
+      <td className="gv-muted">{srcLabel(i.source)}</td>
+    </tr>
+  );
+  const head = <thead><tr><th>Item</th><th>Type</th><th>Owner</th><th>Status</th><th>Next review</th><th>Source</th></tr></thead>;
   return (
-    <Card title="Library" count={rows.length} actions={<>
-      <select className="select" value={type} onChange={(e) => setType(e.target.value)} aria-label="Type"><option value="all">All types</option>{POLICY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-      <Button variant="primary" size="md" icon={Plus} onClick={() => setCreating(true)}>New item</Button>
-    </>}>
-      <div className="table-wrap">
-        <table className="tbl">
-          <thead><tr><th>Item</th><th>Type</th><th>Regulation</th><th>Status</th><th>Source</th></tr></thead>
-          <tbody>
-            {rows.map((i) => (
-              <tr key={i.id} className="click" onClick={() => setOpen(i)}>
-                <td><span className="gv-strong">{i.title}</span><span className="gv-sub mono">{i.id}</span></td>
-                <td><span className="tag">{i.type}</span></td>
-                <td>{i.regulation || <span className="gv-faint">—</span>}</td>
-                <td><StatusBadge s={i.status} /></td>
-                <td className="gv-muted">{srcLabel(i.source)}</td>
-              </tr>
-            ))}
-            {!rows.length && <tr><td colSpan={5}><Empty>Nothing yet — create an item or extract from a document.</Empty></td></tr>}
-          </tbody>
-        </table>
-      </div>
-      {creating && <ItemForm onClose={() => setCreating(false)} onSave={(it) => { setItems((a) => [it, ...a]); setCreating(false); toast(`Created “${it.title}”`); }} items={items} />}
-      {open && <ItemDrawer i={open} items={items} onClose={() => setOpen(null)} onUpdate={update} />}
-    </Card>
+    <>
+      <Card title="Gaps to close" sub="Library hygiene, checked continuously — each gap weakens the evidence an auditor will ask for.">
+        <div className="gv-three">
+          {[[noOwner, 'Items with no owner', 'Nobody is accountable for keeping these current.'], [orphan, 'Items not linked to anything', 'Not implemented by a control and not supporting a policy.'], [noReg, 'Items with no regulation or source', 'The legal basis for these is not recorded.']].map(([list, t, d]) => (
+            <div key={t} className="gv-tier">
+              <header><b>{t}</b><span className="gv-count">{list.length}</span></header>
+              <p>{d}</p>
+              {list.length > 0 && <Button variant="link" onClick={() => { setQ(''); setType('all'); setStatus('all'); setView('list'); setOpen(list[0]); }}>Fix the first: {list[0].title.slice(0, 40)}{list[0].title.length > 40 ? '…' : ''}</Button>}
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="Library" count={rows.length} actions={<>
+        <Segmented size="sm" value={view} onChange={setView} options={[{ value: 'list', label: 'List' }, { value: 'regulation', label: 'By regulation' }]} />
+        <Button variant="primary" size="md" icon={Plus} onClick={() => setCreating(true)}>New item</Button>
+      </>}>
+        <div className="gv-toolbar" style={{ alignItems: 'center' }}>
+          <div className="gl-msearch" style={{ minWidth: 280 }}><Search size={14} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search titles, statements, regulations…" aria-label="Search the library" /></div>
+          <div className="gv-chips">
+            <button type="button" className={`chip ${type === 'all' ? 'on' : ''}`} onClick={() => setType('all')}>All {items.length}</button>
+            {POLICY_TYPES.map((t) => <button type="button" key={t} className={`chip ${type === t ? 'on' : ''}`} onClick={() => setType(t)}>{t} {items.filter((i) => i.type === t).length}</button>)}
+          </div>
+          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="all">Any status</option>{LIFECYCLE.map((s) => <option key={s}>{s}</option>)}</select>
+        </div>
+        {view === 'list' ? (
+          <div className="table-wrap"><table className="tbl">{head}<tbody>
+            {rows.map(row)}
+            {!rows.length && <tr><td colSpan={6}><Empty>Nothing matches — create an item or extract from a document.</Empty></td></tr>}
+          </tbody></table></div>
+        ) : (
+          groups.map((g) => { const list = rows.filter((i) => REG_GROUP(i) === g); const act = list.filter((i) => i.status === 'active').length; return (
+            <div key={g} style={{ marginBottom: 18 }}>
+              <div className="gv-inline" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span className="gv-strong">{g}</span><span className="gv-faint">{list.length} requirement(s) · {act} active</span>
+              </div>
+              <div className="table-wrap"><table className="tbl">{head}<tbody>{list.map(row)}</tbody></table></div>
+            </div>
+          ); })
+        )}
+      </Card>
+      {creating && <ItemForm onClose={() => setCreating(false)} onSave={(it) => { setItems((a) => [{ ...it, history: [[new Date().toLocaleString('en-GB'), 'Admin', 'Created as draft']] }, ...a]); setCreating(false); toast(`Created “${it.title}” as a draft`); }} items={items} />}
+      {open && <ItemDrawer i={items.find((x) => x.id === open.id) || open} items={items} onClose={() => setOpen(null)} onUpdate={update} />}
+    </>
   );
 }
 
@@ -112,32 +153,52 @@ function ItemForm({ onClose, onSave, items, initial }) {
 
 function ItemDrawer({ i, items, onClose, onUpdate }) {
   const [edit, setEdit] = useState(false);
+  const [t, setT] = useState('detail');
   const title = (id) => items.find((x) => x.id === id)?.title || id;
   const linkedFrom = items.filter((x) => x.links.some(([, to]) => to === i.id));
   const applies = Object.entries(i.applies || {}).filter(([, v]) => v && v.length);
-  if (edit) return <ItemForm initial={{ ...i, link: i.links[0]?.[1] || '' }} items={items} onClose={() => setEdit(false)} onSave={(it) => { onUpdate(i.id, it, 'Saved'); setEdit(false); }} />;
+  const stepIdx = LIFECYCLE.indexOf(i.status);
+  const next = STEP_NEXT[i.status];
+  const history = i.history || [['23 Sept 2026, 07:50', 'Admin', i.source ? 'Created from a document' : 'Created'], ['23 Sept 2026, 07:51', 'Admin', 'Status set to active']];
+  if (edit) return <ItemForm initial={{ ...i, link: i.links[0]?.[1] || '' }} items={items} onClose={() => setEdit(false)} onSave={(it) => { onUpdate(i.id, it, 'Saved a new version'); setEdit(false); }} />;
   return (
     <Drawer wide title={i.title} onClose={onClose} footer={<>
-      {i.status !== 'active' && <Button variant="secondary" size="md" onClick={() => onUpdate(i.id, { status: 'active' }, 'Status set to active')}>Activate</Button>}
       {i.status !== 'retired' && <Button variant="secondary" size="md" onClick={() => onUpdate(i.id, { status: 'retired' }, 'Status set to retired')}>Retire</Button>}
-      <Button variant="primary" size="md" onClick={() => setEdit(true)}>Edit</Button>
+      <Button variant="secondary" size="md" onClick={() => setEdit(true)}>Edit</Button>
+      {next && <Button variant="primary" size="md" onClick={() => onUpdate(i.id, { status: next[1] }, `${next[0]} — status set to ${next[1]}`)}>{next[0]}</Button>}
+      {i.status === 'retired' && <Button variant="primary" size="md" onClick={() => onUpdate(i.id, { status: 'draft' }, 'Restored as a draft')}>Restore as draft</Button>}
     </>}>
-      <div className="gv-inline" style={{ marginBottom: 12, alignItems: 'center' }}><span className="tag">{i.type}</span><StatusBadge s={i.status} /><span className="gv-faint mono">{i.id}</span></div>
-      <p style={{ fontSize: 14, margin: '0 0 16px', lineHeight: 1.6 }}>{i.statement || <span className="gv-faint">No statement.</span>}</p>
-      <KV rows={[
-        ['Regulation', i.regulation || '—'], ['Owner', i.owner || '—'], ['Severity', i.severity],
-        ...(i.retention ? [['Retention', i.retention]] : []), ...(i.check ? [['Automated check', <Mono key="c">{i.check}</Mono>]] : []),
-        ['Source', srcLabel(i.source)],
-      ]} />
-      <div className="gv-section-label">Applies to</div>
-      {applies.length ? <KV rows={applies.map(([k, v]) => [APPLY_LABELS[k], <div key={k} className="gv-tags">{v.map((x) => <span key={x} className="tag">{x}</span>)}</div>])} /> : <p className="gv-muted" style={{ fontSize: 13, margin: 0 }}>Every data asset in the estate{i.inherit ? ', and what is derived from it' : ''}.</p>}
-      <div className="gv-section-label">Relationships</div>
-      {i.links.length || linkedFrom.length ? (
-        <ul className="gv-lines">
-          {i.links.map(([rel, to]) => <li key={to}>{rel.replace('_', ' ')} <b>{title(to)}</b></li>)}
-          {linkedFrom.map((x) => <li key={x.id}><b>{x.title}</b> {x.links.find(([, to]) => to === i.id)[0].replace('_', ' ')} this</li>)}
-        </ul>
-      ) : <Empty>Not linked to other items yet.</Empty>}
+      <div className="gv-inline" style={{ marginBottom: 12, alignItems: 'center' }}><span className="tag">{i.type}</span><span className="gv-faint mono">{i.id}</span><span className="gv-faint">· version {history.filter((h) => /version|Edited/.test(h[2])).length + 1}</span></div>
+      <div className="gv-steps" style={{ marginBottom: 16 }}>
+        {LIFECYCLE.slice(0, 4).map((s, k) => <div key={s} className={i.status === 'retired' ? '' : k < stepIdx ? 'done' : k === stepIdx ? 'cur' : ''}><i>{k + 1}</i>{s}</div>)}
+      </div>
+      <Tabs items={[{ value: 'detail', label: 'Detail' }, { value: 'trace', label: 'Traceability' }, { value: 'history', label: `History (${history.length})` }]} value={t} onChange={setT} />
+      {t === 'detail' && (<>
+        <p style={{ fontSize: 14, margin: '0 0 16px', lineHeight: 1.6 }}>{i.statement || <span className="gv-faint">No statement.</span>}</p>
+        <KV rows={[
+          ['Regulation', i.regulation || '—'], ['Owner', i.owner || <StatusBadge key="o" s="warn">no owner — assign one</StatusBadge>], ['Severity', i.severity],
+          ['Next review', i.status === 'retired' ? '—' : REVIEW_DUE[i.type]],
+          ...(i.retention ? [['Retention', i.retention]] : []), ...(i.check ? [['Automated check', <Mono key="c">{i.check}</Mono>]] : []),
+          ['Source', srcLabel(i.source)],
+        ]} />
+        <div className="gv-section-label">Applies to</div>
+        {applies.length ? <KV rows={applies.map(([k, v]) => [APPLY_LABELS[k], <div key={k} className="gv-tags">{v.map((x) => <span key={x} className="tag">{x}</span>)}</div>])} /> : <p className="gv-muted" style={{ fontSize: 13, margin: 0 }}>Every data asset in the estate{i.inherit ? ', and what is derived from it' : ''}.</p>}
+      </>)}
+      {t === 'trace' && (<>
+        <div className="gv-flow" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))', marginBottom: 14 }}>
+          <div><span>Comes from</span><b>{REG_GROUP(i)}</b>{i.source && <small>{srcLabel(i.source)}</small>}</div>
+          <div><span>This {i.type}</span><b>{i.title}</b></div>
+          <div><span>Governs</span><b>{applies.length ? applies.map(([k, v]) => `${v.length} ${APPLY_LABELS[k].toLowerCase()}`).join(', ') : 'all 37 data assets'}</b></div>
+        </div>
+        <div className="gv-section-label">Relationships</div>
+        {i.links.length || linkedFrom.length ? (
+          <ul className="gv-lines">
+            {i.links.map(([rel, to]) => <li key={to}>{rel.replace('_', ' ')} <b>{title(to)}</b></li>)}
+            {linkedFrom.map((x) => <li key={x.id}><b>{x.title}</b> {x.links.find(([, to]) => to === i.id)[0].replace('_', ' ')} this</li>)}
+          </ul>
+        ) : <Empty>Not linked to other items yet — edit it to say what it implements or supports.</Empty>}
+      </>)}
+      {t === 'history' && <ul className="gv-lines">{history.map(([at, who, what], k) => <li key={k}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul>}
     </Drawer>
   );
 }

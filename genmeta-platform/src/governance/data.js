@@ -393,3 +393,83 @@ export const PLATFORMS = [
   ['SQL Server', 6, false, 'this platform does not publish its grants to the catalogue'],
 ];
 export const sensitivityOf = (a) => (PD_MAP.some((r) => r.asset === a) ? 'Restricted' : /LINEITEM|ORDERS|POST_orders|GET_orders|Churn|Revenue/.test(a) ? 'Confidential' : 'Internal');
+
+/* ------------------------------------------------------------------ v2: leader patterns */
+/* Purview-style improvement actions: points by control type (preventative 27 / 9, detective 3 / 1). */
+export const ACTION_STATUSES = ['Not started', 'In progress', 'Implemented', 'Passed'];
+export const IMPROVEMENT_ACTIONS = [
+  { id: 'IA-01', title: 'Anchor the audit chain in write-once storage', control: 'worm', points: 27, type: 'Preventative · mandatory', owner: 'platform-ops', due: '31 Oct 2026', status: 'Not started', fw: ['ISO/IEC 27001:2022', 'UK GDPR'],
+    why: 'The hash chain is verified but held in memory, so a platform operator could rebuild it. An external anchor makes tampering provable to an auditor.',
+    steps: ['Turn on S3 Object Lock (compliance mode) for the audit bucket', 'Write each chain checkpoint to the locked bucket every 15 minutes', 'Re-run GET /api/audit/verify and confirm the anchor is reported'] },
+  { id: 'IA-02', title: 'Measure the region of every source instead of declaring it', control: 'residency', points: 27, type: 'Preventative · mandatory', owner: 'platform-ops', due: '14 Nov 2026', status: 'In progress', fw: ['UK GDPR', 'HMRC residency'],
+    why: 'Four sources (SQL Server, Power BI, Rest API, Confluent) have no region established, so residency is declared, not verified.',
+    steps: ['Grant GetBucketLocation to the GenMeta role', 'Read the Power BI tenant region through the admin API', 'Declare the region for the Rest API and SQL Server, with evidence'] },
+  { id: 'IA-03', title: 'Accept the five drafted records of processing', control: 'dpia', points: 27, type: 'Preventative · mandatory', owner: 'governance-lead', due: '17 Oct 2026', status: 'Not started', fw: ['UK GDPR', 'DPA 2018'],
+    why: 'Article 30 needs a record of processing. GenMeta has drafted one per domain from the evidence; none is accepted yet.',
+    steps: ['Open DPIA › Records of processing', 'Review each drafted record and confirm the lawful basis', 'Accept the record'] },
+  { id: 'IA-04', title: 'Apply a retention requirement to the 25 personal-data assets', control: 'classification', points: 27, type: 'Preventative · mandatory', owner: 'Data Protection Officer', due: '31 Oct 2026', status: 'Not started', fw: ['UK GDPR', 'DPA 2018'],
+    why: 'Storage limitation (Article 5(1)(e)) cannot be shown while no retention rule applies to personal data.',
+    steps: ['Open Policies › Library and open “Default HMRC record retention period”', 'Set Applies to › Classifications to PII and FINANCIAL', 'Re-run the data-handling rules'] },
+  { id: 'IA-05', title: 'Name a steward for 23 personal-data assets', control: 'classification', points: 9, type: 'Preventative · discretionary', owner: 'governance-lead', due: '31 Oct 2026', status: 'Not started', fw: ['DPA 2018'],
+    why: 'Accountability needs a named person for each asset holding personal data. Only INT.CUSTOMER and SRC.CUSTOMER have one.',
+    steps: ['Open Stewardship and filter to personal data', 'Assign a steward to each asset'] },
+  { id: 'IA-06', title: 'Run generative steps in the UK, or record an override', control: 'residency', points: 27, type: 'Preventative · mandatory', owner: 'platform-ops', due: '24 Oct 2026', status: 'Not started', fw: ['HMRC residency', 'UK GDPR'],
+    why: 'Glossary drafting, extraction and Ask call the Anthropic API outside the UK, which the “United Kingdom only” policy refuses.',
+    steps: ['Set GENMETA_LLM=bedrock (AWS Bedrock, London)', 'Or record an override with a reason on Residency & sovereignty'] },
+  { id: 'IA-07', title: 'Restrict static asset delivery to UK edge locations', control: 'residency', points: 3, type: 'Detective · mandatory', owner: 'platform-ops', due: '30 Nov 2026', status: 'Not started', fw: ['HMRC residency'],
+    why: 'No data passes through the cache, but restricting CloudFront to UK edges removes the disclosure.',
+    steps: ['Set the CloudFront price class to Europe and use geo-restriction for the UK'] },
+  { id: 'IA-08', title: 'Hash-chain every audit record', control: 'audit-log', points: 27, type: 'Preventative · mandatory', owner: 'platform-ops', due: '—', status: 'Passed', fw: ['ISO/IEC 27001:2022', 'UK GDPR', 'NCSC CAF'], why: 'Done: each record carries the hash of the one before it.', steps: [] },
+  { id: 'IA-09', title: 'Read metadata only — never rows', control: 'metadata-only', points: 27, type: 'Preventative · mandatory', owner: 'platform-ops', due: '—', status: 'Passed', fw: ['UK GDPR', 'HMRC residency'], why: 'Done: connectors read schema and manifests only.', steps: [] },
+  { id: 'IA-10', title: 'Redact prompts and completions on LLM calls', control: 'redaction', points: 27, type: 'Preventative · mandatory', owner: 'platform-ops', due: '—', status: 'Passed', fw: ['UK GDPR'], why: 'Done: email, card, NINO and numbers are redacted before and after.', steps: [] },
+  { id: 'IA-11', title: 'Deny by default through group → role → clearance', control: 'rbac', points: 27, type: 'Preventative · mandatory', owner: 'governance-lead', due: '—', status: 'Passed', fw: ['ISO/IEC 27001:2022', 'NCSC CAF'], why: 'Done: modules are gated and admin features restricted.', steps: [] },
+  { id: 'IA-12', title: 'Classify sensitive columns on every harvest', control: 'classification', points: 9, type: 'Detective · mandatory', owner: 'data-engineer', due: '—', status: 'Passed', fw: ['UK GDPR', 'DPA 2018'], why: 'Done: 36 of 37 assets carry a classification.', steps: [] },
+  { id: 'IA-13', title: 'Gate model and prompt changes on evaluation and review', control: 'self-training', points: 9, type: 'Preventative · discretionary', owner: 'governance-lead', due: '—', status: 'Passed', fw: ['ISO/IEC 27001:2022'], why: 'Done: the critic gate blocks unreviewed changes.', steps: [] },
+];
+export const CONTROL_TYPE = { 'audit-log': 'Detective', worm: 'Preventative', 'metadata-only': 'Preventative', redaction: 'Preventative', residency: 'Preventative', rbac: 'Preventative', classification: 'Detective', dpia: 'Preventative', 'self-training': 'Preventative' };
+export const scoreOf = (actions) => {
+  const total = actions.reduce((n, a) => n + a.points, 0);
+  const got = actions.filter((a) => a.status === 'Passed').reduce((n, a) => n + a.points, 0);
+  return { total, got, pct: total ? got / total : 0 };
+};
+
+/* Collibra-style lifecycle for library items */
+export const LIFECYCLE = ['draft', 'in review', 'approved', 'active', 'retired'];
+export const REVIEW_DUE = { policy: '19 Sept 2029', standard: '19 Sept 2027', control: '19 Mar 2027', obligation: '19 Sept 2027', retention: '19 Sept 2027' };
+export const REG_GROUP = (i) => {
+  const r = `${i.regulation} ${i.source ? i.source[0] : ''}`;
+  if (/ICO|Article 5 UK GDPR/.test(r)) return 'UK GDPR — Article 5 principles (ICO)';
+  if (/Public Records/.test(r)) return 'Public Records Act 1958';
+  if (/GDPR|DPA/.test(r)) return 'UK GDPR & Data Protection Act 2018';
+  if (/hmrc-records/.test(r)) return 'HMRC records and information collection policy';
+  if (/records-management/.test(r)) return 'HMRC records management, retention and disposal policy';
+  return 'Internal (no regulation named)';
+};
+
+/* ICO DPIA scales */
+export const LIKELIHOOD = ['Remote', 'Possible', 'Probable'];
+export const SEVERITY = ['Minimal', 'Significant', 'Severe'];
+export const riskLevel = (l, s) => { const v = (LIKELIHOOD.indexOf(l) + 1) * (SEVERITY.indexOf(s) + 1); return v >= 6 ? 'High' : v >= 3 ? 'Medium' : 'Low'; };
+export const EFFECTS = ['Eliminated', 'Reduced', 'Accepted'];
+export const SUGGESTED_RISKS = {
+  Customer: [
+    ['Customer names and balances shown to people without a business need', 'Possible', 'Significant', 'Mask PII and FINANCIAL columns without a grant; 90-day expiring grants for Restricted data'],
+    ['Personal data kept longer than necessary (no retention rule applies)', 'Probable', 'Significant', 'Apply the default HMRC retention requirement to all personal-data assets'],
+    ['Customer data processed outside the UK by an unmeasured source', 'Possible', 'Severe', 'Measure or declare the region of SQL Server, Power BI, Rest API and Confluent'],
+  ],
+  Orders: [['Order values linked back to named customers in reports', 'Possible', 'Significant', 'Aggregate below customer level in PRL.ORDER_MASTER consumers']],
+  Product: [['Product data mis-classified as personal data', 'Remote', 'Minimal', 'Correct labels in AI evaluation']],
+  Supplier: [['Supplier contact names shared in Power BI without a record', 'Possible', 'Minimal', 'Name the report in the record of processing']],
+  Reference: [['Nation names used to infer nationality of individuals', 'Remote', 'Significant', 'Treat NATION_NAME as reference data, not personal data']],
+};
+
+/* Entra-style access review campaigns */
+export const REVIEW_ITEMS = [
+  { id: 'r1', person: 'Priya Shah', role: 'analyst', asset: 'INT.CUSTOMER', sens: 'Restricted', granted: '12 Jul 2026', lastUsed: '2 Oct 2026', why: 'Customer value reporting' },
+  { id: 'r2', person: 'Owen Hughes', role: 'data-engineer', asset: 'S3_RAW.CUSTOMER', sens: 'Restricted', granted: '3 Jun 2026', lastUsed: '11 Jul 2026', why: 'Pipeline rebuild' },
+  { id: 'r3', person: 'Aisha Khan', role: 'product-owner', asset: 'BI.Customer 360 Dashboard', sens: 'Restricted', granted: '20 Aug 2026', lastUsed: '29 Sept 2026', why: 'Product review' },
+  { id: 'r4', person: 'Emma Clarke', role: 'analyst', asset: 'STREAMING.customer-value', sens: 'Restricted', granted: '1 May 2026', lastUsed: 'never', why: 'Exploration' },
+  { id: 'r5', person: 'Pradeep Kumar', role: 'data-engineer', asset: 'SQL_SRC.CUSTOMER', sens: 'Restricted', granted: '15 Apr 2026', lastUsed: '22 Jun 2026', why: 'Migration test' },
+  { id: 'r6', person: 'Priya Shah', role: 'analyst', asset: 'PRL.ORDER_MASTER', sens: 'Restricted', granted: '12 Jul 2026', lastUsed: '1 Oct 2026', why: 'Order analytics' },
+];
+export const recommend = (r) => (r.lastUsed === 'never' || /Jun|May|Apr|Jul/.test(r.lastUsed) ? ['Revoke', `not used in 30 days (last: ${r.lastUsed})`] : ['Keep', `used recently (${r.lastUsed})`]);
