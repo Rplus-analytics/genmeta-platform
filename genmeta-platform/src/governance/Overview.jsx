@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import {
   Landmark, Bot, Scale, ScrollText, Globe2, Play, RefreshCw, ExternalLink, Plus, ArrowRight, Gauge, Lightbulb, Compass, ShieldCheck, FileText, KeyRound,
   ListTodo, Layers, History, CheckCircle2, AlertTriangle, AlertOctagon, GitBranch, Workflow, ClipboardCheck, Network, Activity, Bell, Settings2,
@@ -10,7 +10,6 @@ import { PageHead, Ring, Tabs, Button, Segmented, Badge } from '../components/ui
 import {
   OVERVIEW_TILES, CONTROLS, TIER_LABEL, TIERS, AUDIT, EXPORTS, fmtTs, BASE, POLICY_ITEMS,
   IMPROVEMENT_ACTIONS, ACTION_STATUSES, CONTROL_TYPE, scoreOf,
-  DISCOVERY, MODELS, MODEL_ALERTS, RISK_TIERS,
   EVAL_METRICS, EVAL_CONFUSION, EVAL_CATEGORIES, EVAL_BANDS, EVAL_THRESHOLDS, EVAL_RUNS, REVIEW_ROWS, REVIEW_SOURCE, LABELS, DRIFT_NOTE,
 } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Drawer, Modal, MenuButton, Fld, KV, downloadText, toast, Meter, meterTone, Section, SubNav, Collapse, useWidth } from './kit.jsx';
@@ -18,7 +17,6 @@ import { AuditTab, ResidencyTab } from './AuditResidency.jsx';
 
 export const OVERVIEW_TABS = [
   { value: 'overview', label: 'Overview', icon: Landmark },
-  { value: 'models', label: 'Model governance', icon: Bot },
   { value: 'ai', label: 'AI evaluation', icon: Scale },
   { value: 'audit', label: 'Audit & reporting', icon: ScrollText },
   { value: 'residency', label: 'Residency & sovereignty', icon: Globe2 },
@@ -39,7 +37,7 @@ export default function GovernanceOverview() {
       </PageHead>
       <Tabs items={OVERVIEW_TABS} value={tab} onChange={setTab} />
       {tab === 'overview' && <OverviewTab />}
-      {tab === 'models' && <ModelTab />}
+      {tab === 'models' && <Navigate to={`${BASE}/models`} replace />}
       {tab === 'ai' && <AiEvalTab />}
       {tab === 'audit' && <AuditTab />}
       {tab === 'residency' && <ResidencyTab />}
@@ -234,320 +232,6 @@ function ControlDrawer({ c, action, onOpenAction, onClose }) {
   );
 }
 
-/* ------------------------------------------------------------------ Model governance
-   v4 (old UI behaviour): one filter bar drives every sub-section — model, version, risk tier, owner.
-   Choosing a model shows its versions; choosing a version changes the lineage, the workflow and the
-   history. Versions, lineage, workflow and history are separate cards that fold open and shut. */
-const DISC_TONE = { failed: 'bad', 'not configured': 'neutral' };
-const NO_OWNER = '__none__';
-const riskTone = (r) => (r === 'High risk' ? 'bad' : r === 'Low risk' ? 'ok' : 'warn');
-const stageTone = (s) => (s === 'In production' ? 'ok' : s === 'Retired' || s === 'Rejected' ? 'bad' : s === 'Deprecated' ? 'warn' : 'info');
-
-function ModelTab() {
-  const [sub, setSub] = useState('registry');
-  const [models, setModels] = useState(MODELS);
-  const [f, setF] = useState({ model: '', version: '', risk: '', owner: '' });
-  const [focusId, setFocusId] = useState(MODELS[0].id);
-  const [pickedVer, setPickedVer] = useState({});
-  const setFilter = (k, v) => setF((o) => ({ ...o, [k]: v, ...(k === 'model' ? { version: '' } : {}) }));
-  const owners = [...new Set(models.map((m) => m.owner).filter(Boolean))];
-  const visible = models.filter((m) => (!f.model || m.id === f.model) && (!f.risk || m.risk === f.risk)
-    && (!f.owner || (f.owner === NO_OWNER ? !m.owner : m.owner === f.owner)));
-  const focus = visible.find((m) => m.id === (f.model || focusId)) || visible[0];
-  const verOf = (m) => (m.versionRows.find((r) => r.v === (f.model === m.id && f.version ? f.version : pickedVer[m.id])) || m.versionRows[m.versionRows.length - 1]);
-  const ver = focus && verOf(focus);
-  const pickModel = (id) => { setFocusId(id); if (f.model && f.model !== id) setF((o) => ({ ...o, model: id, version: '' })); };
-  const pickVersion = (v) => { setPickedVer((o) => ({ ...o, [focus.id]: v })); if (f.model === focus.id) setF((o) => ({ ...o, version: v })); };
-  const active = Object.values(f).filter(Boolean).length;
-  const alerts = MODEL_ALERTS.filter((a) => visible.some((m) => m.id === a.model) && (!f.version || a.v === f.version));
-  const nVer = visible.reduce((n, m) => n + m.versionRows.length, 0);
-  const tiles = [
-    { l: 'Models governed', v: visible.length, s: `${visible.filter((m) => m.hosted).length} hosted · ${visible.filter((m) => !m.hosted).length} external` },
-    { l: 'Model versions', v: nVer, s: 'across all registries' },
-    { l: 'In validation or approval', v: visible.filter((m) => ['Validation', 'Approval'].includes(m.stage)).length, s: 'awaiting sign-off' },
-    { l: 'In production', v: visible.filter((m) => m.stage === 'In production').length, s: 'reviews up to date' },
-    { l: 'Open breach alerts', v: alerts.filter((a) => a.state === 'open').length, s: `${alerts.filter((a) => a.state === 'open').length} open · ${alerts.filter((a) => a.state === 'ack').length} acknowledged` },
-  ];
-  return (
-    <>
-      <div className="dash-card gv-filterbar">
-        <div className="gv-filters">
-          <Fld label="Model"><select className="select" value={f.model} onChange={(e) => setFilter('model', e.target.value)}>
-            <option value="">All models</option>{models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Fld>
-          <Fld label={f.model ? 'Version' : 'Version (choose a model)'}><select className="select" value={f.version} disabled={!f.model} onChange={(e) => setFilter('version', e.target.value)}>
-            <option value="">{f.model ? 'Latest version' : 'All versions'}</option>{(models.find((m) => m.id === f.model)?.versionRows || []).map((r) => <option key={r.v} value={r.v}>{r.v} · {r.stage}</option>)}</select></Fld>
-          <Fld label="Risk tier"><select className="select" value={f.risk} onChange={(e) => setFilter('risk', e.target.value)}>
-            <option value="">All risk tiers</option>{RISK_TIERS.map(([r]) => <option key={r}>{r}</option>)}</select></Fld>
-          <Fld label="Owner"><select className="select" value={f.owner} onChange={(e) => setFilter('owner', e.target.value)}>
-            <option value="">All owners</option>{owners.map((o) => <option key={o}>{o}</option>)}<option value={NO_OWNER}>No owner yet</option></select></Fld>
-          <Button variant="link" disabled={!active} onClick={() => setF({ model: '', version: '', risk: '', owner: '' })}>Clear filters{active ? ` (${active})` : ''}</Button>
-        </div>
-        <div className="gv-filterbar-foot">
-          <div className="gv-inline" style={{ alignItems: 'center', gap: 8 }}>
-            <span className="gv-muted" style={{ fontSize: 12.5 }}>Discovered from</span>
-            {DISCOVERY.map(([k, v]) => <span key={k} className={`gv-disc ${DISC_TONE[v] || 'ok'}`}>{k}: {v}</span>)}
-          </div>
-          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => toast('Monitoring run started for customer-value-band')}>Run monitoring now</Button>
-        </div>
-      </div>
-      <SubNav value={sub} onChange={setSub} items={[
-        { value: 'registry', label: 'Registry & lineage', count: visible.length },
-        { value: 'monitoring', label: 'Monitoring & guardrails', count: visible.filter((m) => m.monitoring !== 'not monitored').length },
-        { value: 'alerts', label: 'Alerts', count: alerts.length, countTone: alerts.some((a) => a.state === 'open') ? 'bad' : '' },
-        { value: 'workflows', label: 'Workflows & policy', count: RISK_TIERS.length },
-      ]} />
-      <Tiles items={tiles} />
-      {sub === 'registry' && (
-        <>
-          <Card icon={Boxes2} tone="info" title="Model registry" count={visible.length} sub="Every model the platform uses — hosted in SageMaker or MLflow, or called as an external service. Choose a model to see its versions.">
-            {visible.length ? (
-              <div className="table-wrap">
-                <table className="tbl gv-reg">
-                  <thead><tr><th>Model</th><th>Found in</th><th className="num">Versions</th><th>Stage of latest</th><th>Risk tier</th><th>Owner</th><th>Monitoring</th><th className="num">Alerts</th></tr></thead>
-                  <tbody>{visible.map((x) => (
-                    <tr key={x.id} className={`click ${x.id === focus?.id ? 'on' : ''}`} onClick={() => pickModel(x.id)}>
-                      <td><span className="gv-strong">{x.name}</span>{x.provider && <span className="gv-faint"> · {x.provider}</span>}</td>
-                      <td><div className="gv-inline" style={{ gap: 4 }}>{x.foundIn.map((r) => <span key={r} className="tag">{r}</span>)}</div></td>
-                      <td className="num">{x.versions}</td>
-                      <td><StatusBadge s={stageTone(x.stage)}>{x.stage}</StatusBadge></td>
-                      <td><StatusBadge s={riskTone(x.risk)}>{x.risk}</StatusBadge></td>
-                      <td className={x.owner ? '' : 'gv-faint'}>{x.owner || 'no owner'}</td>
-                      <td><span className={`gv-disc ${x.monitoring === 'breach' ? 'bad' : 'neutral'}`}>{x.monitoring}</span></td>
-                      <td className="num">{x.alerts || '—'}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            ) : <Empty>No model matches these filters.</Empty>}
-          </Card>
-          {focus && <ModelDetail key={focus.id} m={focus} ver={ver} onVersion={pickVersion}
-            onChange={(patch) => setModels((all) => all.map((x) => (x.id === focus.id ? { ...x, ...patch } : x)))} />}
-        </>
-      )}
-      {sub === 'monitoring' && <MonitoringPanel models={visible} />}
-      {sub === 'alerts' && <AlertsPanel alerts={alerts} models={models} />}
-      {sub === 'workflows' && <WorkflowsPanel onRegister={(x) => { setModels((a) => [...a, x]); setFocusId(x.id); setF({ model: '', version: '', risk: '', owner: '' }); setSub('registry'); toast(`Registered ${x.name}`); }} />}
-    </>
-  );
-}
-
-const LINEAGE_LOOK = {
-  'Source data': [Database2, 'info'], 'Training data': [Table2, 'teal'], 'Feature engineering': [Wrench, 'violet'], 'Model development': [FlaskConical, 'warn'],
-  'Model version': [GitBranch, 'info'], Deployment: [Rocket, 'ok'], Inference: [Activity, 'teal'],
-  Consumer: [MonitorSmartphone, 'info'], 'Data sent': [Send, 'warn'], 'External model': [Cpu, 'violet'], Output: [FileOutput, 'ok'],
-};
-
-function ModelDetail({ m, ver, onVersion, onChange }) {
-  const [checks, setChecks] = useState({});
-  const [note, setNote] = useState('');
-  const [scope, setScope] = useState('version');
-  const allTicked = m.checks.every((c) => checks[c]);
-  const steps = [...EXT_STEPS, ...ver.path.filter((p) => !EXT_STEPS.includes(p))];
-  const hist = scope === 'version' ? m.history.filter((h) => h.v === ver.v) : m.history;
-  const live = ver.stage === 'In production';
-  return (
-    <>
-      <div className="dash-card gv-model-head">
-        <div className="gv-model-id">
-          <span className="gv-chip violet"><Cpu size={18} strokeWidth={1.8} /></span>
-          <div>
-            <h2>{m.name}{m.provider && <span className="gv-faint"> · {m.provider}</span>}</h2>
-            <p>{m.purpose}</p>
-            <div className="gv-inline" style={{ gap: 6, marginTop: 8 }}>
-              <StatusBadge s={stageTone(m.stage)}>{m.stage}</StatusBadge>
-              {m.foundIn.map((r) => <span key={r} className="tag">{r}</span>)}
-              <span className="gv-faint" style={{ fontSize: 12.5 }}>{m.versionRows.length} version{m.versionRows.length > 1 ? 's' : ''} · viewing <b className="gv-strong">{ver.v}</b></span>
-            </div>
-          </div>
-        </div>
-        <div className="gv-inline" style={{ alignItems: 'flex-end' }}>
-          <Fld label="Risk tier"><select className="select" value={m.risk} onChange={(e) => onChange({ risk: e.target.value })}>{RISK_TIERS.map(([r]) => <option key={r}>{r}</option>)}</select></Fld>
-          <Fld label="Owner"><input className="input" value={m.owner} placeholder="Accountable owner" onChange={(e) => onChange({ owner: e.target.value })} /></Fld>
-        </div>
-      </div>
-
-      <Collapse icon={GitBranch} tone="info" title="Versions" meta={`${m.versionRows.length} version${m.versionRows.length > 1 ? 's' : ''} · choose one to see its lineage and history`}>
-        <div className="table-wrap">
-          <table className="tbl">
-            <thead><tr><th>Version</th><th>Registries</th><th className="num">Accuracy</th><th className="num">ROC AUC</th><th className="num">F1 (HIGH)</th><th>Stage</th><th>Next review</th></tr></thead>
-            <tbody>{m.versionRows.map((r) => (
-              <tr key={r.v} className={`click ${r.v === ver.v ? 'on' : ''}`} onClick={() => onVersion(r.v)}>
-                <td><span className="gv-ver">{r.v === ver.v && <i />}<b>{r.v}</b></span></td>
-                <td><div className="gv-inline" style={{ gap: 4 }}>{r.reg.map((g) => <span key={g} className={`tag ${/Rejected/.test(g) ? 'gv-tag-bad' : /@production/.test(g) ? 'gv-tag-ok' : ''}`}>{g}</span>)}</div></td>
-                <td className="num">{r.acc}</td><td className="num">{r.auc}</td><td className="num">{r.f1}</td>
-                <td><StatusBadge s={stageTone(r.stage)}>{r.stage}</StatusBadge></td><td>{r.review}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </Collapse>
-
-      <Collapse icon={Network} tone="teal" title={`Lineage — ${ver.v}`} meta={`${ver.lineage.length} stages · from source data to ${ver.lineage[ver.lineage.length - 1].stage.toLowerCase()}`}>
-        <div className="gv-lin">
-          {ver.lineage.map((col, i) => {
-            const [I, tn] = LINEAGE_LOOK[col.stage] || [Cpu, 'info'];
-            return (
-              <div key={col.stage} className={`gv-lin-col ${tn}`}>
-                <div className="gv-lin-h"><I size={13} />{col.stage}</div>
-                {col.items.map((it) => (
-                  <div key={it.b} className={`gv-lin-box ${it.muted ? 'muted' : ''}`}>
-                    <b>{it.b}</b>{it.s && <small>{it.s}</small>}{it.ok && <em><CheckCircle2 size={11} /> in Data Catalogue</em>}
-                  </div>
-                ))}
-                {i < ver.lineage.length - 1 && <ChevronRight2 className="gv-lin-arrow" size={16} />}
-              </div>
-            );
-          })}
-        </div>
-      </Collapse>
-
-      <Collapse icon={Workflow} tone="violet" title={`Governance workflow — ${ver.v}`} meta={<StatusBadge s={riskTone(m.risk)}>{m.risk}</StatusBadge>}>
-        <div className="gv-wf">
-          {steps.map((s, i) => {
-            const passed = ver.path.includes(s);
-            const cur = s === ver.stage;
-            return (
-              <span key={s} className={`gv-wf-step ${cur ? `cur ${stageTone(s)}` : passed ? 'done' : 'todo'}`}>
-                {passed && !cur && <Check2 size={12} />}{s}
-                {i < steps.length - 1 && <i />}
-              </span>
-            );
-          })}
-        </div>
-        <Note>{ver.note || m.reviewNote}</Note>
-        {live && (
-          <>
-            <div className="gv-subhead">Periodic review <span className="gv-faint">· {m.checks.filter((c) => checks[c]).length} of {m.checks.length} confirmed</span></div>
-            <div className="gv-checks">
-              {m.checks.map((c) => <label key={c}><input type="checkbox" checked={!!checks[c]} onChange={(e) => setChecks((o) => ({ ...o, [c]: e.target.checked }))} />{c}</label>)}
-            </div>
-          </>
-        )}
-        <div className="gv-inline" style={{ alignItems: 'center', marginTop: 10 }}>
-          <input className="input" style={{ flex: 1, minWidth: 260, height: 32 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason or note (recorded in the audit log)" />
-          {live && <Button variant="primary" size="md" disabled={!allTicked} onClick={() => { toast('Periodic review completed — next review in 180 days'); setChecks({}); setNote(''); }}>Complete periodic review</Button>}
-          {live && <Button variant="secondary" size="md" onClick={() => { onChange({ stage: 'Deprecated' }); toast(`${m.name} ${ver.v} deprecated`); }}>Deprecate</Button>}
-          {ver.stage !== 'Retired' && ver.stage !== 'Rejected' && <Button variant="secondary" size="md" onClick={() => { onChange({ stage: 'Retired' }); toast(`${m.name} ${ver.v} retired`); }}>Retire</Button>}
-        </div>
-      </Collapse>
-
-      <Collapse icon={History} tone="teal" title="History" meta={`${hist.length} entr${hist.length === 1 ? 'y' : 'ies'}${scope === 'version' ? ` for ${ver.v}` : ' across all versions'}`}
-        actions={<Segmented size="sm" value={scope} onChange={setScope} options={[{ value: 'version', label: `This version (${ver.v})` }, { value: 'all', label: `All versions (${m.history.length})` }]} />}>
-        {hist.length ? (
-          <ol className="gv-tl">{hist.map((h, i) => (
-            <li key={i} className={/fail|Rejected|Retired/i.test(h.what) ? 'bad' : /Completed|Approved|→ In production/.test(h.what) ? 'ok' : /Reopened|Deprecated/.test(h.what) ? 'warn' : ''}>
-              <time>{h.at}</time>
-              <div><b>{h.who}</b> {h.what}{scope === 'all' && <span className="tag" style={{ marginLeft: 8 }}>{h.v}</span>}</div>
-            </li>
-          ))}</ol>
-        ) : <Empty>No history for this version.</Empty>}
-      </Collapse>
-    </>
-  );
-}
-const EXT_STEPS = ['Registered', 'Validation', 'Approval', 'In production'];
-
-function MonitoringPanel({ models }) {
-  return (
-    <Card icon={Activity} tone="teal" title="Monitoring & guardrails" count={models.length} sub="Drift, bias and performance checks run on hosted models after every deployment and on a schedule. External models are governed through the workflow and periodic review.">
-      <div className="table-wrap">
-        <table className="tbl">
-          <thead><tr><th>Model</th><th>Hosted in</th><th>Monitored version</th><th>Status</th><th>Checks</th><th className="num">Alerts</th></tr></thead>
-          <tbody>{models.map((m) => {
-            const v = m.versionRows[m.versionRows.length - 1];
-            return (
-              <tr key={m.id}>
-                <td className="gv-strong">{m.name}</td><td>{m.foundIn.join(' · ')}</td><td><Mono>{v.v}</Mono></td>
-                <td><span className={`gv-disc ${m.monitoring === 'breach' ? 'bad' : 'neutral'}`}>{m.monitoring}</span></td>
-                <td className="gv-muted">{m.hosted ? 'prediction-mix PSI · F1 change vs previous run · label coverage · feature drift' : 'not monitored — external service'}</td>
-                <td className="num">{m.alerts || '—'}</td>
-              </tr>
-            );
-          })}</tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function AlertsPanel({ alerts, models }) {
-  const [f, setF] = useState('all');
-  const [state, setState] = useState({});
-  const [rcp, setRcp] = useState([]);
-  const [email, setEmail] = useState('');
-  const st = (a) => state[a.id] || a.state;
-  const list = alerts.filter((a) => f === 'all' || st(a) === f);
-  const nameOf = (id) => models.find((m) => m.id === id)?.name || id;
-  return (
-    <>
-      <Card icon={Bell} tone="warn" title="Alerts" count={alerts.length} actions={<Segmented size="sm" value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'ack', label: 'Acknowledged' }, { value: 'resolved', label: 'Resolved' }]} />}>
-        {list.length ? (
-          <div className="table-wrap">
-            <table className="tbl">
-              <thead><tr><th>Raised</th><th>Model</th><th>Version</th><th>What happened</th><th>Severity</th><th>State</th><th /></tr></thead>
-              <tbody>{list.map((a) => (
-                <tr key={a.id}>
-                  <td className="gv-muted">{a.at}</td><td className="gv-strong">{nameOf(a.model)}</td><td><Mono>{a.v}</Mono></td><td>{a.what}</td>
-                  <td><StatusBadge s={a.sev === 'breach' ? 'bad' : 'warn'}>{a.sev}</StatusBadge></td>
-                  <td><StatusBadge s={st(a) === 'open' ? 'bad' : st(a) === 'ack' ? 'warn' : 'ok'}>{st(a) === 'ack' ? 'acknowledged' : st(a)}</StatusBadge></td>
-                  <td>{st(a) === 'open' ? <Button variant="secondary" size="sm" onClick={() => setState((o) => ({ ...o, [a.id]: 'ack' }))}>Acknowledge</Button>
-                    : st(a) === 'ack' ? <Button variant="secondary" size="sm" onClick={() => setState((o) => ({ ...o, [a.id]: 'resolved' }))}>Resolve</Button> : null}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        ) : <Empty>No alerts match these filters.</Empty>}
-      </Card>
-      <Card icon={Mail} tone="info" title="Email recipients" sub="Alerts are emailed through AWS SNS. Each recipient confirms once from the email AWS sends.">
-        {rcp.length ? <ul className="gv-lines">{rcp.map((r) => <li key={r}>{r} <span className="gv-faint">· pending confirmation</span></li>)}</ul> : <Empty>No recipients yet.</Empty>}
-        <div className="gv-inline" style={{ marginTop: 12 }}>
-          <Fld label="Email"><input className="input" type="email" placeholder="name@hmrc.gov.uk" value={email} onChange={(e) => setEmail(e.target.value)} /></Fld>
-          <Button variant="secondary" size="md" icon={Plus} disabled={!/.+@.+\..+/.test(email)} onClick={() => { setRcp((r) => [...r, email]); setEmail(''); toast('Recipient added — confirmation email sent'); }}>Add recipient</Button>
-        </div>
-      </Card>
-    </>
-  );
-}
-
-function WorkflowsPanel({ onRegister }) {
-  const blank = { name: '', provider: '', version: '', purpose: '', usedBy: '', shared: '', hosting: '', risk: 'Medium risk' };
-  const [f, setF] = useState(blank);
-  const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }));
-  const ok = f.name.trim() && f.provider.trim();
-  const register = () => onRegister({
-    id: `${f.name}-${Date.now()}`, name: f.name, provider: f.provider, foundIn: ['External'], versions: 1, stage: 'Registered', risk: f.risk, monitoring: 'not monitored', alerts: 0,
-    purpose: f.purpose || 'Externally provided AI model', owner: '', reviewNote: 'Awaiting validation.', checks: ['Drift and bias results reviewed', 'Performance still acceptable', 'Continued business need confirmed'],
-    versionRows: [{ v: f.version || 'v1', reg: [`External · ${f.hosting || f.provider}`], acc: '—', auc: '—', f1: '—', stage: 'Registered', review: '—', path: ['Registered'],
-      lineage: [{ stage: 'Consumer', items: [{ b: f.usedBy || '—' }] }, { stage: 'Data sent', items: [{ b: f.shared || '—' }] }, { stage: 'External model', items: [{ b: `${f.provider} · ${f.name}`, s: f.hosting }] }, { stage: 'Output', items: [{ b: '—' }] }] }],
-    history: [{ at: 'now', who: 'governance-lead', what: 'Registered as an external model', v: f.version || 'v1' }],
-  });
-  return (
-    <>
-      <Card icon={Shield} tone="violet" title="Risk tiers and review policy" sub="The tier sets how often a model is reviewed and how many people must approve it.">
-        <div className="table-wrap">
-          <table className="tbl">
-            <thead><tr><th>Risk tier</th><th>Applies to</th><th className="num">Review every</th><th className="num">Approvers</th></tr></thead>
-            <tbody>{RISK_TIERS.map(([n, d, days, ap]) => <tr key={n}><td><StatusBadge s={n === 'High risk' ? 'bad' : n === 'Low risk' ? 'ok' : 'warn'}>{n}</StatusBadge></td><td>{d}</td><td className="num">{days} days</td><td className="num">{ap}</td></tr>)}</tbody>
-          </table>
-        </div>
-      </Card>
-      <Card icon={Plus} tone="ok" title="Register an externally provided AI model" sub="Third-party models the organisation calls rather than hosts — governed through the same workflow.">
-        <div className="gv-form">
-          <Fld label="Model"><input className="input" value={f.name} onChange={set('name')} /></Fld>
-          <Fld label="Provider"><input className="input" value={f.provider} onChange={set('provider')} /></Fld>
-          <Fld label="Version"><input className="input" value={f.version} onChange={set('version')} /></Fld>
-          <Fld label="Purpose"><input className="input" value={f.purpose} onChange={set('purpose')} /></Fld>
-          <Fld label="Used by"><input className="input" value={f.usedBy} onChange={set('usedBy')} /></Fld>
-          <Fld label="Data shared"><input className="input" value={f.shared} onChange={set('shared')} /></Fld>
-          <Fld label="Hosting"><input className="input" value={f.hosting} onChange={set('hosting')} /></Fld>
-          <Fld label="Risk tier"><select className="select" value={f.risk} onChange={set('risk')}>{RISK_TIERS.map(([r]) => <option key={r}>{r}</option>)}</select></Fld>
-        </div>
-        <Button variant="primary" size="md" disabled={!ok} onClick={() => { register(); setF(blank); }}>Register model</Button>
-      </Card>
-    </>
-  );
-}
-
 /* ------------------------------------------------------------------ AI evaluation */
 const REVIEW_FILTERS = [
   { value: 'disagree', label: 'Where the classifier disagrees with the label' },
@@ -629,7 +313,7 @@ function AiEvalTab() {
           </Section>
         </Card>
       </div>
-      <Card icon={TrendingUp} tone="teal" title="Drift monitoring" sub="Runs are recorded on every harvest that changes the estate, labels or rules; alerts go to Model governance › Alerts.">
+      <Card icon={TrendingUp} tone="teal" title="Drift monitoring" sub="Runs are recorded on every harvest that changes the estate, labels or rules; alerts go to AI model governance › Alerts.">
         <div className="gv-three" style={{ marginBottom: 16 }}>
           <Monitor label="Prediction-mix PSI vs baseline" value={0} fmt={(v) => v.toFixed(2)} max={0.4} warn={0.1} breach={0.25} note="warn 0.1 · breach 0.25" />
           <Monitor label="F1 change vs previous run" value={0} fmt={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))} min={-0.2} max={0.2} breachBelow={-0.05} note="alert below −0.05" />
@@ -674,7 +358,7 @@ function AiEvalTab() {
           </table>
         </div>
       </Card>
-      <Card icon={Archive} tone="bad" title="Model deprecation — hosted and external AI models" sub="Deprecate a version with a sunset date and a named replacement. On the sunset date the scheduler retires it (SageMaker/MLflow updated for hosted models) and alerts the owners. The full workflow is on the Model governance tab.">
+      <Card icon={Archive} tone="bad" title="Model deprecation — hosted and external AI models" sub="Deprecate a version with a sunset date and a named replacement. On the sunset date the scheduler retires it (SageMaker/MLflow updated for hosted models) and alerts the owners. The full workflow is on each model's page in AI model governance.">
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Model</th><th>Version</th><th>Stage</th><th>Deprecation notice</th><th /></tr></thead>

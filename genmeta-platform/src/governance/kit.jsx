@@ -112,7 +112,7 @@ export function Collapse({ icon: I, tone: tn = 'info', title, meta, actions, def
 
 /* Status words used across the old screens, mapped onto semantic colours. */
 const OK = ['passing', 'pass', 'inside', 'evidenced', 'on', 'ok', 'within the policy', 'verified', 'active', 'accepted', 'approved', 'yes', 'allow', 'healthy', 'passed', 'keep', 'low', 'full', 'detected', 'excepted', 'in production'];
-const BAD = ['fail', 'failing', 'critical', 'outside', 'breach recorded', 'not connected', 'deny', 'refused', 'no', 'retired', 'not started', 'revoke', 'high', 'failed'];
+const BAD = ['fail', 'failing', 'critical', 'outside', 'breach recorded', 'not connected', 'deny', 'refused', 'no', 'retired', 'not started', 'revoke', 'high', 'failed', 'bad', 'breach', 'rejected'];
 const INFO = ['pending', 'proposed', 'draft', 'in review', 'disclosed', 'info', 'completion', 'dpo review', 'approval', 'registered'];
 export function tone(s = '') {
   const k = String(s).toLowerCase();

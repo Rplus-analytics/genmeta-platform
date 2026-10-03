@@ -122,133 +122,181 @@ export const INTEGRITY_POINTS = [
 ];
 
 /* ------------------------------------------------------------------ model governance */
-/* Snapshot of the old UI's Model governance registry (dev site, 3 Oct 2026): six models, eight versions.
-   Each version carries its own lineage and workflow; history lines carry the version they belong to,
-   so choosing a model, then a version, changes the versions table, the lineage and the history. */
-const CVB_PATH = 's3://genmeta-demo-115795545015-eu-west-2/_genmeta/ml/customer-value-band';
-const cvbLineage = (v, mlflow, run, metrics, deployed) => [
+/* Snapshot of the old UI's Model governance registry (dev site, read 3 Oct 2026): six models, eight versions.
+   Each version carries its own lineage, workflow path and history, exactly as the old UI shows them. */
+const CVB = 's3://genmeta-demo-115795545015-eu-west-2/_genmeta/ml/customer-value-band';
+const FEAT5 = 'account_balance ← S3_ENR.CUSTOMER_ORDERS.CUSTOMER_ACCOUNT_BALANCE (standard scaled); orders_to_date ← S3_ENR.CUSTOMER_SUMMARY.ORDER_COUNT (count of prior orders, standard scaled); order_month ← S3_ENR.CUSTOMER_ORDERS.ORDER_DATE (month of order date, standard scaled); segment ← S3_ENR.CUSTOMER_ORDERS.CUSTOMER_SEGMENT (one-hot encoded); order_priority ← S3_ENR.CUSTOMER_ORDERS.ORDER_PRIORITY (one-hot encoded)';
+const FEAT6 = `${FEAT5}; nation ← S3_CLN.CUSTOMER.NATION_ID (nation name, one-hot encoded; also the protected-group attribute for bias checks)`;
+const cvbLineage = ({ v, objv, nation, run, metrics, smv, mlv, art }) => [
   { stage: 'Source data', items: [
-    { b: 'S3_ENR.CUSTOMER_ORDERS', ok: true },
-    { b: 'S3_ENR.CUSTOMER_SUMMARY', ok: true },
+    { b: 'S3_ENR.CUSTOMER_ORDERS', ok: true }, { b: 'S3_ENR.CUSTOMER_SUMMARY', ok: true }, ...(nation ? [{ b: 'S3_CLN.CUSTOMER', ok: true }] : []),
   ] },
-  { stage: 'Training data', items: [{ b: `${CVB_PATH}/training/${v}/train.csv`, s: `object version rcAVV5dMjjCyyYVnNNUOHV0kl_5I5 · 1500 training rows` }] },
-  { stage: 'Feature engineering', items: [{ b: '5 features', s: 'account_balance ← S3_ENR.CUSTOMER_ORDERS.CUSTOMER_ACCOUNT_BALANCE (standard scaled); orders_to_date ← S3_ENR.CUSTOMER_SUMMARY.ORDER_COUNT; …' }] },
+  { stage: 'Training data', items: [{ b: `${CVB}/training/${v}/train.csv`, s: `object version ${objv}; 1500 training rows` }] },
+  { stage: 'Feature engineering', items: [{ b: `${nation ? 6 : 5} features`, s: nation ? FEAT6 : FEAT5 }] },
   { stage: 'Model development', items: [{ b: `training run ${run}`, s: `GradientBoostingClassifier (scikit-learn); ${metrics}` }] },
-  { stage: 'Model version', items: [{ b: `customer-value-band ${v}`, s: `SageMaker ${v} (Rejected) · MLflow ${mlflow} · artefact ${CVB_PATH}/${v}/model.tar.gz` }] },
-  { stage: 'Deployment', items: [deployed ? { b: 'Daily batch scoring', s: `${CVB_PATH}/inference/` } : { b: 'Not deployed', s: 'this version never reached production', muted: true }] },
-  { stage: 'Inference', items: [deployed ? { b: '5 scoring batch(es)', s: '2026-09-15, 2026-09-16, 2026-09-17, 2026-09-18, 2026-09-19' } : { b: 'No scoring batches', s: '—', muted: true }] },
+  { stage: 'Model version', items: [{ b: `customer-value-band ${v}`, s: `SageMaker ${smv} (Rejected) · MLflow ${mlv} · artefact ${CVB}/model/${art}/model.tar.gz` }] },
+  { stage: 'Deployment', items: [{ b: 'Daily batch scoring', s: `${CVB}/inference/` }] },
+  { stage: 'Inference', items: [{ b: '5 scoring batch(es)', s: '2026-09-15, 2026-09-16, 2026-09-17, 2026-09-18, 2026-09-19' }] },
 ];
-const extLineage = (consumer, sent, provider, name, out) => [
-  { stage: 'Consumer', items: [{ b: consumer, s: '' }] },
-  { stage: 'Data sent', items: [{ b: sent, s: '' }] },
-  { stage: 'External model', items: [{ b: `${provider} · ${name}`, s: `${provider} API (external service)` }] },
-  { stage: 'Output', items: [{ b: out, s: '' }] },
+const extLineage = (consumer, consumerSub, sent, provider, name, host, out) => [
+  { stage: 'Consumer', items: [{ b: consumer || '—', s: consumerSub }] },
+  { stage: 'Data sent', items: [sent ? { b: sent } : { b: 'Not recorded', muted: true }] },
+  { stage: 'External model', items: [{ b: `${provider} · ${name}`, s: host }] },
+  { stage: 'Output', items: [out ? { b: out } : { b: 'Not recorded', muted: true }] },
 ];
-const EXT_WF = ['Registered', 'Validation', 'Approval', 'In production'];
+const EXT_PATH = ['Registered', 'Validation', 'Approval', 'In production'];
 const CHECKS = ['Drift and bias results reviewed', 'Performance still acceptable', 'Continued business need confirmed'];
-const H = (at, who, what, v) => ({ at, who, what, v });
+const H = (at, who, what) => ({ at, who, what });
 
 export const MODELS = [
   {
     id: 'customer-value-band', name: 'customer-value-band', provider: '', foundIn: ['MLflow', 'SageMaker'], hosted: true, risk: 'Medium risk', owner: 'Customer Analytics Lead',
-    monitoring: 'breach', alerts: 6, purpose: 'Predicts whether an order will fall in the HIGH value band.',
-    reviewNote: 'Retired on 23 Sept 2026 — sunset date reached. No periodic review is due for a retired model.',
+    monitoring: 'breach', alerts: 6, purpose: 'Predicts whether an order will fall in the HIGH value band.', usedBy: 'Customer analytics — daily batch scoring',
     versionRows: [
-      { v: 'v1', reg: ['SageMaker · Rejected', 'MLflow v1'], acc: '0.924', auc: '0.7902', f1: '0.1364', stage: 'Retired', review: '—', note: 'Retired at validation on 17 Sept 2026 — superseded by a later version.',
-        path: ['Registered', 'Validation', 'Retired'], lineage: cvbLineage('v1', 'v1', 'a71c03d2e5', 'accuracy=0.924, roc_auc=0.7902, f1_high=0.1364', false) },
-      { v: 'v2', reg: ['SageMaker · Rejected', 'MLflow v2'], acc: '0.742', auc: '0.7821', f1: '0.5714', stage: 'Rejected', review: '—', note: 'Rejected at validation on 18 Sept 2026 — F1 (HIGH) below the 0.70 threshold.',
-        path: ['Registered', 'Validation', 'Rejected'], lineage: cvbLineage('v2', 'v2', 'b5e9f1406c', 'accuracy=0.742, roc_auc=0.7821, f1_high=0.5714', false) },
+      { v: 'v1', reg: ['SageMaker · Rejected', 'MLflow v1'], acc: '0.924', auc: '0.7902', f1: '0.1364', stage: 'Retired', review: '—',
+        path: ['Registered', 'Retired'], note: 'Retired at registration — superseded; F1 for HIGH 0.14 is too weak for use.',
+        lineage: cvbLineage({ v: 'v1', objv: 'oJENTl1YM3p7Iju5_Z_Jbq.ZYor9Otzi', nation: true, run: '4ba272ecdf', metrics: 'accuracy=0.924, roc_auc=0.7902, f1_high=0.1364', smv: 'v1', mlv: 'v1', art: 'v1' }),
+        history: [
+          H('19 Sept 2026, 13:19', 'genmeta', 'SageMaker approval set to Rejected; MLflow tag genmeta_stage = retired'),
+          H('19 Sept 2026, 13:19', 'Admin', 'Registered → Retired — Superseded; F1 for HIGH 0.14 is too weak for use'),
+          H('19 Sept 2026, 13:15', 'discovery', 'Found in sagemaker'),
+        ] },
+      { v: 'v2', reg: ['SageMaker · Rejected', 'MLflow v2'], acc: '0.742', auc: '0.7821', f1: '0.5714', stage: 'Rejected', review: '—',
+        path: ['Registered', 'Validation', 'Rejected'], note: 'Rejected at validation — bias assessment failed: nation (a protected attribute) is a model input.',
+        lineage: cvbLineage({ v: 'v2', objv: 'UDJoVDfwctd5fs5SDITATHsrioUxo3N2', nation: true, run: '85d5cea1c7', metrics: 'accuracy=0.742, roc_auc=0.7821, f1_high=0.5714', smv: 'v2', mlv: 'v2', art: 'v2' }),
+        history: [
+          H('19 Sept 2026, 13:20', 'genmeta', 'SageMaker approval set to Rejected; MLflow tag genmeta_stage = rejected'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Validation → Rejected — Bias assessment failed: nation (a protected attribute) is a model input'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Performance validated on held-out data'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Registered → Validation'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Intended use and limits stated'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Accountable owner named'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Model card completed'),
+          H('19 Sept 2026, 13:15', 'discovery', 'Found in sagemaker'),
+        ] },
       { v: 'v4', reg: ['SageMaker · Rejected', 'MLflow v3 · @production'], acc: '0.862', auc: '0.9343', f1: '0.8034', stage: 'Retired', review: '18 Mar 2027',
-        path: ['Registered', 'Validation', 'Approval', 'In production', 'Retired'], lineage: cvbLineage('v4', 'v3', 'c894e5f849', 'accuracy=0.862, roc_auc=0.9343, f1_high=0.8034', true) },
-    ],
-    history: [
-      H('23 Sept 2026, 08:21', 'genmeta', 'SageMaker approval set to Rejected; MLflow write-back failed: HTTP Error 400: BAD REQUEST', 'v4'),
-      H('23 Sept 2026, 08:21', 'lifecycle scheduler', 'Deprecated → Retired — Sunset date 2026-09-23 reached', 'v4'),
-      H('23 Sept 2026, 08:20', 'genmeta', 'MLflow write-back failed: HTTP Error 400: BAD REQUEST', 'v4'),
-      H('23 Sept 2026, 08:20', 'Admin', 'In production → Deprecated — test', 'v4'),
-      H('21 Sept 2026, 08:10', 'Admin', 'Reopened: Drift and bias results reviewed', 'v4'),
-      H('21 Sept 2026, 08:10', 'Admin', 'Reopened: Performance still acceptable', 'v4'),
-      H('21 Sept 2026, 08:07', 'Admin', 'Completed: Performance still acceptable', 'v4'),
-      H('21 Sept 2026, 08:07', 'Admin', 'Completed: Drift and bias results reviewed', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Continued business need confirmed', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Performance still acceptable', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Drift and bias results reviewed', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Continued business need confirmed', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Performance still acceptable', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Drift and bias results reviewed', 'v4'),
-      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Drift and bias results reviewed', 'v4'),
-      H('19 Sept 2026, 13:20', 'genmeta', 'SageMaker approval set to Approved; MLflow alias “production” set; MLflow tag genmeta_stage = approved', 'v4'),
-      H('19 Sept 2026, 13:20', 'Admin', 'Approval → In production — Accuracy 0.862, F1 0.803, AUC 0.934; nation excluded; DPIA screened', 'v4'),
-      H('19 Sept 2026, 13:20', 'Admin', 'Completed: Model risk sign-off', 'v4'),
-      H('19 Sept 2026, 13:20', 'Admin', 'Completed: UK GDPR Article 22 assessment', 'v4'),
-      H('19 Sept 2026, 13:20', 'Admin', 'Completed: DPIA screening completed', 'v4'),
-      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Validation → Approval', 'v4'),
-      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Independent validator (not the developer)', 'v4'),
-      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Explainability reviewed', 'v4'),
-      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Bias assessed across protected groups', 'v4'),
-      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Performance validated on held-out data', 'v4'),
-      H('19 Sept 2026, 13:20', 'Admin', 'Registered → Validation', 'v4'),
-      H('19 Sept 2026, 13:20', 'Admin', 'Completed: Intended use and limits stated', 'v4'),
-      H('18 Sept 2026, 16:02', 'Data Engineer (validator)', 'Validation → Rejected — F1 (HIGH) 0.571 below the 0.70 threshold', 'v2'),
-      H('18 Sept 2026, 15:40', 'Admin', 'Registered → Validation', 'v2'),
-      H('17 Sept 2026, 11:15', 'Admin', 'Validation → Retired — superseded; F1 (HIGH) 0.136', 'v1'),
+        path: ['Registered', 'Validation', 'Approval', 'In production', 'Deprecated', 'Retired'], note: 'Retired by the lifecycle scheduler on 23 Sept 2026 — sunset date reached.',
+        lineage: cvbLineage({ v: 'v4', objv: 'rcAVV5dMjjCyyYVnNNUOHV0kI_5I5SxN', nation: false, run: 'c894e5f849', metrics: 'accuracy=0.862, roc_auc=0.9343, f1_high=0.8034', smv: 'v4', mlv: 'v3', art: 'v3' }),
+        history: [
+          H('23 Sept 2026, 08:21', 'genmeta', 'SageMaker approval set to Rejected; MLflow write-back failed: HTTP Error 400: BAD REQUEST'),
+          H('23 Sept 2026, 08:21', 'lifecycle scheduler', 'Deprecated → Retired — Sunset date 2026-09-23 reached'),
+          H('23 Sept 2026, 08:20', 'genmeta', 'MLflow write-back failed: HTTP Error 400: BAD REQUEST'),
+          H('23 Sept 2026, 08:20', 'Admin', 'In production → Deprecated — test'),
+          H('21 Sept 2026, 08:10', 'Admin', 'Reopened: Drift and bias results reviewed'),
+          H('21 Sept 2026, 08:10', 'Admin', 'Reopened: Performance still acceptable'),
+          H('21 Sept 2026, 08:07', 'Admin', 'Completed: Performance still acceptable'),
+          H('21 Sept 2026, 08:07', 'Admin', 'Completed: Drift and bias results reviewed'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Continued business need confirmed'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Performance still acceptable'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Drift and bias results reviewed'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Completed: Continued business need confirmed'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Completed: Performance still acceptable'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Completed: Drift and bias results reviewed'),
+          H('21 Sept 2026, 07:26', 'Admin', 'Completed: Drift and bias results reviewed'),
+          H('19 Sept 2026, 13:20', 'genmeta', 'SageMaker approval set to Approved; MLflow alias “production” set; MLflow tag genmeta_stage = approved'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Approval → In production — Accuracy 0.862, F1 0.803, AUC 0.934; nation excluded; DPIA screened'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Model risk sign-off'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: UK GDPR Article 22 assessment'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: DPIA screening completed'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Validation → Approval'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Independent validator (not the developer)'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Explainability reviewed'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Bias assessed across protected groups'),
+          H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Performance validated on held-out data'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Registered → Validation'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Intended use and limits stated'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Accountable owner named'),
+          H('19 Sept 2026, 13:20', 'Admin', 'Completed: Model card completed'),
+          H('19 Sept 2026, 13:15', 'discovery', 'Found in sagemaker'),
+        ] },
     ],
   },
   {
     id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'Anthropic', foundIn: ['External'], risk: 'Medium risk', owner: '', monitoring: 'not monitored', alerts: 0,
-    purpose: 'Answers natural-language questions in Ask GenMeta',
-    reviewNote: 'Periodic review due 1 Apr 2027 (every 180 days). · signed off by governance-lead · you are governance-lead',
-    versionRows: [{ v: 'vclaude-sonnet-5', reg: ['External · Anthropic API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'In production', review: '1 Apr 2027', path: EXT_WF,
-      lineage: extLineage('GenMeta · Ask GenMeta', 'Catalogue metadata only — no row-level data; sensitive columns withheld by role', 'Anthropic', 'Claude Sonnet 5', 'Written answers with cited catalogue assets') }],
-    history: [H('3 Oct 2026, 09:12', 'governance-lead', 'Registered as an external model and moved to In production (medium risk)', 'vclaude-sonnet-5')],
+    purpose: 'Answers natural-language questions in Ask GenMeta', usedBy: 'GenMeta · Ask GenMeta',
+    versionRows: [{ v: 'vclaude-sonnet-5', reg: ['External · Anthropic API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'In production', review: '18 Mar 2027', path: EXT_PATH,
+      note: 'Periodic review due 18 Mar 2027 (every 180 days). · signed off by governance-lead · you are governance-lead',
+      lineage: extLineage('GenMeta · Ask GenMeta', 'Answers natural-language questions in Ask GenMeta', 'Catalogue metadata only — no row-level data; sensitive columns withheld by role', 'Anthropic', 'Claude Sonnet 5', 'Anthropic API (external service)', 'Written answers with cited catalogue assets'),
+      history: [H('19 Sept 2026, 13:15', 'discovery', 'Found in External')] }],
   },
   {
     id: 'gpt-41-test', name: 'GPT-4.1 (test entry)', provider: 'OpenAI', foundIn: ['External'], risk: 'Low risk', owner: '', monitoring: 'not monitored', alerts: 0,
-    purpose: 'Test entry used to check the external-model registration flow',
-    reviewNote: 'Retired — no periodic review is due.',
-    versionRows: [{ v: 'v1', reg: ['External · OpenAI API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '—', path: ['Registered', 'Retired'],
-      lineage: extLineage('Test only', 'None — test entry', 'OpenAI', 'GPT-4.1', '—') }],
-    history: [H('22 Sept 2026, 10:04', 'Admin', 'Registered → Retired — test entry', 'v1'), H('22 Sept 2026, 10:01', 'Admin', 'Registered as an external model (low risk)', 'v1')],
+    purpose: 'Test of external model governance', usedBy: 'Test',
+    versionRows: [{ v: 'v2025-04-14', reg: ['External · OpenAI API'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '19 Sept 2027', path: [...EXT_PATH, 'Deprecated', 'Retired'],
+      note: 'Retired on 19 Sept 2026 after deprecation (test).',
+      lineage: extLineage('Test', 'Test of external model governance', 'None', 'OpenAI', 'GPT-4.1 (test entry)', 'OpenAI API', ''),
+      history: [
+        H('19 Sept 2026, 13:36', 'Admin', 'Deprecated → Retired — Test: retire after deprecation'),
+        H('19 Sept 2026, 13:36', 'Admin', 'In production → Deprecated — Test: deprecation of an external AI model'),
+        H('19 Sept 2026, 13:36', 'discovery', 'Found in External'),
+      ] }],
   },
   {
     id: 'gemini-25-test', name: 'Gemini 2.5 Pro (test entry)', provider: 'Google', foundIn: ['External'], risk: 'Low risk', owner: '', monitoring: 'not monitored', alerts: 1,
-    purpose: 'Test entry used to check external-model alerts',
-    reviewNote: 'Retired — no periodic review is due.',
-    versionRows: [{ v: 'v1', reg: ['External · Google Vertex AI (external service)'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '—', path: ['Registered', 'Retired'],
-      lineage: extLineage('Test only', 'None — test entry', 'Google', 'Gemini 2.5 Pro', '—') }],
-    history: [H('22 Sept 2026, 10:12', 'Admin', 'Registered → Retired — test entry', 'v1'), H('22 Sept 2026, 10:08', 'Admin', 'Registered as an external model (low risk)', 'v1')],
+    purpose: 'Test of external model deprecation', usedBy: 'Test',
+    versionRows: [{ v: 'v2.5-pro', reg: ['External · Google Vertex AI'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '19 Sept 2027', path: [...EXT_PATH, 'Deprecated', 'Retired'],
+      note: 'Retired by the lifecycle scheduler on 19 Sept 2026 — sunset date reached; replaced by Claude Sonnet 5.',
+      lineage: extLineage('Test', 'Test of external model deprecation', 'None', 'Google', 'Gemini 2.5 Pro (test entry)', 'Google Vertex AI', ''),
+      history: [
+        H('19 Sept 2026, 14:47', 'lifecycle scheduler', 'Deprecated → Retired — Sunset date 2026-09-19 reached'),
+        H('19 Sept 2026, 14:47', 'Admin', 'In production → Deprecated — Test: provider model superseded'),
+        H('19 Sept 2026, 14:47', 'discovery', 'Found in External'),
+      ] }],
   },
   {
     id: 'a', name: 'a', provider: 'a', foundIn: ['External'], risk: 'High risk', owner: '', monitoring: 'not monitored', alerts: 0,
-    purpose: 'a', reviewNote: 'Retired — no periodic review is due.',
-    versionRows: [{ v: 'v1', reg: ['External · a'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '—', path: ['Registered', 'Retired'],
-      lineage: extLineage('a', 'a', 'a', 'a', '—') }],
-    history: [H('20 Sept 2026, 09:31', 'Admin', 'Registered → Retired', 'v1'), H('20 Sept 2026, 09:30', 'Admin', 'Registered as an external model (high risk)', 'v1')],
+    purpose: 'a', usedBy: 'a',
+    versionRows: [{ v: 'va', reg: ['External ·'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '20 Dec 2026', path: [...EXT_PATH, 'Retired'],
+      note: 'Retired on 21 Sept 2026.',
+      lineage: extLineage('a', '', '', 'a', 'a', '', ''),
+      history: [H('21 Sept 2026, 07:32', 'Admin', 'In production → Retired'), H('21 Sept 2026, 07:30', 'discovery', 'Found in External')] }],
   },
   {
     id: 'gpt-41', name: 'GPT-4.1', provider: 'OpenAI', foundIn: ['External'], risk: 'Medium risk', owner: '', monitoring: 'not monitored', alerts: 0,
-    purpose: 'Drafts glossary definitions and policy extractions',
-    reviewNote: 'Periodic review due 18 Mar 2027 (every 180 days).',
-    versionRows: [{ v: 'gpt-4.1', reg: ['External · OpenAI API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'In production', review: '18 Mar 2027', path: EXT_WF,
-      lineage: extLineage('GenMeta · Glossary drafting, extraction', 'Metadata only — redacted before and after', 'OpenAI', 'GPT-4.1', 'Draft definitions and extracted requirements for review') }],
-    history: [H('19 Sept 2026, 14:02', 'Admin', 'Approval → In production (medium risk)', 'gpt-4.1'), H('19 Sept 2026, 13:58', 'Admin', 'Registered as an external model', 'gpt-4.1')],
+    purpose: 'TEST_USE', usedBy: 'KARAN_TEAM',
+    versionRows: [{ v: 'v1.1', reg: ['External · AMAZON WEB'], acc: '—', auc: '—', f1: '—', stage: 'In production', review: '1 Jan 2027', path: EXT_PATH,
+      note: 'Periodic review due 1 Jan 2027 (every 180 days). · signed off by governance-lead · you are governance-lead',
+      lineage: extLineage('KARAN_TEAM', 'TEST_USE', 'PERSONAL DATA', 'OpenAI', 'GPT-4.1', 'AMAZON WEB', ''),
+      history: [H('3 Oct 2026, 14:07', 'discovery', 'Found in External')] }],
   },
 ].map((m) => ({ ...m, checks: CHECKS, versions: m.versionRows.length, stage: m.versionRows[m.versionRows.length - 1].stage }));
 
-/* monitoring alerts per model (count matches the registry) */
+/* Alerts per model, as the old UI lists them (classifier drift alerts belong to AI evaluation). */
+const AL = (model, v, sev, title, at, state, what, extra) => ({ id: `${model}-${at}-${title}`, model, v, sev, title, at, state, what, extra });
 export const MODEL_ALERTS = [
-  ...['Prediction-mix PSI 0.31 above breach 0.25', 'F1 (HIGH) fell 0.09 vs previous run', 'Prediction-mix PSI 0.27 above breach 0.25', 'Label coverage 74% below 80%', 'Scoring batch on a retired version', 'Feature account_balance drift 0.22 (warn 0.1)']
-    .map((what, i) => ({ id: `cvb-${i}`, model: 'customer-value-band', v: 'v4', what, sev: i === 5 || i === 3 ? 'warn' : 'breach', at: `${15 + Math.min(i, 4)} Sept 2026, 06:0${i}`, state: i < 4 ? 'open' : 'ack' })),
-  { id: 'gem-0', model: 'gemini-25-test', v: 'v1', what: 'Called after retirement (test)', sev: 'warn', at: '22 Sept 2026, 10:20', state: 'open' },
+  AL('customer-value-band', 'v4', 'warn', 'Model version retired at sunset', '23 Sept 2026, 08:22', 'open', 'v4 reached its sunset date 2026-09-23 and was retired; use v3 instead.', 'email sent'),
+  AL('customer-value-band', 'v4', 'breach', 'Unequal treatment of nation = France', '19 Sept 2026, 13:15', 'ack', "Of orders that really were HIGH, the model scored 1% of France's correctly against 85% for Germany (gap 84%, p=0.0).", 'email sent · batch 2026-09-19'),
+  AL('customer-value-band', 'v4', 'breach', 'Bias against nation = France', '19 Sept 2026, 13:15', 'open', 'France receives HIGH at 0% against 41% for Netherlands (disparate impact 0.0115, p=0.0).', 'email sent · batch 2026-09-19'),
+  AL('customer-value-band', 'v4', 'breach', 'Data drift on account_balance', '19 Sept 2026, 13:15', 'open', 'The scoring batch of 2026-09-19 has drifted from the training data on account_balance (PSI 0.3385).', 'email sent · batch 2026-09-19'),
+  AL('customer-value-band', 'v4', 'breach', 'Model drift in predictions', '19 Sept 2026, 13:15', 'open', 'Share predicted HIGH moved from 35% at training to 72% (prediction PSI 0.5948).', 'email sent · batch 2026-09-18'),
+  AL('customer-value-band', 'v4', 'breach', 'Data drift on orders_to_date', '19 Sept 2026, 13:15', 'open', 'The scoring batch of 2026-09-18 has drifted from the training data on orders_to_date (PSI 0.4341).', 'email sent · batch 2026-09-18'),
+  AL('gemini-25-test', 'v2.5-pro', 'warn', 'Model version retired at sunset', '19 Sept 2026, 14:47', 'open', 'v2.5-pro reached its sunset date 2026-09-19 and was retired; use Claude Sonnet 5 instead.', 'email sent'),
 ];
-export const MODEL_TILES = [
-  { l: 'Models governed', v: 6, s: '1 hosted · 5 external' },
-  { l: 'Model versions', v: 8, s: 'across all registries' },
-  { l: 'In validation or approval', v: 0, s: 'awaiting sign-off' },
-  { l: 'In production', v: 2, s: 'reviews up to date' },
-  { l: 'Open breach alerts', v: 4, s: '4 open · 3 acknowledged' },
-];
-export const DISCOVERY = [['SageMaker', 'failed'], ['MLflow', '1 model'], ['External AI', '5']];
+export const ALERT_RECIPIENTS = [['venkat.abburi@rplusanalytics.com', 'confirmed']];
+
+/* Monitoring & guardrails for hosted models (only customer-value-band is hosted). */
+export const MODEL_MONITORING = {
+  'customer-value-band': {
+    deployed: 'v4', baseline: 500, batches: [
+      ['15 Sept 2026', 1000, 0.028, 'order_month', 0.002, 33, 0.91, 'UK', 0.95586, null, null, 'ok'],
+      ['16 Sept 2026', 1000, 0.038, 'account_balance', 0.006, 38, 0.82, 'Netherlands', 0.65827, null, null, 'ok'],
+      ['17 Sept 2026', 1000, 0.038, 'account_balance', 0.004, 38, 0.77, 'Netherlands', 0.13835, null, null, 'ok'],
+      ['18 Sept 2026', 1000, 0.434, 'orders_to_date', 0.595, 72, 0.93, 'Netherlands', 0.72082, 2, 'UK · p 0.81876', 'breach'],
+      ['19 Sept 2026', 1000, 0.339, 'account_balance', 0.018, 28, 0.01, 'France', 0, null, null, 'breach'],
+    ],
+    trainingHigh: 35,
+    byNation: [['Germany', 37], ['UK', 36], ['Ireland', 32], ['France', 0]],
+    guardrails: [
+      ['Data drift (feature PSI)', 0.1, 0.25, 'above'],
+      ['Model drift (prediction PSI)', 0.1, 0.2, 'above'],
+      ['Bias — disparate impact ratio (lowest ÷ highest)', 0.85, 0.8, 'below'],
+      ['Bias — positive-rate gap between groups', 0.1, 0.2, 'above'],
+      ['Bias — equal opportunity gap (share of true HIGH orders each group is given)', 0.1, 0.2, 'above'],
+    ],
+    onBreach: 'alert_and_hold', email: 'warn', confidence: '0.05', minGroup: 100,
+  },
+};
+export const DISCOVERY = [['SageMaker', '1 model(s), 3 version(s)'], ['MLflow', '1 model(s), 3 version(s)'], ['External AI', '5']];
 export const RISK_TIERS = [
   ['High risk', 'Models that inform decisions about individuals or money.', 90, 2],
   ['Medium risk', 'Models that support, but do not make, decisions about individuals.', 180, 1],
@@ -294,7 +342,7 @@ export const REVIEW_ROWS = [
   N('CUSTOMER_ID', 'BI.Customer Churn Analysis'), N('CHURN_RISK', 'BI.Customer Churn Analysis'), COM('segment', 'API.GET_customers'),
 ];
 export const REVIEW_SOURCE = 'reviewed set · R+ build team (initial reviewed label set)';
-export const DRIFT_NOTE = 'Now: prediction-mix PSI vs baseline 0 (warn 0.1, breach 0.25) · F1 change vs previous run 0 (alert below −0.05) · label coverage 87.6% (alert below 80.0%) · ok. Runs are recorded on every harvest that changes the estate, labels or rules; alerts go to Model governance > Alerts.';
+export const DRIFT_NOTE = 'Now: prediction-mix PSI vs baseline 0 (warn 0.1, breach 0.25) · F1 change vs previous run 0 (alert below −0.05) · label coverage 87.6% (alert below 80.0%) · ok. Runs are recorded on every harvest that changes the estate, labels or rules; alerts go to AI model governance › Alerts.';
 
 /* ------------------------------------------------------------------ residency & sovereignty */
 export const RESIDENCY_TILES = [
