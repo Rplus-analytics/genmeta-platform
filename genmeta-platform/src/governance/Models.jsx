@@ -9,6 +9,7 @@ import { Section as RailSection } from '../components/Rail.jsx';
 import { Button, Segmented } from '../components/ui.jsx';
 import { MODELS, MODEL_ALERTS, MODEL_MONITORING, ALERT_RECIPIENTS, RISK_TIERS, DISCOVERY, BASE } from './data.js';
 import { Card, StatusBadge, Empty, Note, Mono, Fld, Drawer, Collapse, toast } from './kit.jsx';
+import { ModelOverview, LineageFilterBar, ModelLineageGraph, filterVersions } from './ModelParts.jsx';
 
 /* Govern › Governance › AI model governance.
    Built like the Data catalogue: KPIs, an "ask in plain English" box, one line per model, and the
@@ -24,7 +25,7 @@ const openAlerts = (id) => MODEL_ALERTS.filter((a) => a.model === id && a.state 
 
 /* ---------------------------------------------------------------- filter state (shared by menu + list) */
 const FACETS = [
-  { key: 'registry', label: 'Registry', icon: Database, drop: true, all: 'All registries', of: (m) => m.foundIn },
+  { key: 'registry', label: 'AI model registry', icon: Database, drop: true, all: 'All AI model registries', of: (m) => m.foundIn },
   { key: 'provider', label: 'Provider', icon: Building2, drop: true, all: 'All providers', of: (m) => [m.hosted ? 'Hosted in-house' : m.provider || '—'] },
   { key: 'risk', label: 'Risk tier', icon: ShieldAlert, of: (m) => [m.risk] },
   { key: 'stage', label: 'Stage', icon: WorkflowIcon, of: (m) => [m.stage] },
@@ -299,7 +300,7 @@ function RegisterDrawer({ onClose }) {
 }
 
 /* ---------------------------------------------------------------- the model page (asset-page look) */
-const TABS = [['overview', 'Overview'], ['monitoring', 'Monitoring & guardrails'], ['alerts', 'Alerts']];
+const TABS = [['overview', 'Overview'], ['lineage', 'Lineage'], ['monitoring', 'Monitoring & guardrails'], ['alerts', 'Alerts']];
 
 export function ModelPage() {
   const { modelId } = useParams();
@@ -307,10 +308,12 @@ export function ModelPage() {
   const [models, setModels] = useState(MODELS);
   const m = models.find((x) => x.id === modelId);
   const [tab, setTab] = useState('overview');
-  const [verId, setVerId] = useState(null);
-  useEffect(() => { setTab('overview'); setVerId(null); }, [modelId]);
+  const [lf, setLf] = useState({ version: '', registry: '', acc: '', stage: '' });
+  useEffect(() => { setTab('overview'); setLf({ version: '', registry: '', acc: '', stage: '' }); }, [modelId]);
   if (!m) return <Navigate to={MODELS_BASE} replace />;
-  const ver = m.versionRows.find((r) => r.v === verId) || latest(m);
+  /* the Lineage tab filters choose which versions are listed and which one the graph, lineage, workflow and history show */
+  const vis = filterVersions(m, lf);
+  const ver = vis.find((r) => r.v === lf.version) || vis[vis.length - 1];
   const nAlerts = MODEL_ALERTS.filter((a) => a.model === m.id).length;
   const patch = (p) => setModels((all) => all.map((x) => (x.id === m.id ? { ...x, ...p } : x)));
   return (
@@ -344,7 +347,18 @@ export function ModelPage() {
         ))}
       </nav>
 
-      {tab === 'overview' && <Overview m={m} ver={ver} onVersion={setVerId} onChange={patch} />}
+      {tab === 'overview' && <ModelOverview m={m} onChange={patch} goLineage={() => setTab('lineage')} />}
+      {tab === 'lineage' && (
+        <>
+          <LineageFilterBar m={m} f={lf} setF={setLf} ver={ver} />
+          {ver ? (
+            <>
+              <ModelLineageGraph m={m} ver={ver} />
+              <LineageDetails m={m} rows={vis} ver={ver} onVersion={(v) => setLf((o) => ({ ...o, version: v }))} />
+            </>
+          ) : <div className="empty card"><Search size={20} /><b>No versions match</b><p>Change or clear the filters above.</p></div>}
+        </>
+      )}
       {tab === 'monitoring' && <Monitoring m={m} />}
       {tab === 'alerts' && <Alerts m={m} />}
     </div>
@@ -358,7 +372,7 @@ const LINEAGE_LOOK = {
 };
 const BASE_STEPS = ['Registered', 'Validation', 'Approval', 'In production'];
 
-function Overview({ m, ver, onVersion, onChange }) {
+function LineageDetails({ m, rows, ver, onVersion }) {
   const [checks, setChecks] = useState({});
   const [note, setNote] = useState('');
   const [scope, setScope] = useState('version');
@@ -368,30 +382,11 @@ function Overview({ m, ver, onVersion, onChange }) {
   const hist = scope === 'version' ? ver.history.map((h) => ({ ...h, v: ver.v })) : allHist;
   return (
     <>
-      <div className="card pad-lg gv-msum">
-        <div className="gv-msum-l">
-          <h3 className="sec-h">Model summary</h3>
-          <div className="sum-figs">
-            <div><span>Versions</span><b>{m.versions}</b></div>
-            <div><span>Latest stage</span><b><StatusBadge s={stageTone(m.stage)}>{m.stage}</StatusBadge></b></div>
-            <div><span>Registries</span><b>{m.foundIn.join(' · ')}</b></div>
-            <div><span>Next review</span><b>{latest(m).review}</b></div>
-          </div>
-          <div className="sum-desc"><span>Purpose</span><p>{m.purpose}</p></div>
-          <div className="sum-desc"><span>Used by</span><p>{m.usedBy}</p></div>
-        </div>
-        <div className="gv-msum-r">
-          <Fld label="Risk tier"><select className="select" value={m.risk} onChange={(e) => onChange({ risk: e.target.value })}>{RISK_TIERS.map(([r]) => <option key={r}>{r}</option>)}</select></Fld>
-          <Fld label="Owner"><input className="input" value={m.owner} placeholder="Accountable owner" onChange={(e) => onChange({ owner: e.target.value })} /></Fld>
-          <Fld label="Version shown below"><select className="select" value={ver.v} onChange={(e) => onVersion(e.target.value)}>{m.versionRows.map((r) => <option key={r.v} value={r.v}>{r.v} · {r.stage}</option>)}</select></Fld>
-        </div>
-      </div>
-
-      <Collapse icon={GitBranch} tone="info" title="Versions" meta={`${m.versionRows.length} version${m.versionRows.length > 1 ? 's' : ''} · choose one to see its lineage, workflow and history`}>
+      <Collapse icon={GitBranch} tone="info" title="Versions" meta={`${rows.length} of ${m.versionRows.length} version${m.versionRows.length > 1 ? 's' : ''} · choose one to see its lineage, workflow and history`}>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Version</th><th>Registries</th><th className="num">Accuracy</th><th className="num">ROC AUC</th><th className="num">F1 (HIGH)</th><th>Stage</th><th>Next review</th></tr></thead>
-            <tbody>{m.versionRows.map((r) => (
+            <tbody>{rows.map((r) => (
               <tr key={r.v} className={`click ${r.v === ver.v ? 'on' : ''}`} onClick={() => onVersion(r.v)}>
                 <td><span className="gv-ver">{r.v === ver.v && <i />}<b>{r.v}</b></span></td>
                 <td><div className="gv-inline" style={{ gap: 4 }}>{r.reg.map((g) => <span key={g} className={`tag ${/Rejected/.test(g) ? 'gv-tag-bad' : /@production/.test(g) ? 'gv-tag-ok' : ''}`}>{g}</span>)}</div></td>

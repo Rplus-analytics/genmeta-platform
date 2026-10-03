@@ -564,3 +564,52 @@
 .gv-alert-f { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .gv-alert-f .gv-faint { display: inline-flex; align-items: center; gap: 4px; }
 .cat.gv > .tiles-sm { margin-bottom: 16px; }
+
+/* ---------- AI model page: Lineage tab filter bar (searchable dropdowns) ---------- */
+.gv-linbar { gap: 10px; }
+.gv-sdrop { position: relative; flex: 1 1 200px; min-width: 180px; }
+.gv-sdrop.wide { flex: 1.4 1 240px; }
+.gv-sdrop > .fdrop { width: 100%; margin: 0; font: inherit; text-align: left; }
+.gv-sdrop-l { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 500; color: var(--navy); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fdrop:not(.set) .gv-sdrop-l { color: var(--muted); font-weight: 400; }
+.gv-sdrop-l em { font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--faint); }
+.gv-sdrop-menu { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; min-width: 100%; width: max-content; max-width: 340px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 35, 70, .14); padding: 6px; }
+.gv-sdrop-search { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 9px; margin-bottom: 4px; border: 1px solid var(--line2); border-radius: 7px; color: var(--faint); }
+.gv-sdrop-search input { flex: 1; border: 0; outline: 0; background: none; font: inherit; font-size: 13px; color: var(--text); min-width: 0; }
+.gv-sdrop-menu ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+.gv-sdrop-menu li button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 0; background: none; border-radius: 6px; font: inherit; font-size: 13px; color: var(--text); text-align: left; cursor: pointer; }
+.gv-sdrop-menu li button span { flex: 1; }
+.gv-sdrop-menu li button small { color: var(--faint); font-size: 12px; }
+.gv-sdrop-menu li button:hover:not(:disabled) { background: var(--tint2); }
+.gv-sdrop-menu li button.on { background: var(--tint); color: var(--navy); font-weight: 600; }
+.gv-sdrop-menu li button.on svg { color: var(--royal); }
+.gv-sdrop-menu li button:disabled { color: var(--faint); cursor: default; }
+.gv-sdrop-none { padding: 8px 9px; font-size: 12.5px; color: var(--faint); }
+
+/* model lineage graph nodes */
+.gv-mlin .lnode-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.gv-lnode-sub { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.gv-lnode .lnode-foot { display: block; }
+.gv-muted-node { border-style: dashed !important; opacity: .75; }
+.gv-wrap { overflow-wrap: anywhere; word-break: break-word; }
+.page.asset.gv > .lineage, .page.asset.gv > .lin-filterbar { margin: 0; }
+
+/* Overview (asset-page look) */
+.gv-cl { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.gv-cl-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+.gv-cl-h b { color: var(--navy); }
+.gv-cl-h span { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--mist); color: var(--muted); }
+.gv-cl-h span.ok { background: var(--gv-ok-bg); color: var(--gv-ok); }
+.gv-cl-h span.warn { background: var(--gv-warn-bg); color: var(--gv-warn); }
+.gv-cl .checks { margin: 0; }
+.gv-feats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.gv-feats li { display: flex; gap: 8px; align-items: baseline; }
+.gv-feats code { font-size: 12px; color: var(--navy); background: var(--tint2); padding: 1px 6px; border-radius: 4px; flex: none; }
+.gv-feats span { color: var(--muted); }
+.gv-kvs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin-top: 14px; }
+.gv-kvs span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.gv-kvs p { margin: 0; font-size: 13.5px; color: var(--text); }
+.gv-side-sel { width: 100%; height: 32px; }
+.cert.gv-cert-bad { color: var(--gv-bad); }
+.cert.gv-cert-info { color: var(--gv-info); }
+.gv-lnode .gv-lnode-sub::before, .gv-lnode .lnode-kind::before { content: none !important; display: none !important; }
