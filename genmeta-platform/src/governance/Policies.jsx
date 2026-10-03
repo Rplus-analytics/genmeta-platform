@@ -1,17 +1,20 @@
 import { useMemo, useRef, useState } from 'react';
-import { Plus, Upload, Link2, FolderSearch, Check, X, Search } from 'lucide-react';
+import {
+  Plus, Upload, Link2, FolderSearch, Check, X, Search, AlertTriangle, Library as LibraryIcon, FileSearch, FileText, Network, SlidersHorizontal, Layers, Database,
+  Building2, Flame, GitFork, UserX, Unlink, FileQuestion,
+} from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
   POLICY_ITEMS, POLICY_TYPES, POLICY_TYPE_LABEL, DOCUMENTS, EXTRACTED_PENDING, APPLY_OPTIONS, APPLY_LABELS,
   ASSET_NAMES, PD_MAP, systemOf, LIFECYCLE, REVIEW_DUE, REG_GROUP,
 } from './data.js';
-import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, ChipPick, KV, toast } from './kit.jsx';
+import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, ChipPick, KV, toast, Meter } from './kit.jsx';
 
 const TABS = [
-  { value: 'library', label: 'Library & applicability' },
-  { value: 'documents', label: 'Documents & extraction' },
-  { value: 'map', label: 'Relationship map' },
-  { value: 'compliance', label: 'Compliance' },
+  { value: 'library', label: 'Library & applicability', icon: LibraryIcon },
+  { value: 'documents', label: 'Documents & extraction', icon: FileSearch },
+  { value: 'map', label: 'Relationship map', icon: Network },
+  { value: 'compliance', label: 'Compliance', icon: SlidersHorizontal },
 ];
 const srcLabel = (s) => (s ? `${s[0]} · p${s[1]}` : 'Manual');
 const domainOf = (a) => PD_MAP.find((r) => r.asset === a)?.domain
@@ -66,7 +69,7 @@ function Library({ items, setItems }) {
   const row = (i) => (
     <tr key={i.id} className="click" onClick={() => setOpen(i)}>
       <td><span className="gv-strong">{i.title}</span><span className="gv-sub mono">{i.id}</span></td>
-      <td><span className="tag">{i.type}</span></td>
+      <td><span className={`gv-type t-${i.type}`}>{i.type}</span></td>
       <td>{i.owner || <StatusBadge s="warn">no owner</StatusBadge>}</td>
       <td><StatusBadge s={i.status === 'active' ? 'active' : i.status === 'retired' ? 'retired' : 'warn'}>{i.status}</StatusBadge></td>
       <td className="gv-muted">{i.status === 'retired' ? '—' : REVIEW_DUE[i.type]}</td>
@@ -76,18 +79,18 @@ function Library({ items, setItems }) {
   const head = <thead><tr><th>Item</th><th>Type</th><th>Owner</th><th>Status</th><th>Next review</th><th>Source</th></tr></thead>;
   return (
     <>
-      <Card title="Gaps to close" sub="Library hygiene, checked continuously — each gap weakens the evidence an auditor will ask for.">
+      <Card icon={AlertTriangle} tone="warn" title="Gaps to close" sub="Library hygiene, checked continuously — each gap weakens the evidence an auditor will ask for.">
         <div className="gv-three">
-          {[[noOwner, 'Items with no owner', 'Nobody is accountable for keeping these current.'], [orphan, 'Items not linked to anything', 'Not implemented by a control and not supporting a policy.'], [noReg, 'Items with no regulation or source', 'The legal basis for these is not recorded.']].map(([list, t, d]) => (
-            <div key={t} className="gv-tier">
-              <header><b>{t}</b><span className="gv-count">{list.length}</span></header>
+          {[[noOwner, 'Items with no owner', 'Nobody is accountable for keeping these current.', UserX], [orphan, 'Items not linked to anything', 'Not implemented by a control and not supporting a policy.', Unlink], [noReg, 'Items with no regulation or source', 'The legal basis for these is not recorded.', FileQuestion]].map(([list, t, d, I]) => (
+            <div key={t} className={`gv-tier ${list.length > 5 ? 'gap-bad' : list.length ? 'gap-warn' : ''}`}>
+              <header><span className="gv-inline" style={{ alignItems: 'center', gap: 8 }}><span className={`gv-chip sm ${list.length > 5 ? 'bad' : list.length ? 'warn' : 'ok'}`}><I size={14} /></span><b>{t}</b></span><span className={`gv-badge ${list.length > 5 ? 'bad' : list.length ? 'warn' : 'ok'}`}><i />{list.length}</span></header>
               <p>{d}</p>
               {list.length > 0 && <Button variant="link" onClick={() => { setQ(''); setType('all'); setStatus('all'); setView('list'); setOpen(list[0]); }}>Fix the first: {list[0].title.slice(0, 40)}{list[0].title.length > 40 ? '…' : ''}</Button>}
             </div>
           ))}
         </div>
       </Card>
-      <Card title="Library" count={rows.length} actions={<>
+      <Card icon={LibraryIcon} tone="violet" title="Library" count={rows.length} actions={<>
         <Segmented size="sm" value={view} onChange={setView} options={[{ value: 'list', label: 'List' }, { value: 'regulation', label: 'By regulation' }]} />
         <Button variant="primary" size="md" icon={Plus} onClick={() => setCreating(true)}>New item</Button>
       </>}>
@@ -95,7 +98,7 @@ function Library({ items, setItems }) {
           <div className="gl-msearch" style={{ minWidth: 280 }}><Search size={14} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search titles, statements, regulations…" aria-label="Search the library" /></div>
           <div className="gv-chips">
             <button type="button" className={`chip ${type === 'all' ? 'on' : ''}`} onClick={() => setType('all')}>All {items.length}</button>
-            {POLICY_TYPES.map((t) => <button type="button" key={t} className={`chip ${type === t ? 'on' : ''}`} onClick={() => setType(t)}>{t} {items.filter((i) => i.type === t).length}</button>)}
+            {POLICY_TYPES.map((t) => <button type="button" key={t} className={`chip gv-tchip t-${t} ${type === t ? 'on' : ''}`} onClick={() => setType(t)}><i />{t} <b>{items.filter((i) => i.type === t).length}</b></button>)}
           </div>
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="all">Any status</option>{LIFECYCLE.map((s) => <option key={s}>{s}</option>)}</select>
         </div>
@@ -168,7 +171,7 @@ function ItemDrawer({ i, items, onClose, onUpdate }) {
       {next && <Button variant="primary" size="md" onClick={() => onUpdate(i.id, { status: next[1] }, `${next[0]} — status set to ${next[1]}`)}>{next[0]}</Button>}
       {i.status === 'retired' && <Button variant="primary" size="md" onClick={() => onUpdate(i.id, { status: 'draft' }, 'Restored as a draft')}>Restore as draft</Button>}
     </>}>
-      <div className="gv-inline" style={{ marginBottom: 12, alignItems: 'center' }}><span className="tag">{i.type}</span><span className="gv-faint mono">{i.id}</span><span className="gv-faint">· version {history.filter((h) => /version|Edited/.test(h[2])).length + 1}</span></div>
+      <div className="gv-inline" style={{ marginBottom: 12, alignItems: 'center' }}><span className={`gv-type t-${i.type}`}>{i.type}</span><span className="gv-faint mono">{i.id}</span><span className="gv-faint">· version {history.filter((h) => /version|Edited/.test(h[2])).length + 1}</span></div>
       <div className="gv-steps" style={{ marginBottom: 16 }}>
         {LIFECYCLE.slice(0, 4).map((s, k) => <div key={s} className={i.status === 'retired' ? '' : k < stepIdx ? 'done' : k === stepIdx ? 'cur' : ''}><i>{k + 1}</i>{s}</div>)}
       </div>
@@ -214,7 +217,7 @@ function Documents({ docs, setDocs, pending, setPending, onAccept }) {
   };
   return (
     <>
-      <Card title="Add a document" sub="PDF, Word, web page or text. Claude reads it and extracts policies, standards, controls, obligations and retention requirements with the page and sentence they came from; you accept or reject each one.">
+      <Card icon={Upload} tone="info" title="Add a document" sub="PDF, Word, web page or text. Claude reads it and extracts policies, standards, controls, obligations and retention requirements with the page and sentence they came from; you accept or reject each one.">
         <div className="gv-inline">
           <input ref={fileRef} type="file" hidden accept=".pdf,.doc,.docx,.txt,.html" onChange={(e) => { const f = e.target.files[0]; if (f) read(f.name, 'upload', 1); e.target.value = ''; }} />
           <Button variant="secondary" size="md" icon={Upload} onClick={() => fileRef.current.click()}>Upload file</Button>
@@ -223,14 +226,14 @@ function Documents({ docs, setDocs, pending, setPending, onAccept }) {
           <Button variant="secondary" size="md" icon={FolderSearch} onClick={() => toast('Scanned the document repository — no new documents')}>Scan document repository</Button>
         </div>
       </Card>
-      <Card title="Extracted — awaiting review" count={pending.length}>
+      <Card icon={FileSearch} tone="warn" title="Extracted — awaiting review" count={pending.length}>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Requirement</th><th>Type</th><th>Source</th><th /></tr></thead>
             <tbody>
               {pending.map((p, k) => (
                 <tr key={k}>
-                  <td>{p.req}</td><td><span className="tag">{p.type}</span></td><td className="gv-muted">{srcLabel(p.src)}</td>
+                  <td>{p.req}</td><td><span className={`gv-type t-${p.type}`}>{p.type}</span></td><td className="gv-muted">{srcLabel(p.src)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}><Button variant="secondary" size="sm" icon={Check} onClick={() => onAccept(p)}>Accept</Button> <Button variant="subtle" size="sm" icon={X} onClick={() => { setPending((x) => x.filter((y) => y !== p)); toast('Rejected'); }}>Reject</Button></td>
                 </tr>
               ))}
@@ -239,7 +242,7 @@ function Documents({ docs, setDocs, pending, setPending, onAccept }) {
           </table>
         </div>
       </Card>
-      <Card title="Documents read" count={docs.length}>
+      <Card icon={FileText} tone="teal" title="Documents read" count={docs.length}>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Document</th><th>From</th><th className="num">Pages</th><th className="num">Extracted</th><th>Added</th></tr></thead>
@@ -253,6 +256,7 @@ function Documents({ docs, setDocs, pending, setPending, onAccept }) {
 
 /* ------------------------------------------------------------------ Relationship map */
 const COLS = ['policy', 'standard', 'control', 'obligation', 'retention'];
+const TYPE_TONE = { policy: 'violet', standard: 'info', control: 'teal', obligation: 'warn', retention: 'ok', asset: 'info' };
 function RelationshipMap({ items }) {
   const [showAssets, setShowAssets] = useState(false);
   const [sel, setSel] = useState(null);
@@ -274,18 +278,18 @@ function RelationshipMap({ items }) {
   const near = new Set(sel ? edges.filter(touch).flatMap((e) => [e.from, e.to]) : []);
   const trunc = (s, n = 26) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
   return (
-    <Card title="How policies, standards, controls, obligations and retention connect to what they govern"
+    <Card icon={Network} tone="violet" title="How policies, standards, controls, obligations and retention connect to what they govern"
       actions={<label className="gv-check"><input type="checkbox" checked={showAssets} onChange={(e) => setShowAssets(e.target.checked)} />Show data assets</label>}>
       <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 10px' }}>Click a node to trace its connections.</p>
       {live.length ? (
-        <svg className="gv-map" viewBox={`0 0 ${W} 520`} role="img" aria-label="Relationship map">
+        <svg className="gv-map gv" viewBox={`0 0 ${W} 520`} role="img" aria-label="Relationship map">
           {[...COLS, ...(showAssets ? ['asset'] : [])].map((t, ci) => <text key={t} x={colW * ci + colW / 2} y={26} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--muted)">{t === 'asset' ? 'Data assets' : POLICY_TYPE_LABEL[t]}</text>)}
           {edges.map((e, k) => { const a = pos[e.from], b = pos[e.to]; if (!a || !b) return null; const on = touch(e); return <path key={k} d={`M${a.x},${a.y} C${(a.x + b.x) / 2},${a.y} ${(a.x + b.x) / 2},${b.y} ${b.x},${b.y}`} fill="none" stroke={on ? 'var(--royal)' : 'var(--line2)'} strokeWidth={on ? 2 : 1} opacity={sel && !on ? 0.35 : 1} />; })}
           {nodes.map((n) => {
             const dim = sel && n.id !== sel && !near.has(n.id);
             return (
               <g key={n.id} className="node" transform={`translate(${n.x},${n.y})`} opacity={dim ? 0.35 : 1} onClick={() => setSel(sel === n.id ? null : n.id)}>
-                <rect x={-colW / 2 + 10} y={-14} width={colW - 20} height={28} rx="7" fill={n.id === sel ? 'var(--ice)' : 'var(--white)'} stroke={n.id === sel ? 'var(--royal)' : 'var(--line)'} />
+                <rect x={-colW / 2 + 10} y={-14} width={colW - 20} height={28} rx="7" fill={n.id === sel ? 'var(--ice)' : `var(--gv-${TYPE_TONE[n.type]}-bg)`} stroke={n.id === sel ? 'var(--royal)' : `var(--gv-${TYPE_TONE[n.type]}-line)`} />
                 <text textAnchor="middle" y="4" fontSize="11.5" fill="var(--navy)">{trunc(n.label)}</text>
                 <title>{n.label}</title>
               </g>
@@ -327,23 +331,23 @@ function Compliance({ items }) {
         { l: 'Open risks', v: failing.length - excepted.length, s: 'failing controls, weighted by sensitivity and severity' },
         { l: 'Exceptions to decide', v: Object.values(exceptions).filter((v) => v === 'requested').length, s: `${excepted.length} approved` },
       ]} />
-      <Card title="By control">
+      <Card icon={SlidersHorizontal} tone="teal" title="By control" sub="Each automated control, checked against every asset it applies to.">
         {controls.length ? (
-          <div className="table-wrap"><table className="tbl"><thead><tr><th>Control</th><th className="num">Checks</th><th className="num">Failing</th><th className="num">Compliance</th></tr></thead>
-            <tbody>{group((x) => x.c.title).map(([k, v]) => <tr key={k}><td className="gv-strong">{k}</td><td className="num">{v.n}</td><td className="num">{v.f}</td><td className="num">{Math.round(((v.n - v.f) / v.n) * 100)}%</td></tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="tbl"><thead><tr><th>Control</th><th className="num">Checks</th><th className="num">Failing</th><th>Compliance</th></tr></thead>
+            <tbody>{group((x) => x.c.title).map(([k, v]) => <tr key={k}><td className="gv-strong">{k}</td><td className="num">{v.n}</td><td className="num">{v.f}</td><td style={{ width: '34%' }}><div className="gv-inbar"><Meter pct={(v.n - v.f) / v.n} /><b>{Math.round(((v.n - v.f) / v.n) * 100)}%</b></div></td></tr>)}</tbody></table></div>
         ) : <Empty>No automated controls are active.</Empty>}
       </Card>
       <div className="gv-two">
-        <Card title="Information — by domain">
-          <div className="table-wrap"><table className="tbl"><thead><tr><th>Domain</th><th className="num">Checks</th><th className="num">Failing</th><th className="num">Compliance</th></tr></thead>
-            <tbody>{group((x) => domainOf(x.a)).map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{v.n}</td><td className="num">{v.f}</td><td className="num">{Math.round(((v.n - v.f) / v.n) * 100)}%</td></tr>)}</tbody></table></div>
+        <Card icon={Layers} tone="info" title="Information — by domain">
+          <div className="table-wrap"><table className="tbl"><thead><tr><th>Domain</th><th className="num">Checks</th><th className="num">Failing</th><th>Compliance</th></tr></thead>
+            <tbody>{group((x) => domainOf(x.a)).map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{v.n}</td><td className="num">{v.f}</td><td style={{ width: '34%' }}><div className="gv-inbar"><Meter pct={(v.n - v.f) / v.n} /><b>{Math.round(((v.n - v.f) / v.n) * 100)}%</b></div></td></tr>)}</tbody></table></div>
         </Card>
-        <Card title="Technology — by system">
-          <div className="table-wrap"><table className="tbl"><thead><tr><th>System</th><th className="num">Checks</th><th className="num">Failing</th><th className="num">Compliance</th></tr></thead>
-            <tbody>{group((x) => systemOf(x.a)).map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{v.n}</td><td className="num">{v.f}</td><td className="num">{Math.round(((v.n - v.f) / v.n) * 100)}%</td></tr>)}</tbody></table></div>
+        <Card icon={Database} tone="violet" title="Technology — by system">
+          <div className="table-wrap"><table className="tbl"><thead><tr><th>System</th><th className="num">Checks</th><th className="num">Failing</th><th>Compliance</th></tr></thead>
+            <tbody>{group((x) => systemOf(x.a)).map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{v.n}</td><td className="num">{v.f}</td><td style={{ width: '34%' }}><div className="gv-inbar"><Meter pct={(v.n - v.f) / v.n} /><b>{Math.round(((v.n - v.f) / v.n) * 100)}%</b></div></td></tr>)}</tbody></table></div>
         </Card>
       </div>
-      <Card title="Operational and organisational">
+      <Card icon={Building2} tone="teal" title="Operational and organisational">
         <div className="gv-two">
           {[['Business process *', APPLY_OPTIONS.processes], ['Organisational unit *', APPLY_OPTIONS.org_units]].map(([h, list]) => (
             <div key={h} className="table-wrap"><table className="tbl"><thead><tr><th>{h}</th><th className="num">Checks</th><th className="num">Failing</th><th className="num">Compliance</th></tr></thead>
@@ -352,7 +356,7 @@ function Compliance({ items }) {
         </div>
         <Note>* labelled examples.</Note>
       </Card>
-      <Card title="Risks and exceptions" count={failing.length}>
+      <Card icon={Flame} tone="bad" title="Risks and exceptions" count={failing.length}>
         <div className="table-wrap gv-scroll">
           <table className="tbl"><thead><tr><th className="num">Risk</th><th>Control</th><th>Asset</th><th>Finding</th><th>Owner</th><th /></tr></thead>
             <tbody>
@@ -360,7 +364,7 @@ function Compliance({ items }) {
                 const k = `${x.c.id}|${x.a}`; const st = exceptions[k];
                 return (
                   <tr key={k}>
-                    <td className="num gv-strong">{sev(x)}</td><td>{x.c.title}</td><td><Mono>{x.a}</Mono></td><td className="gv-muted">{x.finding}</td>
+                    <td className="num"><span className={`gv-badge ${sev(x) >= 9 ? 'bad' : 'warn'}`}><i />{sev(x)}</span></td><td>{x.c.title}</td><td><Mono>{x.a}</Mono></td><td className="gv-muted">{x.finding}</td>
                     <td>{(PD_MAP.find((r) => r.asset === x.a)?.owner || '—').split(' / ')[0]}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {!st && <Button variant="secondary" size="sm" onClick={() => setExceptions((e) => ({ ...e, [k]: 'requested' }))}>Request exception</Button>}
@@ -375,7 +379,7 @@ function Compliance({ items }) {
           </table>
         </div>
       </Card>
-      <Card title="Dependencies and potential impact of non-compliant assets">
+      <Card icon={GitFork} tone="warn" title="Dependencies and potential impact of non-compliant assets">
         <div className="table-wrap gv-scroll">
           <table className="tbl"><thead><tr><th>Non-compliant asset</th><th>Feeds</th><th>Data products</th><th>ML models</th><th>People to tell</th></tr></thead>
             <tbody>

@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Landmark, Bot, Scale, ScrollText, Globe2, Play, RefreshCw, ExternalLink, Plus, ArrowRight } from 'lucide-react';
+import {
+  Landmark, Bot, Scale, ScrollText, Globe2, Play, RefreshCw, ExternalLink, Plus, ArrowRight, Gauge, Lightbulb, Compass, ShieldCheck, FileText, KeyRound,
+  ListTodo, Layers, History, CheckCircle2, AlertTriangle, AlertOctagon, GitBranch, Workflow, ClipboardCheck, Network, Activity, Bell, Settings2,
+  MonitorSmartphone, Send, Cpu, FileOutput, Table2, Grid3x3, SlidersHorizontal, TrendingUp, ListChecks, Wrench, Archive, Boxes as Boxes2, Info as Info2, Mail, Shield, Tags as Tags2, Target as Target2,
+} from 'lucide-react';
 import { PageHead, Ring, Tabs, Button, Segmented, Badge } from '../components/ui.jsx';
 import {
   OVERVIEW_TILES, CONTROLS, TIER_LABEL, TIERS, AUDIT, EXPORTS, fmtTs, BASE, POLICY_ITEMS,
@@ -8,7 +12,7 @@ import {
   MODEL_TILES, DISCOVERY, MODELS, RISK_TIERS,
   EVAL_METRICS, EVAL_CONFUSION, EVAL_CATEGORIES, EVAL_BANDS, EVAL_THRESHOLDS, EVAL_RUNS, REVIEW_ROWS, REVIEW_SOURCE, LABELS, DRIFT_NOTE,
 } from './data.js';
-import { Card, Tiles, StatusBadge, Empty, Note, Mono, Drawer, Modal, MenuButton, Fld, KV, downloadText, toast } from './kit.jsx';
+import { Card, Tiles, StatusBadge, Empty, Note, Mono, Drawer, Modal, MenuButton, Fld, KV, downloadText, toast, Meter, meterTone, Section, SubNav, useWidth } from './kit.jsx';
 import { AuditTab, ResidencyTab } from './AuditResidency.jsx';
 
 export const OVERVIEW_TABS = [
@@ -47,6 +51,20 @@ export default function GovernanceOverview() {
    improvement actions you can assign, track and evidence) and Collibra (one view across policies,
    privacy and access, with the gaps to close). */
 const STATUS_TONE = { 'Not started': 'fail', 'In progress': 'warn', Implemented: 'warn', Passed: 'ok' };
+export const catClass = (c) => ({ 'Ownership and access': 'cat-own', 'Policy actions': 'cat-pol', Other: 'cat-oth', 'Metadata changes': 'cat-meta' }[c] || '');
+/* Lean, single-row health strip (closer to the old UI): status counts with coloured icons and a meter. */
+function HealthStrip({ pass, warn, total }) {
+  const pct = pass / total;
+  return (
+    <div className="gv-strip">
+      <div className="gv-strip-t"><span className="gv-chip ok"><ShieldCheck size={17} /></span><div><b>Governance health</b><small>Overall status across all governance controls and domains · {total - pass - warn} not connected, shown as unavailable.</small></div></div>
+      <div className="gv-pill"><span className="gv-chip sm ok"><CheckCircle2 size={14} /></span><div><b>{pass}</b><span>Passing</span></div></div>
+      <div className="gv-pill"><span className="gv-chip sm warn"><AlertTriangle size={14} /></span><div><b>{warn}</b><span>Warnings</span></div></div>
+      <div className="gv-pill"><span className="gv-chip sm bad"><AlertOctagon size={14} /></span><div><b>0</b><span>Critical</span></div></div>
+      <div className="gv-strip-score"><b>{Math.round(pct * 100)}%</b><span>controls passing</span><Meter pct={pct} /></div>
+    </div>
+  );
+}
 const FRAMEWORKS_SCORED = ['UK GDPR', 'DPA 2018', 'ISO/IEC 27001:2022', 'NCSC CAF', 'HMRC residency'];
 
 function OverviewTab() {
@@ -69,40 +87,31 @@ function OverviewTab() {
   return (
     <>
       <Tiles items={OVERVIEW_TILES.map((t) => (t.l === 'Compliance posture' ? { ...t, v: `${Math.round(score.pct * 100)}%`, s: `${score.got} of ${score.total} points · ${todo.length} actions open` } : t))} />
-      <div className="gv-two">
-        <Card title="Compliance score" sub="Points for every improvement action that has passed, weighted by risk (preventative 27 · detective 3).">
-          <div className="gv-health">
-            <Ring value={score.pct} size={96} stroke={9}><b>{Math.round(score.pct * 100)}%</b></Ring>
-            <div className="gv-bars" style={{ flex: 1, minWidth: 260 }}>
-              {byFw.map(([f, s]) => <div key={f}><span>{f}</span><i><em style={{ width: `${s.pct * 100}%` }} /></i><b>{Math.round(s.pct * 100)}%</b></div>)}
-            </div>
+      <HealthStrip pass={pass} warn={warn} total={CONTROLS.length} />
+      <div className="gv-two wide-l">
+        <Card icon={Gauge} tone={meterTone(score.pct)} title="Compliance score" count={`${Math.round(score.pct * 100)}%`}
+          sub="Points for every improvement action that has passed, weighted by risk (preventative 27 · detective 3).">
+          <div className="gv-bars">
+            {byFw.map(([f, s]) => <div key={f}><span>{f}</span><Meter pct={s.pct} /><b>{Math.round(s.pct * 100)}%</b></div>)}
           </div>
-          <Note>{score.got} of {score.total} points achieved. The quickest gain: {todo[0].title.toLowerCase()} (+{todo[0].points} points).</Note>
+          <div className="gv-callout info" style={{ marginTop: 14 }}><Lightbulb size={15} /><span>{score.got} of {score.total} points achieved. Quickest gain: <b>{todo[0].title.toLowerCase()}</b> (+{todo[0].points} points).</span></div>
         </Card>
-        <Card title="Governance health" sub="Overall status across all governance controls and domains.">
-          <div className="gv-health">
-            <Ring value={pass / CONTROLS.length} size={96} stroke={9}><b>{Math.round((pass / CONTROLS.length) * 100)}%</b></Ring>
-            <div className="gv-health-n">
-              <div><b>{pass}</b><span>Passing</span></div>
-              <div><b>{warn}</b><span>Warnings</span></div>
-              <div><b>0</b><span>Critical</span></div>
-            </div>
-          </div>
-          <Note>{CONTROLS.length - pass - warn} control not connected — shown as unavailable rather than as proof of compliance.</Note>
-        </Card>
+        <section className="dash-card gv-jumps">
+          <div className="block-head gv-head"><div className="gv-head-l"><span className="gv-chip violet"><Compass size={16} /></span><div><h2>Across Governance</h2><p className="block-sub">Where to act next in each area.</p></div></div></div>
+          {[
+            [ShieldCheck, 'violet', 'Policies', `${POLICY_ITEMS.length} items · 16 without an owner`, '68% of automated checks passing', 'warn', 'policies'],
+            [FileText, 'bad', 'DPIA & GDPR', '0 of 5 records of processing accepted', '82 of 150 handling checks failing', 'bad', 'dpia'],
+            [KeyRound, 'info', 'Access', '6 grants due for quarterly review', '3 recommended to revoke', 'warn', 'access'],
+          ].map(([I, tn, t, a1, b1, st, to]) => (
+            <button key={t} type="button" className="gv-jump-row" onClick={() => nav(`${BASE}/${to}`)}>
+              <span className={`gv-chip ${tn}`}><I size={16} /></span>
+              <span className="gv-jump-t"><b>{t}</b><small>{a1}</small><span className={`gv-badge ${st}`}><i />{b1}</span></span>
+              <ArrowRight size={15} className="gv-jump-go" />
+            </button>
+          ))}
+        </section>
       </div>
-      <div className="gv-three">
-        {[
-          ['Policies', `${POLICY_ITEMS.length} items in the library`, '3 automated controls · 68% of checks passing', 'policies'],
-          ['DPIA & GDPR', '25 assets hold personal data', '0 of 5 records of processing accepted · 82 rule checks failing', 'dpia'],
-          ['Access', '4 access policies · 4 rules', '6 grants due for review · 0 requests pending', 'access'],
-        ].map(([t, a, b, to]) => (
-          <button key={t} type="button" className="dash-card gv-jump" onClick={() => nav(`${BASE}/${to}`)}>
-            <span className="gv-strong">{t}</span><b>{a}</b><small>{b}</small><span className="gl-tlink">Open {t} <ArrowRight size={13} /></span>
-          </button>
-        ))}
-      </div>
-      <Card title="Improvement actions" count={todo.length} sub="What to do next to raise the score. Assign an owner, record progress and attach evidence; the score updates when an action passes."
+      <Card icon={ListTodo} tone="warn" title="Improvement actions" count={todo.length} sub="What to do next to raise the score. Assign an owner, record progress and attach evidence; the score updates when an action passes."
         actions={<Segmented size="sm" value={aFilter} onChange={setAFilter} options={[{ value: 'todo', label: `To do (${todo.length})` }, { value: 'done', label: 'Passed' }, { value: 'all', label: 'All' }]} />}>
         <div className="table-wrap">
           <table className="tbl">
@@ -118,7 +127,7 @@ function OverviewTab() {
           </table>
         </div>
       </Card>
-      <Card title="Governance controls" count={controls.length} sub="Cross-cutting security, privacy and compliance controls checked against the running system. Click a row for evidence."
+      <Card icon={ShieldCheck} tone="info" title="Governance controls" count={controls.length} sub="Cross-cutting security, privacy and compliance controls checked against the running system. Click a row for evidence."
         actions={<>
           <select className="select" value={cDomain} onChange={(e) => setCDomain(e.target.value)} aria-label="Domain"><option value="all">All domains</option>{[...new Set(CONTROLS.map((c) => c.domain))].map((d) => <option key={d}>{d}</option>)}</select>
           <Segmented size="sm" value={cStatus} onChange={setCStatus} options={[{ value: 'all', label: 'All' }, { value: 'Passing', label: 'Passing' }, { value: 'Warning', label: 'Warning' }, { value: 'Not connected', label: 'Not connected' }]} />
@@ -139,22 +148,22 @@ function OverviewTab() {
           </table>
         </div>
       </Card>
-      <Card title="The constitution — three tiers">
+      <Card icon={Layers} tone="violet" title="The constitution — three tiers">
         <div className="gv-tiers">
           {TIERS.map((t) => (
-            <div key={t.n} className="gv-tier">
-              <header><b>Tier {t.n} · {t.name}</b><Badge tone={t.state === 'gated' ? 'warn' : 'ok'}>{t.state}</Badge></header>
+            <div key={t.n} className={`gv-tier t${t.n}`}>
+              <header><b>Tier {t.n} · {t.name}</b><StatusBadge s={t.state === 'gated' ? 'warn' : 'ok'}>{t.state}</StatusBadge></header>
               <p>{t.d}</p>
             </div>
           ))}
         </div>
       </Card>
-      <Card title="Recent audit activity" count={50} sub="Tamper-evident, hash-chained. in-memory (no external anchor).">
+      <Card icon={History} tone="teal" title="Recent audit activity" count={50} sub="Tamper-evident, hash-chained. in-memory (no external anchor).">
         <div className="gv-feed gv-scroll" style={{ maxHeight: 380 }}>
           {AUDIT.slice(0, 50).map((r) => (
             <div key={r.seq}>
               <span className="seq">#{r.seq}</span>
-              <div><span className="act">{r.action}<span className="tag">{r.asset}</span></span><small>{r.what} · {r.category.toLowerCase()} · {fmtTs(r.ts)}</small></div>
+              <div><span className={`act ${catClass(r.category)}`}>{r.action}<span className="tag">{r.asset}</span></span><small>{r.what} · {r.category.toLowerCase()} · {fmtTs(r.ts)}</small></div>
             </div>
           ))}
         </div>
@@ -224,7 +233,10 @@ function ControlDrawer({ c, action, onOpenAction, onClose }) {
   );
 }
 
-/* ------------------------------------------------------------------ Model governance */
+/* ------------------------------------------------------------------ Model governance
+   v3: a clear sub-navigation with icons and counts, coloured discovery status, and the model
+   detail broken into titled sections (versions, lineage, workflow, periodic review, history). */
+const DISC_TONE = { failed: 'bad', 'not configured': 'neutral' };
 function ModelTab() {
   const [sub, setSub] = useState('registry');
   const [models, setModels] = useState(MODELS);
@@ -233,21 +245,31 @@ function ModelTab() {
   return (
     <>
       <Tiles items={MODEL_TILES.map((t) => (t.l === 'Models governed' ? { ...t, v: models.length, s: `0 hosted · ${models.length} external` } : t))} />
-      <div className="gv-inline" style={{ justifyContent: 'space-between' }}>
-        <span className="gv-muted" style={{ fontSize: 13 }}>Discovered from&nbsp; {DISCOVERY.map(([k, v]) => <span key={k} className="tag" style={{ marginRight: 6 }}>{k}: {v}</span>)}</span>
+      <div className="gv-inline" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="gv-inline" style={{ alignItems: 'center', gap: 8 }}>
+          <span className="gv-muted" style={{ fontSize: 13 }}>Discovered from</span>
+          {DISCOVERY.map(([k, v]) => <span key={k} className={`gv-disc ${DISC_TONE[v] || 'ok'}`}>{k}: {v}</span>)}
+        </div>
         <Button variant="secondary" size="md" icon={RefreshCw} onClick={() => toast('Monitoring run started — no hosted models to monitor')}>Run monitoring now</Button>
       </div>
-      <Tabs level="sub" value={sub} onChange={setSub} items={[{ value: 'registry', label: 'Registry & lineage' }, { value: 'monitoring', label: 'Monitoring & guardrails' }, { value: 'alerts', label: 'Alerts' }, { value: 'workflows', label: 'Workflows & policy' }]} />
+      <SubNav value={sub} onChange={setSub} items={[
+        { value: 'registry', label: 'Registry & lineage', icon: Network, count: models.length },
+        { value: 'monitoring', label: 'Monitoring & guardrails', icon: Activity, count: 0 },
+        { value: 'alerts', label: 'Alerts', icon: Bell, count: 0 },
+        { value: 'workflows', label: 'Workflows & policy', icon: Workflow, count: RISK_TIERS.length },
+      ]} />
       {sub === 'registry' && (
         <>
-          <Card title="Model registry" count={models.length}>
+          <Card icon={Boxes2} tone="info" title="Model registry" count={models.length} sub="Every model the platform uses — hosted in SageMaker or MLflow, or called as an external service.">
             <div className="table-wrap">
               <table className="tbl">
                 <thead><tr><th>Model</th><th>Found in</th><th className="num">Versions</th><th>Stage of latest</th><th>Risk tier</th><th>Monitoring</th><th>Alerts</th></tr></thead>
                 <tbody>{models.map((x) => (
                   <tr key={x.id} className={`click ${x.id === m.id ? 'on' : ''}`} onClick={() => setSel(x.id)}>
-                    <td className="gv-strong">{x.name} · {x.provider}</td><td>{x.foundIn}</td><td className="num">{x.versions}</td>
-                    <td><StatusBadge s={x.stage === 'In production' ? 'active' : 'pending'}>{x.stage}</StatusBadge></td><td>{x.risk}</td><td className="gv-muted">{x.monitoring}</td><td>{x.alerts}</td>
+                    <td><span className="gv-strong">{x.name}</span><span className="gv-sub">{x.provider}</span></td><td><span className="tag">{x.foundIn}</span></td><td className="num">{x.versions}</td>
+                    <td><StatusBadge s={x.stage === 'In production' ? 'ok' : x.stage === 'Retired' ? 'bad' : 'info'}>{x.stage}</StatusBadge></td>
+                    <td><StatusBadge s={x.risk === 'High risk' ? 'bad' : x.risk === 'Low risk' ? 'ok' : 'warn'}>{x.risk}</StatusBadge></td>
+                    <td><span className="gv-disc neutral">{x.monitoring}</span></td><td>{x.alerts}</td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -256,52 +278,64 @@ function ModelTab() {
           <ModelDetail m={m} onChange={(patch) => setModels((all) => all.map((x) => (x.id === m.id ? { ...x, ...patch } : x)))} />
         </>
       )}
-      {sub === 'monitoring' && <Card title="Monitoring & guardrails"><Empty>No hosted models discovered yet.</Empty></Card>}
+      {sub === 'monitoring' && (
+        <Card icon={Activity} tone="teal" title="Monitoring & guardrails" sub="Drift, bias and performance checks run on hosted models after every deployment and on a schedule.">
+          <div className="gv-callout info"><Info2 size={15} /><span>No hosted models discovered yet. SageMaker discovery failed and MLflow is not configured — connect one of them to monitor hosted models. External models such as Claude Sonnet 5 are governed through the workflow and periodic review instead.</span></div>
+        </Card>
+      )}
       {sub === 'alerts' && <AlertsPanel />}
       {sub === 'workflows' && <WorkflowsPanel onRegister={(x) => { setModels((a) => [...a, x]); setSel(x.id); setSub('registry'); toast(`Registered ${x.name}`); }} />}
     </>
   );
 }
 
+const LINEAGE_LOOK = { Consumer: [MonitorSmartphone, 'info'], 'Data sent': [Send, 'warn'], 'External model': [Cpu, 'violet'], Output: [FileOutput, 'ok'] };
 function ModelDetail({ m, onChange }) {
   const [checks, setChecks] = useState({});
   const [hist, setHist] = useState(false);
+  const [note, setNote] = useState('');
   const allTicked = m.checks.every((c) => checks[c]);
   const v = m.versionRows[0];
   const stageIdx = m.workflow.indexOf(m.stage);
   return (
-    <Card title={m.name} sub={m.purpose}>
-      <div className="gv-inline" style={{ marginBottom: 16 }}>
+    <Card icon={Cpu} tone="violet" title={m.name} sub={m.purpose}
+      actions={<div className="gv-inline" style={{ alignItems: 'flex-end' }}>
         <Fld label="Risk tier"><select className="select" value={m.risk} onChange={(e) => onChange({ risk: e.target.value })}>{RISK_TIERS.map(([r]) => <option key={r}>{r}</option>)}</select></Fld>
-        <Fld label="Owner"><input className="input" value={m.owner} placeholder="Name" onChange={(e) => onChange({ owner: e.target.value })} /></Fld>
-      </div>
-      <div className="table-wrap" style={{ marginBottom: 18 }}>
-        <table className="tbl">
-          <thead><tr><th>Version</th><th>Registries</th><th>Accuracy</th><th>ROC AUC</th><th>F1 (HIGH)</th><th>Stage</th><th>Next review</th></tr></thead>
-          <tbody>{m.versionRows.map((r) => <tr key={r.v}><td><Mono>{r.v}</Mono></td><td>{r.reg}</td><td>{r.acc}</td><td>{r.auc}</td><td>{r.f1}</td><td>{m.stage}</td><td>{r.review}</td></tr>)}</tbody>
-        </table>
-      </div>
-      <div className="gv-section-label">Lineage — {v.v}</div>
-      <div className="gv-flow" style={{ marginBottom: 18 }}>
-        {m.lineage.map(([k, b, s]) => <div key={k}><span>{k}</span><b>{b}</b>{s && <small>{s}</small>}</div>)}
-      </div>
-      <div className="gv-section-label">Governance workflow — {v.v} · {m.risk}</div>
-      <div className="gv-steps">
-        {m.workflow.map((s, i) => <div key={s} className={i < stageIdx ? 'done' : i === stageIdx ? 'cur' : ''}><i>{i + 1}</i>{s}</div>)}
-      </div>
-      <Note>{m.reviewNote}</Note>
-      <div className="gv-checks">
-        {m.checks.map((c) => <label key={c}><input type="checkbox" checked={!!checks[c]} onChange={(e) => setChecks((o) => ({ ...o, [c]: e.target.checked }))} />{c}</label>)}
-      </div>
-      <div className="gv-actions">
-        <Button variant="primary" size="md" disabled={!allTicked} onClick={() => { toast('Periodic review completed — next review in 180 days'); setChecks({}); }}>Complete periodic review</Button>
-        <Button variant="secondary" size="md" onClick={() => { onChange({ stage: 'Deprecated' }); toast(`${m.name} deprecated`); }}>Deprecate</Button>
-        <Button variant="secondary" size="md" onClick={() => { onChange({ stage: 'Retired' }); toast(`${m.name} retired`); }}>Retire</Button>
-      </div>
-      <div style={{ marginTop: 16 }}>
-        <Button variant="link" onClick={() => setHist((h) => !h)}>History ({m.history.length})</Button>
+        <Fld label="Owner"><input className="input" value={m.owner} placeholder="Accountable owner" onChange={(e) => onChange({ owner: e.target.value })} /></Fld>
+      </div>}>
+      <Section first icon={GitBranch} tone="info" title="Versions" meta={`${m.versionRows.length} version · next review ${v.review}`}>
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Version</th><th>Registries</th><th>Accuracy</th><th>ROC AUC</th><th>F1 (HIGH)</th><th>Stage</th><th>Next review</th></tr></thead>
+            <tbody>{m.versionRows.map((r) => <tr key={r.v}><td><Mono>{r.v}</Mono></td><td>{r.reg}</td><td>{r.acc}</td><td>{r.auc}</td><td>{r.f1}</td><td><StatusBadge s={m.stage === 'In production' ? 'ok' : 'info'}>{m.stage}</StatusBadge></td><td>{r.review}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </Section>
+      <Section icon={Network} tone="teal" title={`Lineage — ${v.v}`} meta="what goes in, where it goes, what comes out">
+        <div className="gv-flow">
+          {m.lineage.map(([k, b, s]) => { const [I, tn] = LINEAGE_LOOK[k] || [Cpu, 'info']; return <div key={k} className={tn}><span><I size={13} />{k}</span><b>{b}</b>{s && <small>{s}</small>}</div>; })}
+        </div>
+      </Section>
+      <Section icon={Workflow} tone="violet" title={`Governance workflow — ${v.v}`} meta={<StatusBadge s={m.risk === 'High risk' ? 'bad' : m.risk === 'Low risk' ? 'ok' : 'warn'}>{m.risk}</StatusBadge>}>
+        <div className="gv-steps">
+          {m.workflow.map((s, i) => <div key={s} className={i < stageIdx ? 'done' : i === stageIdx ? 'cur' : ''}><i>{i < stageIdx ? '✓' : i + 1}</i>{s}</div>)}
+        </div>
+        <Note>{m.reviewNote}</Note>
+      </Section>
+      <Section icon={ClipboardCheck} tone="ok" title="Periodic review" meta={`${m.checks.filter((c) => checks[c]).length} of ${m.checks.length} confirmed`}>
+        <div className="gv-checks">
+          {m.checks.map((c) => <label key={c}><input type="checkbox" checked={!!checks[c]} onChange={(e) => setChecks((o) => ({ ...o, [c]: e.target.checked }))} />{c}</label>)}
+        </div>
+        <div className="gv-inline" style={{ alignItems: 'center' }}>
+          <input className="input" style={{ flex: 1, minWidth: 260, height: 32 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason or note (recorded in the audit log)" />
+          <Button variant="primary" size="md" disabled={!allTicked} onClick={() => { toast('Periodic review completed — next review in 180 days'); setChecks({}); setNote(''); }}>Complete periodic review</Button>
+          <Button variant="secondary" size="md" onClick={() => { onChange({ stage: 'Deprecated' }); toast(`${m.name} deprecated`); }}>Deprecate</Button>
+          <Button variant="secondary" size="md" onClick={() => { onChange({ stage: 'Retired' }); toast(`${m.name} retired`); }}>Retire</Button>
+        </div>
+      </Section>
+      <Section icon={History} tone="teal" title="History" meta={<Button variant="link" onClick={() => setHist((h) => !h)}>{hist ? 'Hide' : `Show (${m.history.length})`}</Button>}>
         {hist && <ul className="gv-lines">{m.history.map(([at, who, what]) => <li key={at}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul>}
-      </div>
+      </Section>
     </Card>
   );
 }
@@ -312,10 +346,10 @@ function AlertsPanel() {
   const [email, setEmail] = useState('');
   return (
     <>
-      <Card title="Alerts" actions={<Segmented size="sm" value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'ack', label: 'Acknowledged' }, { value: 'resolved', label: 'Resolved' }]} />}>
+      <Card icon={Bell} tone="warn" title="Alerts" actions={<Segmented size="sm" value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'ack', label: 'Acknowledged' }, { value: 'resolved', label: 'Resolved' }]} />}>
         <Empty>No alerts.</Empty>
       </Card>
-      <Card title="Email recipients" sub="Alerts are emailed through AWS SNS. Each recipient confirms once from the email AWS sends.">
+      <Card icon={Mail} tone="info" title="Email recipients" sub="Alerts are emailed through AWS SNS. Each recipient confirms once from the email AWS sends.">
         {rcp.length ? <ul className="gv-lines">{rcp.map((r) => <li key={r}>{r} <span className="gv-faint">· pending confirmation</span></li>)}</ul> : <Empty>No recipients yet.</Empty>}
         <div className="gv-inline" style={{ marginTop: 12 }}>
           <Fld label="Email"><input className="input" type="email" placeholder="name@hmrc.gov.uk" value={email} onChange={(e) => setEmail(e.target.value)} /></Fld>
@@ -341,15 +375,15 @@ function WorkflowsPanel({ onRegister }) {
   });
   return (
     <>
-      <Card title="Risk tiers and review policy">
+      <Card icon={Shield} tone="violet" title="Risk tiers and review policy" sub="The tier sets how often a model is reviewed and how many people must approve it.">
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Risk tier</th><th>Applies to</th><th className="num">Review every</th><th className="num">Approvers</th></tr></thead>
-            <tbody>{RISK_TIERS.map(([n, d, days, ap]) => <tr key={n}><td className="gv-strong">{n}</td><td>{d}</td><td className="num">{days} days</td><td className="num">{ap}</td></tr>)}</tbody>
+            <tbody>{RISK_TIERS.map(([n, d, days, ap]) => <tr key={n}><td><StatusBadge s={n === 'High risk' ? 'bad' : n === 'Low risk' ? 'ok' : 'warn'}>{n}</StatusBadge></td><td>{d}</td><td className="num">{days} days</td><td className="num">{ap}</td></tr>)}</tbody>
           </table>
         </div>
       </Card>
-      <Card title="Register an externally provided AI model" sub="Third-party models the organisation calls rather than hosts — governed through the same workflow.">
+      <Card icon={Plus} tone="ok" title="Register an externally provided AI model" sub="Third-party models the organisation calls rather than hosts — governed through the same workflow.">
         <div className="gv-form">
           <Fld label="Model"><input className="input" value={f.name} onChange={set('name')} /></Fld>
           <Fld label="Provider"><input className="input" value={f.provider} onChange={set('provider')} /></Fld>
@@ -400,49 +434,68 @@ function AiEvalTab() {
       </div>
       <Tiles items={tiles} />
       <div className="gv-two">
-        <Card title="Confusion — sensitive vs not">
-          <table className="gv-matrix">
-            <thead><tr><th /><th>Predicted sensitive</th><th>Predicted not</th></tr></thead>
-            <tbody>
-              <tr><th>Actually sensitive</th><td className="hit"><b>{EVAL_CONFUSION.tp}</b><span>true positive</span></td><td><b>{EVAL_CONFUSION.fn}</b><span>false negative</span></td></tr>
-              <tr><th>Actually not</th><td><b>{EVAL_CONFUSION.fp}</b><span>false positive</span></td><td className="hit"><b>{EVAL_CONFUSION.tn}</b><span>true negative</span></td></tr>
-            </tbody>
-          </table>
-          <div className="table-wrap" style={{ marginTop: 14 }}>
-            <table className="tbl">
-              <thead><tr><th>Category</th><th className="num">Labelled</th><th className="num">Predicted</th><th className="num">Precision</th><th className="num">Recall</th></tr></thead>
-              <tbody>{EVAL_CATEGORIES.map(([c, a, b, p, r]) => <tr key={c}><td><span className="tag">{c}</span></td><td className="num">{a}</td><td className="num">{b}</td><td className="num">{p}</td><td className="num">{r}</td></tr>)}</tbody>
+        <Card icon={Grid3x3} tone="info" title="Confusion — sensitive vs not" sub="How the classifier's sensitive / not-sensitive calls compare with the reviewed labels.">
+          <Section first icon={Grid3x3} tone="info" title="Outcomes" meta={`${EVAL_CONFUSION.tp + EVAL_CONFUSION.fn + EVAL_CONFUSION.fp + EVAL_CONFUSION.tn} labelled columns`}>
+            <table className="gv-matrix">
+              <thead><tr><th /><th>Predicted sensitive</th><th>Predicted not</th></tr></thead>
+              <tbody>
+                <tr><th>Actually sensitive</th><td className="hit ok"><b>{EVAL_CONFUSION.tp}</b><span>true positive</span></td><td className="miss"><b>{EVAL_CONFUSION.fn}</b><span>false negative · missed</span></td></tr>
+                <tr><th>Actually not</th><td className="miss warn"><b>{EVAL_CONFUSION.fp}</b><span>false positive · over-flagged</span></td><td className="hit ok"><b>{EVAL_CONFUSION.tn}</b><span>true negative</span></td></tr>
+              </tbody>
             </table>
-          </div>
+          </Section>
+          <Section icon={Tags2} tone="teal" title="By category" meta="precision and recall per label">
+            <div className="table-wrap">
+              <table className="tbl">
+                <thead><tr><th>Category</th><th className="num">Labelled</th><th className="num">Predicted</th><th style={{ width: '26%' }}>Precision</th><th style={{ width: '26%' }}>Recall</th></tr></thead>
+                <tbody>{EVAL_CATEGORIES.map(([c, a2, b2, p2, r2]) => <tr key={c}><td><span className="tag">{c}</span></td><td className="num">{a2}</td><td className="num">{b2}</td>
+                  <td><div className="gv-inbar"><Meter pct={parseFloat(p2) / 100} /><b>{p2}</b></div></td><td><div className="gv-inbar"><Meter pct={parseFloat(r2) / 100} /><b>{r2}</b></div></td></tr>)}</tbody>
+              </table>
+            </div>
+          </Section>
         </Card>
-        <Card title="Confidence scoring" sub="Mean confidence on correct flags 0.676, on wrong flags 0.675.">
-          <div className="table-wrap">
-            <table className="tbl">
-              <thead><tr><th>Confidence band</th><th className="num">Flags</th><th className="num">Precision</th></tr></thead>
-              <tbody>{EVAL_BANDS.map(([b, n, p]) => <tr key={b}><td>{b}</td><td className="num">{n}</td><td className="num">{p}</td></tr>)}</tbody>
-            </table>
-          </div>
-          <div className="table-wrap" style={{ marginTop: 14 }}>
-            <table className="tbl">
-              <thead><tr><th>Only flag at ≥</th><th className="num">Precision</th><th className="num">Recall</th><th className="num">F1</th><th className="num">FP rate</th><th className="num">FN rate</th></tr></thead>
-              <tbody>{EVAL_THRESHOLDS.map((r) => <tr key={r[0]}>{r.map((v, i) => <td key={i} className={i ? 'num' : ''}>{v}</td>)}</tr>)}</tbody>
-            </table>
-          </div>
+        <Card icon={SlidersHorizontal} tone="violet" title="Confidence scoring" sub="Mean confidence on correct flags 0.676, on wrong flags 0.675 — confidence barely separates right from wrong today.">
+          <Section first icon={Table2} tone="info" title="By confidence band" meta="how often a flag in each band is right">
+            <div className="table-wrap">
+              <table className="tbl">
+                <thead><tr><th>Confidence band</th><th className="num">Flags</th><th style={{ width: '45%' }}>Precision</th></tr></thead>
+                <tbody>{EVAL_BANDS.map(([b2, n, p2]) => <tr key={b2}><td><Mono>{b2}</Mono></td><td className="num">{n}</td>
+                  <td>{p2 === '—' ? <span className="gv-faint">no flags</span> : <div className="gv-inbar"><Meter pct={parseFloat(p2) / 100} /><b>{p2}</b></div>}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </Section>
+          <Section icon={Target2} tone="ok" title="Choose a threshold" meta="flag a column only at or above this confidence">
+            <div className="table-wrap">
+              <table className="tbl">
+                <thead><tr><th>Only flag at ≥</th><th className="num">Precision</th><th className="num">Recall</th><th className="num">F1</th><th className="num">FP rate</th><th className="num">FN rate</th></tr></thead>
+                <tbody>{EVAL_THRESHOLDS.map((r, k) => (
+                  <tr key={r[0]} className={k === 0 ? 'best' : ''}>
+                    <td>{r[0].replace(' (best F1)', '')}{k === 0 && <span className="gv-badge ok" style={{ marginLeft: 8 }}><i />best F1</span>}</td>
+                    <td className="num">{r[1]}</td><td className="num">{r[2]}</td><td className="num gv-strong">{r[3]}</td>
+                    <td className={`num ${parseFloat(r[4]) > 20 ? 'hot' : ''}`}>{r[4]}</td><td className={`num ${parseFloat(r[5]) > 50 ? 'hot' : ''}`}>{r[5]}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <Note>Raising the threshold above 0.7 removes false positives but misses almost every sensitive column — keep 0.5 until more labels are reviewed.</Note>
+          </Section>
         </Card>
       </div>
-      <Card title="Drift monitoring" sub={DRIFT_NOTE}>
-        <svg className="gv-trend" viewBox="0 0 600 120" preserveAspectRatio="none" role="img" aria-label="F1 by run">
-          {[0, 0.5, 1].map((v) => <g key={v}><line x1="36" x2="596" y1={100 - v * 88} y2={100 - v * 88} stroke="var(--line)" /><text x="28" y={104 - v * 88} textAnchor="end" fontSize="10" fill="var(--faint)">{v}</text></g>)}
-          <circle cx="316" cy={100 - 0.439 * 88} r="4" fill="var(--royal)"><title>3 Oct 2026, 10:27 · F1 43.9%</title></circle>
-        </svg>
-        <div className="table-wrap">
+      <Card icon={TrendingUp} tone="teal" title="Drift monitoring" sub="Runs are recorded on every harvest that changes the estate, labels or rules; alerts go to Model governance › Alerts.">
+        <div className="gv-three" style={{ marginBottom: 16 }}>
+          <Monitor label="Prediction-mix PSI vs baseline" value={0} fmt={(v) => v.toFixed(2)} max={0.4} warn={0.1} breach={0.25} note="warn 0.1 · breach 0.25" />
+          <Monitor label="F1 change vs previous run" value={0} fmt={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))} min={-0.2} max={0.2} breachBelow={-0.05} note="alert below −0.05" />
+          <Monitor label="Label coverage" value={0.876} fmt={(v) => `${(v * 100).toFixed(1)}%`} max={1} breachBelow={0.8} note="alert below 80%" />
+        </div>
+        <DriftChart />
+        <div className="table-wrap" style={{ marginTop: 12 }}>
           <table className="tbl">
             <thead><tr><th>Run</th><th>By</th><th>Rules version</th><th>Labelled / columns</th><th className="num">Precision</th><th className="num">Recall</th><th className="num">F1</th><th className="num">PSI</th><th>Status</th></tr></thead>
             <tbody>{EVAL_RUNS.map((r) => <tr key={r[0]}><td>{r[0]}</td><td>{r[1]}</td><td><Mono>{r[2]}</Mono></td><td>{r[3]}</td><td className="num">{r[4]}</td><td className="num">{r[5]}</td><td className="num">{r[6]}</td><td className="num">{r[7]}</td><td><StatusBadge s={r[8]} /></td></tr>)}</tbody>
           </table>
         </div>
       </Card>
-      <Card title="Review and correct" count={`${rows.length} column(s)`} actions={<select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Which columns">{REVIEW_FILTERS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}>
+      <Card icon={ListChecks} tone="warn" title="Review and correct" count={`${rows.length} column(s)`} actions={<select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Which columns">{REVIEW_FILTERS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}>
         {rows.length ? (
           <div className="table-wrap gv-scroll">
             <table className="tbl">
@@ -465,7 +518,7 @@ function AiEvalTab() {
           {logOpen && (log.length ? <ul className="gv-lines">{log.map((x, i) => <li key={i}><Mono>{x.col}</Mono> {x.from} → <b>{x.to}</b>{x.note && ` · ${x.note}`} <span className="gv-faint">· {x.at}</span></li>)}</ul> : <Empty>No corrections yet.</Empty>)}
         </div>
       </Card>
-      <Card title="Improvements learned from corrections" sub="Each proposal fixes columns users corrected that the classifier still gets wrong, with its measured effect. Only a governance lead can apply them.">
+      <Card icon={Wrench} tone="ok" title="Improvements learned from corrections" sub="Each proposal fixes columns users corrected that the classifier still gets wrong, with its measured effect. Only a governance lead can apply them.">
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Proposed rule</th><th>From corrections</th><th className="num">Precision</th><th className="num">Recall</th><th className="num">F1</th><th className="num">FP rate</th><th className="num">FN rate</th><th /></tr></thead>
@@ -473,7 +526,7 @@ function AiEvalTab() {
           </table>
         </div>
       </Card>
-      <Card title="Model deprecation — hosted and external AI models" sub="Deprecate a version with a sunset date and a named replacement. On the sunset date the scheduler retires it (SageMaker/MLflow updated for hosted models) and alerts the owners. The full workflow is on the Model governance tab.">
+      <Card icon={Archive} tone="bad" title="Model deprecation — hosted and external AI models" sub="Deprecate a version with a sunset date and a named replacement. On the sunset date the scheduler retires it (SageMaker/MLflow updated for hosted models) and alerts the owners. The full workflow is on the Model governance tab.">
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Model</th><th>Version</th><th>Stage</th><th>Deprecation notice</th><th /></tr></thead>
@@ -494,5 +547,65 @@ function AiEvalTab() {
         </Modal>
       )}
     </>
+  );
+}
+
+/* One monitored signal on a scale, with its warn and breach zones shaded. */
+function Monitor({ label, value, fmt, min = 0, max, warn, breach, breachBelow, note }) {
+  const pos = (v) => `${((v - min) / (max - min)) * 100}%`;
+  const bad = (breach != null && value >= breach) || (breachBelow != null && value < breachBelow);
+  const amber = !bad && warn != null && value >= warn;
+  const st = bad ? 'bad' : amber ? 'warn' : 'ok';
+  return (
+    <div className="gv-monitor">
+      <div className="gv-inline" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}><span className="gv-strong" style={{ fontSize: 13 }}>{label}</span><span className={`gv-badge ${st}`}><i />{st === 'ok' ? 'ok' : st === 'warn' ? 'warning' : 'breach'}</span></div>
+      <b>{fmt(value)}</b>
+      <div className="gv-scale">
+        {warn != null && <span className="z warn" style={{ left: pos(warn), width: `calc(${pos(breach)} - ${pos(warn)})` }} />}
+        {breach != null && <span className="z bad" style={{ left: pos(breach), right: 0 }} />}
+        {breachBelow != null && <span className="z bad" style={{ left: 0, width: pos(breachBelow) }} />}
+        <span className="mk" style={{ left: pos(value) }} />
+      </div>
+      <small>{note}</small>
+    </div>
+  );
+}
+
+/* Classifier quality by run — drawn at the card's real width, so nothing is stretched. */
+function DriftChart() {
+  const [ref, w] = useWidth();
+  const H = 180, pl = 40, pr = 16, pt = 12, pb = 28;
+  const runs = EVAL_RUNS.map((r) => ({ label: r[0], p: parseFloat(r[4]) / 100, r: parseFloat(r[5]) / 100, f: parseFloat(r[6]) / 100 }));
+  const series = [['p', 'Precision', 'var(--gv-violet)'], ['r', 'Recall', 'var(--gv-teal)'], ['f', 'F1', 'var(--royal)']];
+  const x = (i) => (runs.length === 1 ? pl + (w - pl - pr) / 2 : pl + (i / (runs.length - 1)) * (w - pl - pr));
+  const y = (v) => pt + (1 - v) * (H - pt - pb);
+  /* spread the end labels so close values never overlap */
+  const last = runs[runs.length - 1];
+  const labelY = {};
+  [...series].sort((a, b) => y(last[a[0]]) - y(last[b[0]])).forEach(([k], i, arr) => {
+    const want = y(last[k]); const prev = i ? labelY[arr[i - 1][0]] : -Infinity;
+    labelY[k] = Math.max(want, prev + 16);
+  });
+  const mid = (Object.values(labelY).reduce((a, b) => a + b, 0) / 3) - (series.reduce((a, [k]) => a + y(last[k]), 0) / 3);
+  Object.keys(labelY).forEach((k) => { labelY[k] -= mid; });
+  return (
+    <div className="gv-chart" ref={ref}>
+      <div className="gv-legend2">{series.map(([k, l, c]) => <span key={k}><i style={{ background: c }} />{l}</span>)}<span><i className="dash" style={{ color: 'var(--gv-bad)' }} />F1 alert line (previous run − 0.05)</span></div>
+      {w > 0 && (
+        <svg width={w} height={H} role="img" aria-label="Classifier precision, recall and F1 by run">
+          {[0, 0.25, 0.5, 0.75, 1].map((v) => <g key={v}><line x1={pl} x2={w - pr} y1={y(v)} y2={y(v)} stroke="var(--line)" strokeDasharray={v === 0 ? '' : '2 4'} /><text x={pl - 8} y={y(v) + 4} textAnchor="end" fontSize="11" fill="var(--faint)">{Math.round(v * 100)}%</text></g>)}
+          <line x1={pl} x2={w - pr} y1={y(0.439 - 0.05)} y2={y(0.439 - 0.05)} stroke="var(--gv-bad)" strokeDasharray="5 4" strokeWidth="1.2" />
+          {series.map(([k, l, c]) => (
+            <g key={k}>
+              {runs.length > 1 && <path d={runs.map((r, i) => `${i ? 'L' : 'M'}${x(i)},${y(r[k])}`).join('')} fill="none" stroke={c} strokeWidth="2" />}
+              {runs.map((r, i) => <g key={i}><circle cx={x(i)} cy={y(r[k])} r="5" fill="var(--white)" stroke={c} strokeWidth="2.5"><title>{`${r.label} · ${l} ${(r[k] * 100).toFixed(1)}%`}</title></circle>
+                {i === runs.length - 1 && <><line x1={x(i) + 7} y1={y(r[k])} x2={x(i) + 26} y2={labelY[k]} stroke={c} strokeWidth="1" /><text x={x(i) + 30} y={labelY[k] + 4} fontSize="12" fill={c} fontWeight="600">{l} {(r[k] * 100).toFixed(1)}%</text></>}</g>)}
+            </g>
+          ))}
+          {runs.map((r, i) => <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">{r.label}</text>)}
+        </svg>
+      )}
+      <Note>Only one run so far — the trend fills in as harvests change the estate, labels or rules.</Note>
+    </div>
   );
 }

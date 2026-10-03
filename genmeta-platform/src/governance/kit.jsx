@@ -1,18 +1,59 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, ChevronDown } from 'lucide-react';
-import { Badge, Button } from '../components/ui.jsx';
-export { Stats as Tiles } from '../pages/admin/kit.jsx';
+import {
+  X, Download, ChevronDown, Fingerprint, Lock, ShieldCheck, Layers, Database, Scale, Boxes, GitBranch, Clock, CheckCircle2, BellRing,
+  Target, Crosshair, Radar, Sigma, AlertTriangle, AlertOctagon, Tags, ScrollText, Link2, Eye, ShieldAlert, Globe2, MapPin, FileSignature,
+  Landmark, Ruler, SlidersHorizontal, Archive, FileSearch, Gauge, Shield, FileWarning, UserRound, FileCheck2, ClipboardList, Flame,
+  Inbox, KeyRound, CalendarCheck, ListChecks, UserX, Users, UserCheck, RefreshCw,
+} from 'lucide-react';
+import { Button } from '../components/ui.jsx';
 
-/* One card with a section heading, an optional count, a sub-line and actions on the right. */
-export function Card({ title, count, sub, actions, children, className = '' }) {
+/* Icon + colour for every KPI tile in the section, keyed by its label (old UI used coloured icon cards). */
+const TILE_LOOK = {
+  'Audit integrity': [Fingerprint, 'ok'], 'Sensitive coverage': [Lock, 'warn'], Classification: [ShieldCheck, 'info'], Constitution: [Layers, 'violet'],
+  'Sources governed': [Database, 'info'], 'Compliance posture': [Scale, 'warn'],
+  'Models governed': [Boxes, 'info'], 'Model versions': [GitBranch, 'violet'], 'In validation or approval': [Clock, 'warn'], 'In production': [CheckCircle2, 'ok'], 'Open breach alerts': [BellRing, 'bad'],
+  Accuracy: [Target, 'info'], Precision: [Crosshair, 'info'], Recall: [Radar, 'teal'], F1: [Sigma, 'violet'], 'False-positive rate': [AlertTriangle, 'warn'], 'False-negative rate': [AlertOctagon, 'bad'], 'Exact category': [Tags, 'teal'],
+  'Audit records': [ScrollText, 'info'], 'Chain integrity': [Link2, 'ok'], 'Data access (14 days)': [Eye, 'teal'], 'Violations and refusals': [ShieldAlert, 'bad'],
+  'Residency policy': [Globe2, 'info'], 'Locations in the register': [MapPin, 'violet'], 'Outside the policy': [AlertTriangle, 'bad'], 'Overrides recorded': [FileSignature, 'warn'],
+  Policies: [Landmark, 'violet'], Standards: [Ruler, 'info'], Controls: [SlidersHorizontal, 'teal'], 'Regulatory obligations': [Scale, 'warn'], 'Retention requirements': [Archive, 'ok'], 'Extracted, awaiting review': [FileSearch, 'info'],
+  Compliance: [Gauge, 'warn'], 'Policy coverage': [Shield, 'ok'], 'Sensitive data with retention': [Archive, 'bad'], 'Open risks': [AlertTriangle, 'bad'], 'Exceptions to decide': [FileWarning, 'warn'],
+  'Assets holding personal data': [UserRound, 'info'], 'Accepted records of processing': [FileCheck2, 'ok'], 'Handling rules failing': [AlertTriangle, 'bad'], 'Assessments required': [ClipboardList, 'warn'],
+  'DPIA required, not started': [ClipboardList, 'bad'], 'In progress': [Clock, 'warn'], Approved: [CheckCircle2, 'ok'], 'Risks recorded': [Flame, 'bad'],
+  'Requests pending': [Inbox, 'warn'], 'Active grants': [KeyRound, 'ok'], 'Access policies': [ShieldCheck, 'info'], 'Reviews open': [CalendarCheck, 'violet'], 'Grants to review': [ListChecks, 'info'],
+  'Recommended to revoke': [UserX, 'bad'], Roles: [Users, 'violet'], 'Role assignments': [UserCheck, 'info'], Scopes: [Layers, 'teal'], 'Identities synchronised': [RefreshCw, 'ok'],
+};
+
+/* KPI strip: one row, each tile an icon chip + figure + label + one-line note. */
+export function Tiles({ items }) {
+  return (
+    <div className="gv-tiles" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+      {items.map((t) => {
+        const [I, tn] = TILE_LOOK[t.l] || [null, 'info'];
+        return (
+          <div key={t.l} className="gv-tile" title={t.s}>
+            <div className="gv-tile-h">{I && <span className={`gv-chip sm ${t.tone || tn}`}><I size={14} strokeWidth={1.9} /></span>}<span>{t.l}</span></div>
+            <b>{typeof t.v === 'number' ? t.v.toLocaleString('en-GB') : t.v}</b>
+            {t.s && <small>{t.s}</small>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* One card with an optional icon chip, a heading, a count, a sub-line and actions on the right. */
+export function Card({ title, count, sub, actions, children, className = '', icon: I, tone: tn = 'info' }) {
   return (
     <section className={`dash-card ${className}`}>
       {(title || actions) && (
         <div className="block-head gv-head">
-          <div>
-            {title && <h2>{title}{count != null && <span className="gv-count">{count}</span>}</h2>}
-            {sub && <p className="block-sub">{sub}</p>}
+          <div className="gv-head-l">
+            {I && <span className={`gv-chip ${tn}`}><I size={16} strokeWidth={1.8} /></span>}
+            <div>
+              {title && <h2>{title}{count != null && <span className="gv-count">{count}</span>}</h2>}
+              {sub && <p className="block-sub">{sub}</p>}
+            </div>
           </div>
           {actions && <div className="gv-tools">{actions}</div>}
         </div>
@@ -22,16 +63,67 @@ export function Card({ title, count, sub, actions, children, className = '' }) {
   );
 }
 
-/* Status words used across the old screens, mapped onto the three badge tones. */
-const OK = ['passing', 'pass', 'inside', 'evidenced', 'on', 'ok', 'within the policy', 'verified', 'active', 'accepted', 'approved', 'yes', 'allow', 'healthy'];
-const BAD = ['fail', 'failing', 'critical', 'outside', 'breach recorded', 'not connected', 'deny', 'refused', 'no', 'retired'];
+/* A titled block inside a card, separated by a rule — keeps long cards readable. */
+export function Section({ icon: I, tone: tn = 'info', title, meta, children, first }) {
+  return (
+    <div className={`gv-section ${first ? 'first' : ''}`}>
+      <div className="gv-section-h">
+        {I && <span className={`gv-chip sm ${tn}`}><I size={14} strokeWidth={1.9} /></span>}
+        <h3>{title}</h3>
+        {meta && <span className="gv-section-meta">{meta}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* Second-level navigation inside a tab: a clear pill bar with icons and counts. */
+export function SubNav({ items, value, onChange }) {
+  return (
+    <div className="gv-subnav" role="tablist">
+      {items.map((t) => {
+        const I = t.icon;
+        return (
+          <button key={t.value} role="tab" aria-selected={value === t.value} className={value === t.value ? 'on' : ''} onClick={() => onChange(t.value)}>
+            {I && <I size={15} strokeWidth={1.8} />}{t.label}{t.count != null && <em className={t.countTone || ''}>{t.count}</em>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Status words used across the old screens, mapped onto semantic colours. */
+const OK = ['passing', 'pass', 'inside', 'evidenced', 'on', 'ok', 'within the policy', 'verified', 'active', 'accepted', 'approved', 'yes', 'allow', 'healthy', 'passed', 'keep', 'low', 'full', 'detected', 'excepted', 'in production'];
+const BAD = ['fail', 'failing', 'critical', 'outside', 'breach recorded', 'not connected', 'deny', 'refused', 'no', 'retired', 'not started', 'revoke', 'high', 'failed'];
+const INFO = ['pending', 'proposed', 'draft', 'in review', 'disclosed', 'info', 'completion', 'dpo review', 'approval', 'registered'];
 export function tone(s = '') {
   const k = String(s).toLowerCase();
   if (OK.includes(k)) return 'ok';
   if (BAD.includes(k)) return 'bad';
+  if (INFO.includes(k)) return 'info';
   return 'warn';
 }
-export const StatusBadge = ({ s, children }) => <Badge tone={tone(s)}>{children || s}</Badge>;
+export const StatusBadge = ({ s, children }) => <span className={`gv-badge ${tone(s)}`}><i />{children || s}</span>;
+
+/* A coloured meter: green from 70%, amber from 40%, red below. */
+export const meterTone = (pct) => (pct >= 0.7 ? 'ok' : pct >= 0.4 ? 'warn' : 'bad');
+export function Meter({ pct, tone: tn }) {
+  return <i className={`gv-meter ${tn || meterTone(pct)}`}><em style={{ width: `${Math.max(0, Math.min(1, pct)) * 100}%` }} /></i>;
+}
+
+/* Width of an element, so SVG charts draw at real pixels instead of being stretched. */
+export function useWidth() {
+  const ref = useRef(null);
+  const [w, setW] = useState(0);
+  useLayoutEffect(() => {
+    if (!ref.current) return undefined;
+    const ro = new ResizeObserver(([e]) => setW(Math.round(e.contentRect.width)));
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
 
 export const Empty = ({ children }) => <p className="gv-empty">{children}</p>;
 export const Note = ({ children }) => <p className="gv-note">{children}</p>;

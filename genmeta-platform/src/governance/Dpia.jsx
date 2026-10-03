@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Download, Play, Copy, Plus } from 'lucide-react';
+import {
+  Download, Play, Copy, Plus, Database, Tags, Map as MapIcon, FileCheck2, BookOpen, Scale, ShieldAlert, Minimize2, CheckCircle2, Target, ListChecks,
+  AlertTriangle, Filter, Flame, ClipboardList, LayoutTemplate, FileText, PackageCheck, Search as Search2, Archive, Share2, Link2,
+} from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
   ORG, PD_MAP, colKind, DPIA_TILES, DOMAIN_SYSTEMS, ROPA_DOMAINS, LAWFUL_BASES, SPECIAL_CONDITIONS, SECURITY_DEFAULT,
   HANDLING_RULES, ownerOf, UNUSED, SCREEN_INDICATORS, ICO_TEMPLATE, SYSTEMS, AUDIT,
   LIKELIHOOD, SEVERITY, riskLevel, EFFECTS, SUGGESTED_RISKS,
 } from './data.js';
-import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, KV, downloadCsv, toast } from './kit.jsx';
+import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, KV, downloadCsv, toast , Meter } from './kit.jsx';
 
 const TABS = ['Personal data map', 'Records of processing', 'Lawful basis & minimisation', 'Data-handling rules', 'Assessments', 'Templates', 'Accountability pack']
-  .map((label, i) => ({ value: ['map', 'ropa', 'lawful', 'rules', 'assess', 'templates', 'pack'][i], label }));
+  .map((label, i) => ({ value: ['map', 'ropa', 'lawful', 'rules', 'assess', 'templates', 'pack'][i], label, icon: [MapIcon, BookOpen, Scale, ShieldAlert, ClipboardList, LayoutTemplate, PackageCheck][i] }));
 const PD_ASSETS = PD_MAP.map((r) => r.asset);
 const piiCols = PD_MAP.reduce((n, r) => n + r.cols.filter((c) => !/BALANCE|AMOUNT|PRICE|amount|balance/.test(c)).length, 0);
 const finCols = PD_MAP.reduce((n, r) => n + r.cols.length, 0) - piiCols;
@@ -84,16 +87,16 @@ function PersonalDataMap() {
   return (
     <>
       <div className="gv-two">
-        <Card title="Where personal data sits" sub="Personal-data columns per system. Click a system to filter the map.">
+        <Card icon={Database} tone="info" title="Where personal data sits" sub="Personal-data columns per system. Click a system to filter the map.">
           <div className="gv-bars">
             {bySystem.map(([s, l]) => { const n = l.reduce((a, x) => a + x.cols.length, 0); return (
               <div key={s} className="click" onClick={() => setF((o) => ({ ...o, system: o.system === s ? 'all' : s }))} style={{ cursor: 'pointer', fontWeight: f.system === s ? 600 : 400 }}>
-                <span>{s}</span><i><em style={{ width: `${(n / maxCols) * 100}%` }} /></i><b>{n}</b>
+                <span>{s}</span><Meter pct={n / maxCols} tone="info" /><b>{n}</b>
               </div>
             ); })}
           </div>
         </Card>
-        <Card title="What kind of personal data" sub="From the classifier — names and contact details (PII) and money values linked to a person (FINANCIAL).">
+        <Card icon={Tags} tone="violet" title="What kind of personal data" sub="From the classifier — names and contact details (PII) and money values linked to a person (FINANCIAL).">
           <div className="gv-health-n" style={{ marginBottom: 12 }}>
             <div><b>{piiCols}</b><span>PII columns</span></div>
             <div><b>{finCols}</b><span>FINANCIAL columns</span></div>
@@ -102,7 +105,7 @@ function PersonalDataMap() {
           <Note>No special-category data has been found. Nothing is held under a retention requirement yet.</Note>
         </Card>
       </div>
-      <Card title="Personal data map" count={rows.length}
+      <Card icon={MapIcon} tone="teal" title="Personal data map" count={rows.length}
         sub={`Built from the classifier, lineage, data products, models, the ownership register and access grants — 25 of 37 catalogued assets hold personal data (${piiCols} PII, ${finCols} FINANCIAL columns) across ${[...SYSTEMS].sort().join(', ')}.`}
         actions={<>
           <select className="select" value={f.system} onChange={set('system')} aria-label="System"><option value="all">All systems</option>{[...SYSTEMS].sort().map((s) => <option key={s}>{s}</option>)}</select>
@@ -155,7 +158,7 @@ function Ropa({ records, setRecords }) {
   const exportCsv = () => downloadCsv('records-of-processing.csv', [['Activity', 'Status', 'Controller', 'Lawful basis', 'Purpose', 'Data subjects', 'Categories', 'Recipients', 'Retention', 'Assets'], ...records.map((r) => [r.activity, r.status, r.controller, basisLabel(r.basis), r.purpose, r.subjects, r.categories.replace(/\n/g, '; '), r.recipients, r.retention, r.assets.join('; ')])]);
   return (
     <>
-      <Card title="Records of processing" sub={`Article 30 records. GenMeta proposes one per business domain that holds personal data, drafted from the evidence it can see; a governance lead accepts it. Controller ${ORG.controller}, contact ${ORG.contact}.`}
+      <Card icon={FileCheck2} tone="info" title="Records of processing" sub={`Article 30 records. GenMeta proposes one per business domain that holds personal data, drafted from the evidence it can see; a governance lead accepts it. Controller ${ORG.controller}, contact ${ORG.contact}.`}
         actions={<Button variant="secondary" size="md" icon={Download} onClick={exportCsv}>Export register (CSV)</Button>}>
         <div className="gv-section-label" style={{ marginTop: 0 }}>Proposed from the evidence ({proposed.length}) — {notIn.length} asset(s) not yet in a record</div>
         <div className="table-wrap">
@@ -176,7 +179,7 @@ function Ropa({ records, setRecords }) {
           </table>
         </div>
       </Card>
-      <Card title="Register" count={register.length}>
+      <Card icon={BookOpen} tone="ok" title="Register" count={register.length}>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Activity</th><th>Status</th><th>Lawful basis</th><th>Data subjects & categories</th><th>Recipients</th><th>Retention</th><th /></tr></thead>
@@ -231,22 +234,22 @@ function Lawful({ accepted }) {
   const special = accepted.filter((r) => r.special !== 'not_applicable');
   return (
     <>
-      <Card title="Lawful basis">
+      <Card icon={Scale} tone="info" title="Lawful basis">
         {accepted.length ? (
           <div className="table-wrap"><table className="tbl"><thead><tr><th>Activity</th><th>Lawful basis</th><th>Assets</th></tr></thead>
             <tbody>{accepted.map((r) => <tr key={r.id}><td className="gv-strong">{r.activity}</td><td>{basisLabel(r.basis)}</td><td className="gv-muted">{r.assets.join(', ')}</td></tr>)}</tbody></table></div>
         ) : <Empty>No accepted records yet.</Empty>}
         <Note>{covered.size} of {PD_ASSETS.length} assets holding personal data are named in an accepted record.{notCovered.length ? ` Not yet covered: ${notCovered.join(', ')}.` : ''}</Note>
       </Card>
-      <Card title="Special category">
+      <Card icon={ShieldAlert} tone="violet" title="Special category">
         {special.length ? <ul className="gv-lines">{special.map((r) => <li key={r.id}><b>{r.activity}</b> — {SPECIAL_CONDITIONS.find(([v]) => v === r.special)[1]}</li>)}</ul> : <Empty>No special category condition recorded in an accepted record.</Empty>}
       </Card>
-      <Card title="Data minimisation" sub="Personal data that nothing reads — no downstream asset, no data product, no model and no query in 30 days.">
+      <Card icon={Minimize2} tone="warn" title="Data minimisation" count={UNUSED.length} sub="Personal data that nothing reads — no downstream asset, no data product, no model and no query in 30 days.">
         <ul className="gv-lines">{UNUSED.map((a) => <li key={a}><Mono>{a}</Mono> — holds personal data but nothing reads it and no query has touched it in 30 days ({PD_MAP.find((r) => r.asset === a).cols.join(', ')})</li>)}</ul>
       </Card>
       <div className="gv-two">
-        <Card title="Beyond the declared categories"><Empty>Nothing held beyond what the records declare.</Empty></Card>
-        <Card title="Purpose limitation" sub="Processing GenMeta can see that the record does not declare.">
+        <Card icon={CheckCircle2} tone="ok" title="Beyond the declared categories"><Empty>Nothing held beyond what the records declare.</Empty></Card>
+        <Card icon={Target} tone="ok" title="Purpose limitation" sub="Processing GenMeta can see that the record does not declare.">
           <div className="table-wrap"><table className="tbl"><thead><tr><th>Asset</th><th>Record</th><th>Undeclared recipient</th><th>Kind</th></tr></thead><tbody><tr><td colSpan={4}><Empty>Every use matches a declared recipient.</Empty></td></tr></tbody></table></div>
         </Card>
       </div>
@@ -265,16 +268,16 @@ function HandlingRules() {
   const shown = filter === 'all' ? findings : findings.filter((f) => f.rule.key === filter);
   return (
     <>
-      <Card title="Data-handling rules for personal data"
+      <Card icon={ListChecks} tone="warn" title="Data-handling rules for personal data"
         actions={<Button variant="primary" size="md" icon={Play} onClick={() => { setLast(`${new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} by you`); toast(`${total} checks run · ${failing} failing · 22 issue(s) raised`); }}>Run checks and raise issues</Button>}>
         <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 16px' }}>Last run {last}: {total} checks, {failing} failing, 22 issue(s) raised.</p>
         <div className="gv-rules">
           {HANDLING_RULES.map((r) => { const ok = PD_ASSETS.length - r.fail.length; return (
-            <div key={r.key}><span>{r.req}</span><i><em style={{ width: `${(ok / PD_ASSETS.length) * 100}%` }} /></i><b>{ok}/{PD_ASSETS.length}</b></div>
+            <div key={r.key}><span>{r.req}</span><Meter pct={ok / PD_ASSETS.length} /><b>{ok}/{PD_ASSETS.length}</b></div>
           ); })}
         </div>
       </Card>
-      <Card title="Findings" count={shown.length} actions={<select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Rule"><option value="all">All rules</option>{HANDLING_RULES.filter((r) => r.fail.length).map((r) => <option key={r.key} value={r.key}>{r.req}</option>)}</select>}>
+      <Card icon={AlertTriangle} tone="bad" title="Findings" count={shown.length} actions={<select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Rule"><option value="all">All rules</option>{HANDLING_RULES.filter((r) => r.fail.length).map((r) => <option key={r.key} value={r.key}>{r.req}</option>)}</select>}>
         <div className="table-wrap gv-scroll">
           <table className="tbl">
             <thead><tr><th>Status</th><th>Requirement</th><th>Asset</th><th>Finding</th><th>Responsible</th></tr></thead>
@@ -333,7 +336,7 @@ function Assessments({ records, list, setList }) {
         { l: 'Risks recorded', v: allRisks.length, s: `${allRisks.filter((r) => riskLevel(...residual(r)) === 'High').length} high residual` },
       ]} />
       <div className="gv-two wide-l">
-        <Card title="When a DPIA may be needed" sub="Screened automatically for each activity from data sensitivity, the kind of processing and risk indicators GenMeta can see. Tick anything it cannot see; it is added to the assessment.">
+        <Card icon={Filter} tone="info" title="When a DPIA may be needed" sub="Screened automatically for each activity from data sensitivity, the kind of processing and risk indicators GenMeta can see. Tick anything it cannot see; it is added to the assessment.">
           <div className="gv-checks" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))' }}>
             {SCREEN_INDICATORS.map((i) => <label key={i}><input type="checkbox" checked={!!ind[i]} onChange={(e) => setInd((o) => ({ ...o, [i]: e.target.checked }))} />{i}</label>)}
           </div>
@@ -349,13 +352,13 @@ function Assessments({ records, list, setList }) {
             </table>
           </div>
         </Card>
-        <Card title="Risk heatmap" sub="Every risk recorded across assessments, by likelihood and severity (ICO scales)."
+        <Card icon={Flame} tone="bad" title="Risk heatmap" sub="Every risk recorded across assessments, by likelihood and severity (ICO scales)."
           actions={<Segmented size="sm" value={mode} onChange={setMode} options={[{ value: 'inherent', label: 'Inherent' }, { value: 'residual', label: 'Residual' }]} />}>
           <Heatmap risks={allRisks} mode={mode} />
           <Note>{allRisks.length ? `${allRisks.length} risk(s). Residual applies each measure's effect: eliminated → low, reduced → one step less likely.` : 'Start an assessment to record risks.'}</Note>
         </Card>
       </div>
-      <Card title="Assessments" count={list.length} actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('dpia-register.csv', [['Assessment', 'Stage', 'Template', 'Risks', 'Highest residual', 'Assignees'], ...list.map((a) => [a.name, a.stage, a.template, a.risks.length, highest(a), a.assignees])])}>Export register (CSV)</Button>}>
+      <Card icon={ClipboardList} tone="violet" title="Assessments" count={list.length} actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('dpia-register.csv', [['Assessment', 'Stage', 'Template', 'Risks', 'Highest residual', 'Assignees'], ...list.map((a) => [a.name, a.stage, a.template, a.risks.length, highest(a), a.assignees])])}>Export register (CSV)</Button>}>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Assessment</th><th>Stage</th><th>Template</th><th className="num">Risks</th><th>Highest residual</th><th>Assignees</th><th /></tr></thead>
@@ -440,7 +443,7 @@ function Templates() {
   const t = list[sel];
   return (
     <>
-      <Card title="Templates" sub="The standard template follows the ICO's DPIA structure. Copy it to make a departmental version — sections, guidance, fields, the review interval and the workflow stages are all editable by a governance lead.">
+      <Card icon={LayoutTemplate} tone="info" title="Templates" sub="The standard template follows the ICO's DPIA structure. Copy it to make a departmental version — sections, guidance, fields, the review interval and the workflow stages are all editable by a governance lead.">
         <div className="gv-inline" style={{ marginBottom: 14 }}>
           <Fld label="New template name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="New template name" /></Fld>
           <Button variant="secondary" size="md" icon={Copy} disabled={!name.trim()} onClick={() => { setList((l) => [...l, { ...ICO_TEMPLATE, name, kind: 'departmental', version: 'v1' }]); setSel(list.length); setName(''); toast(`Copied “ICO standard DPIA” as ${name}`); }}>Copy “ICO standard DPIA”</Button>
@@ -457,7 +460,7 @@ function Templates() {
           </table>
         </div>
       </Card>
-      <Card title={t.name} sub={t.intro}>
+      <Card icon={FileText} tone="violet" title={t.name} sub={t.intro}>
         <div className="gv-inline" style={{ marginBottom: 12 }}>
           <Fld label="Review every (days)" ><input className="input" type="number" value={t.review} disabled={t.kind === 'standard'} onChange={(e) => setList((l) => l.map((x, i) => (i === sel ? { ...x, review: +e.target.value } : x)))} /></Fld>
         </div>
@@ -471,6 +474,7 @@ function Templates() {
 }
 
 /* ------------------------------------------------------------------ accountability pack */
+const PACK_ICONS = [[Search2, 'info'], [Scale, 'violet'], [Archive, 'teal'], [Share2, 'warn'], [ListChecks, 'bad'], [ClipboardList, 'violet'], [Link2, 'ok'], [Minimize2, 'warn']];
 function Pack({ records, assessments }) {
   const acc = records.filter((r) => r.status === 'accepted');
   const dr = records.filter((r) => r.status === 'draft');
@@ -489,10 +493,10 @@ function Pack({ records, assessments }) {
   ];
   return (
     <>
-      <Card title="Accountability pack" sub={`Generated 3 Oct 2026, 11:37 for ${ORG.controller}, contact ${ORG.contact}. Everything here is measured from the running system.`}
+      <Card icon={PackageCheck} tone="ok" title="Accountability pack" sub={`Generated 3 Oct 2026, 11:37 for ${ORG.controller}, contact ${ORG.contact}. Everything here is measured from the running system.`}
         actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('accountability-pack.csv', [['Section', 'Measure', 'Value'], ...sections.flatMap(([h, rows]) => rows.map(([k, v]) => [h, k, v]))])}>Export register (CSV)</Button>} />
       <div className="gv-two">
-        {sections.map(([h, rows]) => <Card key={h} title={h}><KV rows={rows} /></Card>)}
+        {sections.map(([h, rows], i) => <Card key={h} icon={PACK_ICONS[i][0]} tone={PACK_ICONS[i][1]} title={h}><KV rows={rows} /></Card>)}
       </div>
     </>
   );
