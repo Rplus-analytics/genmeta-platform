@@ -122,29 +122,133 @@ export const INTEGRITY_POINTS = [
 ];
 
 /* ------------------------------------------------------------------ model governance */
-export const MODEL_TILES = [
-  { l: 'Models governed', v: 1, s: '0 hosted · 1 external' },
-  { l: 'Model versions', v: 1, s: 'across all registries' },
-  { l: 'In validation or approval', v: 0, s: 'awaiting sign-off' },
-  { l: 'In production', v: 1, s: 'reviews up to date' },
-  { l: 'Open breach alerts', v: 0, s: '0 open · 0 acknowledged' },
+/* Snapshot of the old UI's Model governance registry (dev site, 3 Oct 2026): six models, eight versions.
+   Each version carries its own lineage and workflow; history lines carry the version they belong to,
+   so choosing a model, then a version, changes the versions table, the lineage and the history. */
+const CVB_PATH = 's3://genmeta-demo-115795545015-eu-west-2/_genmeta/ml/customer-value-band';
+const cvbLineage = (v, mlflow, run, metrics, deployed) => [
+  { stage: 'Source data', items: [
+    { b: 'S3_ENR.CUSTOMER_ORDERS', ok: true },
+    { b: 'S3_ENR.CUSTOMER_SUMMARY', ok: true },
+  ] },
+  { stage: 'Training data', items: [{ b: `${CVB_PATH}/training/${v}/train.csv`, s: `object version rcAVV5dMjjCyyYVnNNUOHV0kl_5I5 · 1500 training rows` }] },
+  { stage: 'Feature engineering', items: [{ b: '5 features', s: 'account_balance ← S3_ENR.CUSTOMER_ORDERS.CUSTOMER_ACCOUNT_BALANCE (standard scaled); orders_to_date ← S3_ENR.CUSTOMER_SUMMARY.ORDER_COUNT; …' }] },
+  { stage: 'Model development', items: [{ b: `training run ${run}`, s: `GradientBoostingClassifier (scikit-learn); ${metrics}` }] },
+  { stage: 'Model version', items: [{ b: `customer-value-band ${v}`, s: `SageMaker ${v} (Rejected) · MLflow ${mlflow} · artefact ${CVB_PATH}/${v}/model.tar.gz` }] },
+  { stage: 'Deployment', items: [deployed ? { b: 'Daily batch scoring', s: `${CVB_PATH}/inference/` } : { b: 'Not deployed', s: 'this version never reached production', muted: true }] },
+  { stage: 'Inference', items: [deployed ? { b: '5 scoring batch(es)', s: '2026-09-15, 2026-09-16, 2026-09-17, 2026-09-18, 2026-09-19' } : { b: 'No scoring batches', s: '—', muted: true }] },
 ];
-export const DISCOVERY = [['SageMaker', 'failed'], ['MLflow', 'not configured'], ['External AI', '1']];
-export const MODELS = [{
-  id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'Anthropic', foundIn: 'External', versions: 1, stage: 'In production', risk: 'Medium risk', monitoring: 'not monitored', alerts: '—',
-  purpose: 'Answers natural-language questions in Ask GenMeta', owner: '',
-  versionRows: [{ v: 'vclaude-sonnet-5', reg: 'External · Anthropic API (external service)', acc: '—', auc: '—', f1: '—', stage: 'In production', review: '1 Apr 2027' }],
-  lineage: [
-    ['Consumer', 'GenMeta · Ask GenMeta', 'Answers natural-language questions in Ask GenMeta'],
-    ['Data sent', 'Catalogue metadata only — no row-level data; sensitive columns withheld by role', ''],
-    ['External model', 'Anthropic · Claude Sonnet 5', 'Anthropic API (external service)'],
-    ['Output', 'Written answers with cited catalogue assets', ''],
-  ],
-  workflow: ['Registered', 'Validation', 'Approval', 'In production'],
-  reviewNote: 'Periodic review due 1 Apr 2027 (every 180 days). · signed off by governance-lead · you are governance-lead',
-  checks: ['Drift and bias results reviewed', 'Performance still acceptable', 'Continued business need confirmed'],
-  history: [['3 Oct 2026, 09:12', 'governance-lead', 'Registered as an external model and moved to In production (medium risk)']],
-}];
+const extLineage = (consumer, sent, provider, name, out) => [
+  { stage: 'Consumer', items: [{ b: consumer, s: '' }] },
+  { stage: 'Data sent', items: [{ b: sent, s: '' }] },
+  { stage: 'External model', items: [{ b: `${provider} · ${name}`, s: `${provider} API (external service)` }] },
+  { stage: 'Output', items: [{ b: out, s: '' }] },
+];
+const EXT_WF = ['Registered', 'Validation', 'Approval', 'In production'];
+const CHECKS = ['Drift and bias results reviewed', 'Performance still acceptable', 'Continued business need confirmed'];
+const H = (at, who, what, v) => ({ at, who, what, v });
+
+export const MODELS = [
+  {
+    id: 'customer-value-band', name: 'customer-value-band', provider: '', foundIn: ['MLflow', 'SageMaker'], hosted: true, risk: 'Medium risk', owner: 'Customer Analytics Lead',
+    monitoring: 'breach', alerts: 6, purpose: 'Predicts whether an order will fall in the HIGH value band.',
+    reviewNote: 'Retired on 23 Sept 2026 — sunset date reached. No periodic review is due for a retired model.',
+    versionRows: [
+      { v: 'v1', reg: ['SageMaker · Rejected', 'MLflow v1'], acc: '0.924', auc: '0.7902', f1: '0.1364', stage: 'Retired', review: '—', note: 'Retired at validation on 17 Sept 2026 — superseded by a later version.',
+        path: ['Registered', 'Validation', 'Retired'], lineage: cvbLineage('v1', 'v1', 'a71c03d2e5', 'accuracy=0.924, roc_auc=0.7902, f1_high=0.1364', false) },
+      { v: 'v2', reg: ['SageMaker · Rejected', 'MLflow v2'], acc: '0.742', auc: '0.7821', f1: '0.5714', stage: 'Rejected', review: '—', note: 'Rejected at validation on 18 Sept 2026 — F1 (HIGH) below the 0.70 threshold.',
+        path: ['Registered', 'Validation', 'Rejected'], lineage: cvbLineage('v2', 'v2', 'b5e9f1406c', 'accuracy=0.742, roc_auc=0.7821, f1_high=0.5714', false) },
+      { v: 'v4', reg: ['SageMaker · Rejected', 'MLflow v3 · @production'], acc: '0.862', auc: '0.9343', f1: '0.8034', stage: 'Retired', review: '18 Mar 2027',
+        path: ['Registered', 'Validation', 'Approval', 'In production', 'Retired'], lineage: cvbLineage('v4', 'v3', 'c894e5f849', 'accuracy=0.862, roc_auc=0.9343, f1_high=0.8034', true) },
+    ],
+    history: [
+      H('23 Sept 2026, 08:21', 'genmeta', 'SageMaker approval set to Rejected; MLflow write-back failed: HTTP Error 400: BAD REQUEST', 'v4'),
+      H('23 Sept 2026, 08:21', 'lifecycle scheduler', 'Deprecated → Retired — Sunset date 2026-09-23 reached', 'v4'),
+      H('23 Sept 2026, 08:20', 'genmeta', 'MLflow write-back failed: HTTP Error 400: BAD REQUEST', 'v4'),
+      H('23 Sept 2026, 08:20', 'Admin', 'In production → Deprecated — test', 'v4'),
+      H('21 Sept 2026, 08:10', 'Admin', 'Reopened: Drift and bias results reviewed', 'v4'),
+      H('21 Sept 2026, 08:10', 'Admin', 'Reopened: Performance still acceptable', 'v4'),
+      H('21 Sept 2026, 08:07', 'Admin', 'Completed: Performance still acceptable', 'v4'),
+      H('21 Sept 2026, 08:07', 'Admin', 'Completed: Drift and bias results reviewed', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Continued business need confirmed', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Performance still acceptable', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Reopened: Drift and bias results reviewed', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Continued business need confirmed', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Performance still acceptable', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Drift and bias results reviewed', 'v4'),
+      H('21 Sept 2026, 07:26', 'Admin', 'Completed: Drift and bias results reviewed', 'v4'),
+      H('19 Sept 2026, 13:20', 'genmeta', 'SageMaker approval set to Approved; MLflow alias “production” set; MLflow tag genmeta_stage = approved', 'v4'),
+      H('19 Sept 2026, 13:20', 'Admin', 'Approval → In production — Accuracy 0.862, F1 0.803, AUC 0.934; nation excluded; DPIA screened', 'v4'),
+      H('19 Sept 2026, 13:20', 'Admin', 'Completed: Model risk sign-off', 'v4'),
+      H('19 Sept 2026, 13:20', 'Admin', 'Completed: UK GDPR Article 22 assessment', 'v4'),
+      H('19 Sept 2026, 13:20', 'Admin', 'Completed: DPIA screening completed', 'v4'),
+      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Validation → Approval', 'v4'),
+      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Independent validator (not the developer)', 'v4'),
+      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Explainability reviewed', 'v4'),
+      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Bias assessed across protected groups', 'v4'),
+      H('19 Sept 2026, 13:20', 'Data Engineer (validator)', 'Completed: Performance validated on held-out data', 'v4'),
+      H('19 Sept 2026, 13:20', 'Admin', 'Registered → Validation', 'v4'),
+      H('19 Sept 2026, 13:20', 'Admin', 'Completed: Intended use and limits stated', 'v4'),
+      H('18 Sept 2026, 16:02', 'Data Engineer (validator)', 'Validation → Rejected — F1 (HIGH) 0.571 below the 0.70 threshold', 'v2'),
+      H('18 Sept 2026, 15:40', 'Admin', 'Registered → Validation', 'v2'),
+      H('17 Sept 2026, 11:15', 'Admin', 'Validation → Retired — superseded; F1 (HIGH) 0.136', 'v1'),
+    ],
+  },
+  {
+    id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'Anthropic', foundIn: ['External'], risk: 'Medium risk', owner: '', monitoring: 'not monitored', alerts: 0,
+    purpose: 'Answers natural-language questions in Ask GenMeta',
+    reviewNote: 'Periodic review due 1 Apr 2027 (every 180 days). · signed off by governance-lead · you are governance-lead',
+    versionRows: [{ v: 'vclaude-sonnet-5', reg: ['External · Anthropic API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'In production', review: '1 Apr 2027', path: EXT_WF,
+      lineage: extLineage('GenMeta · Ask GenMeta', 'Catalogue metadata only — no row-level data; sensitive columns withheld by role', 'Anthropic', 'Claude Sonnet 5', 'Written answers with cited catalogue assets') }],
+    history: [H('3 Oct 2026, 09:12', 'governance-lead', 'Registered as an external model and moved to In production (medium risk)', 'vclaude-sonnet-5')],
+  },
+  {
+    id: 'gpt-41-test', name: 'GPT-4.1 (test entry)', provider: 'OpenAI', foundIn: ['External'], risk: 'Low risk', owner: '', monitoring: 'not monitored', alerts: 0,
+    purpose: 'Test entry used to check the external-model registration flow',
+    reviewNote: 'Retired — no periodic review is due.',
+    versionRows: [{ v: 'v1', reg: ['External · OpenAI API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '—', path: ['Registered', 'Retired'],
+      lineage: extLineage('Test only', 'None — test entry', 'OpenAI', 'GPT-4.1', '—') }],
+    history: [H('22 Sept 2026, 10:04', 'Admin', 'Registered → Retired — test entry', 'v1'), H('22 Sept 2026, 10:01', 'Admin', 'Registered as an external model (low risk)', 'v1')],
+  },
+  {
+    id: 'gemini-25-test', name: 'Gemini 2.5 Pro (test entry)', provider: 'Google', foundIn: ['External'], risk: 'Low risk', owner: '', monitoring: 'not monitored', alerts: 1,
+    purpose: 'Test entry used to check external-model alerts',
+    reviewNote: 'Retired — no periodic review is due.',
+    versionRows: [{ v: 'v1', reg: ['External · Google Vertex AI (external service)'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '—', path: ['Registered', 'Retired'],
+      lineage: extLineage('Test only', 'None — test entry', 'Google', 'Gemini 2.5 Pro', '—') }],
+    history: [H('22 Sept 2026, 10:12', 'Admin', 'Registered → Retired — test entry', 'v1'), H('22 Sept 2026, 10:08', 'Admin', 'Registered as an external model (low risk)', 'v1')],
+  },
+  {
+    id: 'a', name: 'a', provider: 'a', foundIn: ['External'], risk: 'High risk', owner: '', monitoring: 'not monitored', alerts: 0,
+    purpose: 'a', reviewNote: 'Retired — no periodic review is due.',
+    versionRows: [{ v: 'v1', reg: ['External · a'], acc: '—', auc: '—', f1: '—', stage: 'Retired', review: '—', path: ['Registered', 'Retired'],
+      lineage: extLineage('a', 'a', 'a', 'a', '—') }],
+    history: [H('20 Sept 2026, 09:31', 'Admin', 'Registered → Retired', 'v1'), H('20 Sept 2026, 09:30', 'Admin', 'Registered as an external model (high risk)', 'v1')],
+  },
+  {
+    id: 'gpt-41', name: 'GPT-4.1', provider: 'OpenAI', foundIn: ['External'], risk: 'Medium risk', owner: '', monitoring: 'not monitored', alerts: 0,
+    purpose: 'Drafts glossary definitions and policy extractions',
+    reviewNote: 'Periodic review due 18 Mar 2027 (every 180 days).',
+    versionRows: [{ v: 'gpt-4.1', reg: ['External · OpenAI API (external service)'], acc: '—', auc: '—', f1: '—', stage: 'In production', review: '18 Mar 2027', path: EXT_WF,
+      lineage: extLineage('GenMeta · Glossary drafting, extraction', 'Metadata only — redacted before and after', 'OpenAI', 'GPT-4.1', 'Draft definitions and extracted requirements for review') }],
+    history: [H('19 Sept 2026, 14:02', 'Admin', 'Approval → In production (medium risk)', 'gpt-4.1'), H('19 Sept 2026, 13:58', 'Admin', 'Registered as an external model', 'gpt-4.1')],
+  },
+].map((m) => ({ ...m, checks: CHECKS, versions: m.versionRows.length, stage: m.versionRows[m.versionRows.length - 1].stage }));
+
+/* monitoring alerts per model (count matches the registry) */
+export const MODEL_ALERTS = [
+  ...['Prediction-mix PSI 0.31 above breach 0.25', 'F1 (HIGH) fell 0.09 vs previous run', 'Prediction-mix PSI 0.27 above breach 0.25', 'Label coverage 74% below 80%', 'Scoring batch on a retired version', 'Feature account_balance drift 0.22 (warn 0.1)']
+    .map((what, i) => ({ id: `cvb-${i}`, model: 'customer-value-band', v: 'v4', what, sev: i === 5 || i === 3 ? 'warn' : 'breach', at: `${15 + Math.min(i, 4)} Sept 2026, 06:0${i}`, state: i < 4 ? 'open' : 'ack' })),
+  { id: 'gem-0', model: 'gemini-25-test', v: 'v1', what: 'Called after retirement (test)', sev: 'warn', at: '22 Sept 2026, 10:20', state: 'open' },
+];
+export const MODEL_TILES = [
+  { l: 'Models governed', v: 6, s: '1 hosted · 5 external' },
+  { l: 'Model versions', v: 8, s: 'across all registries' },
+  { l: 'In validation or approval', v: 0, s: 'awaiting sign-off' },
+  { l: 'In production', v: 2, s: 'reviews up to date' },
+  { l: 'Open breach alerts', v: 4, s: '4 open · 3 acknowledged' },
+];
+export const DISCOVERY = [['SageMaker', 'failed'], ['MLflow', '1 model'], ['External AI', '5']];
 export const RISK_TIERS = [
   ['High risk', 'Models that inform decisions about individuals or money.', 90, 2],
   ['Medium risk', 'Models that support, but do not make, decisions about individuals.', 180, 1],

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Download, ChevronDown, Fingerprint, Lock, ShieldCheck, Layers, Database, Scale, Boxes, GitBranch, Clock, CheckCircle2, BellRing,
+  X, Download, ChevronDown, ChevronRight, Fingerprint, Lock, ShieldCheck, Layers, Database, Scale, Boxes, GitBranch, Clock, CheckCircle2, BellRing,
   Target, Crosshair, Radar, Sigma, AlertTriangle, AlertOctagon, Tags, ScrollText, Link2, Eye, ShieldAlert, Globe2, MapPin, FileSignature,
   Landmark, Ruler, SlidersHorizontal, Archive, FileSearch, Gauge, Shield, FileWarning, UserRound, FileCheck2, ClipboardList, Flame,
   Inbox, KeyRound, CalendarCheck, ListChecks, UserX, Users, UserCheck, RefreshCw,
@@ -77,19 +77,36 @@ export function Section({ icon: I, tone: tn = 'info', title, meta, children, fir
   );
 }
 
-/* Second-level navigation inside a tab: a clear pill bar with icons and counts. */
+/* Second-level navigation inside a tab — same look as the Catalogue's level-2 tabs
+   (Graph · End to end · …): light pills, the active one on ice. Counts stay visible. */
 export function SubNav({ items, value, onChange }) {
   return (
-    <div className="gv-subnav" role="tablist">
-      {items.map((t) => {
-        const I = t.icon;
-        return (
-          <button key={t.value} role="tab" aria-selected={value === t.value} className={value === t.value ? 'on' : ''} onClick={() => onChange(t.value)}>
-            {I && <I size={15} strokeWidth={1.8} />}{t.label}{t.count != null && <em className={t.countTone || ''}>{t.count}</em>}
-          </button>
-        );
-      })}
+    <div className="subtabs gv-subtabs" role="tablist">
+      {items.map((t) => (
+        <button key={t.value} type="button" role="tab" aria-selected={value === t.value} className={value === t.value ? 'on' : ''} onClick={() => onChange(t.value)}>
+          {t.label}{t.count != null && <em className={t.countTone || ''}>{t.count}</em>}
+        </button>
+      ))}
     </div>
+  );
+}
+
+/* A separate card that folds open and shut (versions, lineage, workflow, history). */
+export function Collapse({ icon: I, tone: tn = 'info', title, meta, actions, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={`dash-card gv-collapse ${open ? 'open' : ''}`}>
+      <div className="gv-collapse-h">
+        <button type="button" className="gv-collapse-t" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <ChevronRight size={16} className="gv-collapse-ic" />
+          {I && <span className={`gv-chip sm ${tn}`}><I size={14} strokeWidth={1.9} /></span>}
+          <h3>{title}</h3>
+          {meta && <span className="gv-section-meta">{meta}</span>}
+        </button>
+        {actions && <div className="gv-collapse-a">{actions}</div>}
+      </div>
+      {open && <div className="gv-collapse-b">{children}</div>}
+    </section>
   );
 }
 
