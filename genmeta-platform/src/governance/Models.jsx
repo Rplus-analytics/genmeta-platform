@@ -10,6 +10,7 @@ import { Button, Segmented } from '../components/ui.jsx';
 import { MODELS, MODEL_ALERTS, MODEL_MONITORING, ALERT_RECIPIENTS, RISK_TIERS, DISCOVERY, BASE } from './data.js';
 import { Card, StatusBadge, Empty, Note, Mono, Fld, Drawer, Collapse, toast } from './kit.jsx';
 import TierEditor from './TierEditor.jsx';
+import { useTemplates } from './tiers.js';
 import { ApprovalPanel, ApprovalBanner } from './Workflows.jsx';
 import { ModelOverview, LineageFilterBar, ModelLineageGraph, filterVersions } from './ModelParts.jsx';
 
@@ -224,11 +225,12 @@ export function ModelCatalogue({ state }) {
         {EXAMPLES.map((e) => <button key={e} onClick={() => ask(e)} className={asked === e ? 'on' : ''}>{e}</button>)}
       </div>
 
+      <TiersBanner onOpen={() => setDrawer('tiers')} />
+
       <div className="gv-discline">
         <span className="gv-muted">Discovered from</span>
         {DISCOVERY.map(([k, v]) => <span key={k} className="gv-disc ok">{k}: {v}</span>)}
         <span style={{ flex: 1 }} />
-        <Button variant="link" icon={Shield} onClick={() => setDrawer('tiers')}>Risk tiers & review policy</Button>
         <Button variant="secondary" size="sm" icon={Plus} onClick={() => nav(`${MODELS_BASE}/register`)}>Register external model</Button>
       </div>
 
@@ -266,6 +268,19 @@ export function ModelCatalogue({ state }) {
   );
 }
 
+
+/* the risk-tier workflow policy, shown prominently on the AI model list and inside each model's workflow */
+export function TiersBanner({ onOpen, compact }) {
+  const tpl = useTemplates();
+  return (
+    <button type="button" className={`mg-tiers ${compact ? 'compact' : ''}`} onClick={onOpen}>
+      <span className="gv-chip violet"><Shield size={18} /></span>
+      <span className="mg-tiers-t"><b>Risk tiers & review policy</b><small>The governance workflow every model follows, by risk tier: review cycle, approvers, evidence at each stage and the regulations it answers to.</small></span>
+      <span className="mg-tiers-p">{RISK_TIERS.map(([r]) => { const t = tpl[r]; return <span key={r} className={`mg-tier ${riskTone(r)}`}><b>{r}</b><small>every {t.days} days · {t.approvers} approver{t.approvers > 1 ? 's' : ''}</small></span>; })}</span>
+      <span className="btn primary sm mg-tiers-go">Open policy<ChevronRight size={14} /></span>
+    </button>
+  );
+}
 
 /* ---------------------------------------------------------------- the model page (asset-page look) */
 const TABS = [['overview', 'Overview'], ['lineage', 'Lineage'], ['monitoring', 'Monitoring & guardrails'], ['alerts', 'Alerts']];
@@ -345,6 +360,7 @@ function LineageDetails({ m, rows, ver, onVersion }) {
   const [checks, setChecks] = useState({});
   const [note, setNote] = useState('');
   const [scope, setScope] = useState('version');
+  const [tiers, setTiers] = useState(false);
   const steps = [...BASE_STEPS, ...ver.path.filter((p) => !BASE_STEPS.includes(p))];
   const live = ver.stage === 'In production';
   const allHist = m.versionRows.flatMap((r) => r.history.map((h) => ({ ...h, v: r.v })));
@@ -386,7 +402,8 @@ function LineageDetails({ m, rows, ver, onVersion }) {
         </div>
       </Collapse>
 
-      <Collapse icon={WorkflowIcon} tone="violet" title={`Governance workflow — ${ver.v}`} meta={<StatusBadge s={riskTone(m.risk)}>{m.risk}</StatusBadge>}>
+      <Collapse icon={WorkflowIcon} tone="violet" title={`Governance workflow — ${ver.v}`} meta={<StatusBadge s={riskTone(m.risk)}>{m.risk}</StatusBadge>}
+        actions={<Button variant="secondary" size="sm" icon={Shield} onClick={(e) => { e.stopPropagation(); setTiers(true); }}>Risk tiers & review policy</Button>}>
         <div className="gv-wf">
           {steps.map((s, i) => {
             const passed = ver.path.includes(s);
@@ -399,6 +416,7 @@ function LineageDetails({ m, rows, ver, onVersion }) {
           })}
         </div>
         <Note>{ver.note}</Note>
+        {tiers && <TierEditor onClose={() => setTiers(false)} />}
         <ApprovalPanel kind="model" id={m.id} event={m.foundIn.includes('External') ? 'External model registered' : 'Internal model version promoted to production'} />
         {live && (
           <>

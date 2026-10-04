@@ -91,8 +91,8 @@ export default function EstateOverview() {
     ['Named ownership', pct(estate.tot.named, estate.tot.n), 'stewardship', Users],
     ['Stewardship', pct(estate.tot.steward, estate.tot.n), 'stewardship', Users],
     ['Classification', 97, '', Tags],
-    ['Policy compliance', compPct, 'dpia?view=policies', ScrollText],
-    ['Retention on personal data', pct(comp.retention, comp.sens), 'dpia?view=policies', FileText],
+    ['Policy compliance', compPct, 'policies?tab=compliance', ScrollText],
+    ['Retention on personal data', pct(comp.retention, comp.sens), 'policies?tab=compliance', FileText],
     ['Personal-data handling', pct(hr.total - hr.failing, hr.total), 'dpia', ShieldCheck],
     ['AI models without breaches', pct(models.length - new Set(breaches.map((a) => a.model)).size, models.length), 'models', Bot],
     ['Residency inside policy', pct(9, 13), '?tab=residency', Globe2],
@@ -103,7 +103,7 @@ export default function EstateOverview() {
   const attention = [
     breaches.length && { sev: 'bad', mod: 'AI models', icon: BellRing, t: `${breaches.length} open breach alerts on ${[...new Set(breaches.map((a) => a.model))].join(', ')}`, d: breaches.slice(0, 2).map((a) => a.title).join(' · '), to: `models/${breaches[0].model}`, cta: 'Open alerts' },
     ...overdue.map((x) => ({ sev: 'bad', mod: 'Approvals', icon: Inbox, t: `${x.r.subject.label} — “${x.st.cur.step.name}” is overdue`, d: `waiting on ${waitingOn(x.r, x.st)}`, to: `workflows?req=${x.r.id}`, cta: 'Decide' })),
-    ...comp.byControl.filter((x) => x.f && x.c.severity === 'high').map((x) => ({ sev: pct(x.f, x.n) > 50 ? 'bad' : 'warn', mod: 'Policies', icon: ScrollText, t: `${x.c.title}: ${x.f} of ${x.n} assets failing`, d: 'high-severity control', to: 'dpia?view=policies', cta: 'See compliance' })),
+    ...comp.byControl.filter((x) => x.f && x.c.severity === 'high').map((x) => ({ sev: pct(x.f, x.n) > 50 ? 'bad' : 'warn', mod: 'Policies', icon: ScrollText, t: `${x.c.title}: ${x.f} of ${x.n} assets failing`, d: 'high-severity control', to: 'policies?tab=compliance', cta: 'See compliance' })),
     accRec < dp.records.length && { sev: 'bad', mod: 'DPIA & GDPR', icon: FileText, t: `${accRec} of ${dp.records.length} records of processing accepted`, d: `${hr.failing} of ${hr.total} personal-data handling checks failing`, to: 'dpia', cta: 'Review' },
     ...dueSoon.map((x) => ({ sev: 'warn', mod: 'Approvals', icon: Inbox, t: `${x.r.subject.label} — “${x.st.cur.step.name}”`, d: `waiting on ${waitingOn(x.r, x.st)} · due ${Math.round((x.st.cur.due - TODAY) / 864e5) || 'today'}${Math.round((x.st.cur.due - TODAY) / 864e5) ? ' days' : ''}`, to: `workflows?req=${x.r.id}`, cta: 'Decide' })),
     { sev: 'warn', mod: 'Residency', icon: Globe2, t: '4 data locations outside the “United Kingdom only” policy', d: 'each needs an override with a reason, or a move', to: '?tab=residency', cta: 'Review' },
@@ -139,9 +139,9 @@ export default function EstateOverview() {
           {[
             [Database, 'info', 'Data assets', estate.tot.n, `${estate.rows.length} systems · ${estate.tot.restricted} restricted`, 'stewardship'],
             [Bot, 'violet', 'AI models', models.length, `${live.length} in production · ${openReq.filter((x) => x.st.wf.module === 'ai-models').length} awaiting approval`, 'models'],
-            [ScrollText, compPct >= 80 ? 'ok' : 'warn', 'Policy compliance', `${compPct}%`, `${comp.pass} of ${comp.checks.length} checks pass · ${comp.items} items`, 'dpia?view=policies'],
+            [ScrollText, compPct >= 80 ? 'ok' : 'warn', 'Policy compliance', `${compPct}%`, `${comp.pass} of ${comp.checks.length} checks pass · ${comp.items} items`, 'policies?tab=compliance'],
             [Inbox, overdue.length ? 'bad' : 'warn', 'Approvals open', openReq.length, `${overdue.length} overdue · ${dueSoon.length} due within 2 days`, 'workflows'],
-            [Flame, 'bad', 'Open risks', breaches.length + comp.checks.length - comp.pass, `${breaches.length} model breaches · ${comp.checks.length - comp.pass} failing checks`, 'dpia?view=policies'],
+            [Flame, 'bad', 'Open risks', breaches.length + comp.checks.length - comp.pass, `${breaches.length} model breaches · ${comp.checks.length - comp.pass} failing checks`, 'policies?tab=compliance'],
           ].map(([I, tn, l, v, s, to]) => (
             <button key={l} type="button" className="es-kpi" onClick={go(to)}>
               <span className={`gv-chip sm ${tn}`}><I size={14} /></span>

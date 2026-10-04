@@ -1053,3 +1053,43 @@
 .es-row.r12 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
 .es-feed.one { grid-template-columns: 1fr; }
 @media (max-width: 1250px) { .es-row.r12 { grid-template-columns: 1fr; } }
+
+/* Workflows — one section per module */
+.wf-modnav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.wf-modnav button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--white); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; color: var(--navy); cursor: pointer; }
+.wf-modnav button em { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.wf-modnav button.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.wf-modnav button.on em { color: #C9DBF5; }
+.wf-sec { padding: 18px 20px; margin-bottom: 14px; }
+.wf-sec > header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.wf-sec-t { flex: 1; min-width: 220px; }
+.wf-sec-t h3 { margin: 0; font-size: 16px; color: var(--navy); }
+.wf-sec-t p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+.wf-sec-n { display: flex; gap: 6px; }
+.wf-sec-n span { display: flex; flex-direction: column; align-items: center; min-width: 74px; padding: 6px 8px; border-radius: 9px; background: var(--ground, #F1F4F8); font-size: 11.5px; color: var(--muted); }
+.wf-sec-n span b { font-size: 17px; color: var(--navy); line-height: 1.2; }
+.wf-sec-n span.bad b { color: var(--gv-bad); }
+
+/* AI model governance — risk tiers banner */
+.mg-tiers { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; font: inherit; margin: 6px 0 14px; padding: 14px 16px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--gv-violet-line); background: linear-gradient(110deg, var(--gv-violet-bg) 0%, #fff 70%); transition: box-shadow .15s, border-color .15s; }
+.mg-tiers:hover { border-color: var(--gv-violet); box-shadow: 0 4px 16px rgba(107, 70, 217, .12); }
+.mg-tiers-t { flex: 1; min-width: 220px; }
+.mg-tiers-t b { display: block; font-size: 15px; color: var(--navy); }
+.mg-tiers-t small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.mg-tiers-p { display: flex; gap: 6px; flex-wrap: wrap; }
+.mg-tier { display: flex; flex-direction: column; padding: 6px 10px; border-radius: 8px; background: var(--white); border: 1px solid var(--line); border-left: 3px solid var(--gv-warn); }
+.mg-tier.bad { border-left-color: var(--gv-bad); } .mg-tier.ok { border-left-color: var(--gv-ok); }
+.mg-tier b { font-size: 12.5px; color: var(--navy); }
+.mg-tier small { font-size: 11.5px; color: var(--muted); }
+.mg-tiers-go { white-space: nowrap; pointer-events: none; }
+
+/* Policies catalogue — gaps strip; relationship graph column titles */
+.pl-gaps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+.pl-gap { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); background: var(--white); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; color: var(--navy); cursor: pointer; text-align: left; }
+.pl-gap small { color: var(--muted); font-size: 11.5px; margin-left: 4px; }
+.pl-gap.warn { border-color: var(--gv-warn-line); } .pl-gap.bad { border-color: var(--gv-bad-line); }
+.pl-gap.on { background: var(--ice); border-color: var(--royal); }
+.cat-search { margin-bottom: 10px; }
+.rg-colhead { position: absolute; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: center; }
+.rg-graph .lin-canvas { background-color: var(--white); }

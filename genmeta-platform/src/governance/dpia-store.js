@@ -134,6 +134,7 @@ let st = {
   lastRun: { at: '3 Oct 2026, 11:30', by: 'scheduler' },
   packAt: null,
   templates: [{ ...ICO_TEMPLATE }],
+  ticked: [],
   auditN: AUDIT.length,
 };
 st.lastRun = { ...st.lastRun, ...(() => { const t = ruleTotals(st); return { total: t.total, failing: t.failing }; })() };
@@ -145,6 +146,7 @@ export const getDpia = () => st;
 const who = () => ROLE_PERSON[st.role] || st.role;
 
 export function setRole(role) { st = { ...st, role }; emit(); }
+export function setTicked(ticked) { st = { ...st, ticked }; emit(); }
 export function saveRecord(rec, status) {
   const by = who();
   st = { ...st, records: st.records.map((x) => (x.id === rec.id ? { ...rec, status, history: [[now(), `${by} (${st.role})`, status === 'accepted' ? 'Accepted the record' : 'Saved as draft'], ...rec.history] } : x)) };
