@@ -7,6 +7,7 @@ import {
 import { BY_KEY } from '../catalogue/model.js';
 import { RISK_TIERS, MODEL_ALERTS, MODEL_MONITORING } from './data.js';
 import { StatusBadge, Fld } from './kit.jsx';
+import { ETHICS } from './RegisterModel.jsx';
 
 /* Pieces of the AI model page:
    - Overview, laid out like a Data assets asset page (summary card + side panel)
@@ -199,6 +200,12 @@ function ModelSide({ m, ver, st, validator, onChange }) {
         ))}
       </section>
       <section><h4>Personal data in training</h4><div className="chips">{cls.length ? cls.map((c) => <span key={c} className="cls">{c}</span>) : <span className="muted">{m.hosted ? 'None classified' : 'Not applicable'}</span>}</div></section>
+      {m.ethical && (
+        <section>
+          <h4>Ethical AI</h4>
+          {ETHICS.map((e) => { const v = m.ethical[e.key]; const tn = e.opts.find(([o]) => o === v)?.[1] || 'neutral'; return <p key={e.key} className="termrow"><small style={{ minWidth: 120 }}>{e.label}</small><b className={`gv-etone ${tn}`}><i />{v || '—'}</b></p>; })}
+        </section>
+      )}
       <section><h4>Tags</h4><div className="chips">{[m.hosted ? 'hosted' : 'external', m.stage.toLowerCase().replace(/\s+/g, '-'), m.risk.split(' ')[0].toLowerCase() + '-risk', ...(mon ? ['batch-scoring', 'bias-monitored'] : [])].map((t) => <span key={t} className="tagx">#{t}</span>)}</div></section>
     </aside>
   );

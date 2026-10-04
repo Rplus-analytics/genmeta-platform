@@ -69,6 +69,7 @@ export function useModelFilters() {
   const [q, setQ] = useState(SAVED.q);
   const [sort, setSort] = useState(SAVED.sort);
   const [alertsOnly, setAlertsOnly] = useState(false);
+  const [rev, setRev] = useState(0); /* bumps when a model is registered */
   Object.assign(SAVED, { sel, words, asked, q, sort });
   const toggle = (k, v) => setSel((s) => { const cur = s[k] || []; return { ...s, [k]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] }; });
   const setDrop = (k, v) => setSel((s) => ({ ...s, [k]: v ? [v] : [] }));
@@ -85,17 +86,17 @@ export function useModelFilters() {
     if (sort === 'alerts') r.sort((a, b) => openAlerts(b.id) - openAlerts(a.id));
     if (sort === 'risk') r.sort((a, b) => RISK_ORDER[a.risk] - RISK_ORDER[b.risk]);
     return r;
-  }, [sel, words, sort, alertsOnly]);
+  }, [sel, words, sort, alertsOnly, rev]);
   /* counts for each option, given every other filter */
   const counts = useMemo(() => Object.fromEntries(FACETS.map((f) => {
     const others = { ...sel, [f.key]: [] };
     const base = MODELS.filter((m) => matches(m, others) && words.every((w) => text(m).includes(w)));
     const vals = [...new Set(MODELS.flatMap(f.of))];
     return [f.key, vals.map((v) => ({ v, n: base.filter((m) => f.of(m).includes(v)).length }))];
-  })), [sel, words]);
+  })), [sel, words, rev]);
   const active = Object.entries(sel).flatMap(([k, vs]) => vs.map((v) => [k, v]));
   const nActive = active.length + (words.length ? 1 : 0) + (alertsOnly ? 1 : 0);
-  return { sel, words, setWords, asked, q, setQ, sort, setSort, toggle, setDrop, ask, clearAll, results, counts, active, nActive, alertsOnly, setAlertsOnly };
+  return { sel, words, setWords, asked, q, setQ, sort, setSort, toggle, setDrop, ask, clearAll, results, counts, active, nActive, alertsOnly, setAlertsOnly, refresh: () => setRev((r) => r + 1) };
 }
 
 /* ---------------------------------------------------------------- inner-menu filters (same look as the catalogue) */
@@ -226,7 +227,7 @@ export function ModelCatalogue({ state }) {
         {DISCOVERY.map(([k, v]) => <span key={k} className="gv-disc ok">{k}: {v}</span>)}
         <span style={{ flex: 1 }} />
         <Button variant="link" icon={Shield} onClick={() => setDrawer('tiers')}>Risk tiers & review policy</Button>
-        <Button variant="secondary" size="sm" icon={Plus} onClick={() => setDrawer('register')}>Register external model</Button>
+        <Button variant="secondary" size="sm" icon={Plus} onClick={() => nav(`${MODELS_BASE}/register`)}>Register external model</Button>
       </div>
 
       <section className="results">
@@ -259,7 +260,6 @@ export function ModelCatalogue({ state }) {
       </section>
 
       {drawer === 'tiers' && <TiersDrawer onClose={() => setDrawer(null)} />}
-      {drawer === 'register' && <RegisterDrawer onClose={() => setDrawer(null)} />}
     </div>
   );
 }
@@ -273,27 +273,6 @@ function TiersDrawer({ onClose }) {
           <thead><tr><th>Risk tier</th><th>Applies to</th><th className="num">Review every</th><th className="num">Approvers</th></tr></thead>
           <tbody>{RISK_TIERS.map(([n, d, days, ap]) => <tr key={n}><td><StatusBadge s={riskTone(n)}>{n}</StatusBadge></td><td>{d}</td><td className="num">{days} days</td><td className="num">{ap}</td></tr>)}</tbody>
         </table>
-      </div>
-    </Drawer>
-  );
-}
-function RegisterDrawer({ onClose }) {
-  const blank = { name: '', provider: '', version: '', purpose: '', usedBy: '', shared: '', hosting: '', risk: 'Medium risk' };
-  const [f, setF] = useState(blank);
-  const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }));
-  return (
-    <Drawer title="Register an externally provided AI model" onClose={onClose}
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!f.name.trim() || !f.provider.trim()} onClick={() => { toast(`Registered ${f.name} — awaiting validation`); onClose(); }}>Register model</Button></>}>
-      <p className="gv-muted" style={{ marginTop: 0 }}>Third-party models the organisation calls rather than hosts — governed through the same workflow.</p>
-      <div className="gv-form">
-        <Fld label="Model"><input className="input" value={f.name} onChange={set('name')} /></Fld>
-        <Fld label="Provider"><input className="input" value={f.provider} onChange={set('provider')} /></Fld>
-        <Fld label="Version"><input className="input" value={f.version} onChange={set('version')} /></Fld>
-        <Fld label="Purpose"><input className="input" value={f.purpose} onChange={set('purpose')} /></Fld>
-        <Fld label="Used by"><input className="input" value={f.usedBy} onChange={set('usedBy')} /></Fld>
-        <Fld label="Data shared"><input className="input" value={f.shared} onChange={set('shared')} /></Fld>
-        <Fld label="Hosting"><input className="input" value={f.hosting} onChange={set('hosting')} /></Fld>
-        <Fld label="Risk tier"><select className="select" value={f.risk} onChange={set('risk')}>{RISK_TIERS.map(([r]) => <option key={r}>{r}</option>)}</select></Fld>
       </div>
     </Drawer>
   );
