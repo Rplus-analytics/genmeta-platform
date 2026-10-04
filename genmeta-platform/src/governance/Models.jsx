@@ -9,6 +9,7 @@ import { Section as RailSection } from '../components/Rail.jsx';
 import { Button, Segmented } from '../components/ui.jsx';
 import { MODELS, MODEL_ALERTS, MODEL_MONITORING, ALERT_RECIPIENTS, RISK_TIERS, DISCOVERY, BASE } from './data.js';
 import { Card, StatusBadge, Empty, Note, Mono, Fld, Drawer, Collapse, toast } from './kit.jsx';
+import TierEditor from './TierEditor.jsx';
 import { ModelOverview, LineageFilterBar, ModelLineageGraph, filterVersions } from './ModelParts.jsx';
 
 /* Govern › Governance › AI model governance.
@@ -259,24 +260,11 @@ export function ModelCatalogue({ state }) {
         )}
       </section>
 
-      {drawer === 'tiers' && <TiersDrawer onClose={() => setDrawer(null)} />}
+      {drawer === 'tiers' && <TierEditor onClose={() => setDrawer(null)} />}
     </div>
   );
 }
 
-function TiersDrawer({ onClose }) {
-  return (
-    <Drawer title="Risk tiers and review policy" onClose={onClose}>
-      <p className="gv-muted" style={{ marginTop: 0 }}>The tier sets how often a model is reviewed and how many people must approve it.</p>
-      <div className="table-wrap">
-        <table className="tbl">
-          <thead><tr><th>Risk tier</th><th>Applies to</th><th className="num">Review every</th><th className="num">Approvers</th></tr></thead>
-          <tbody>{RISK_TIERS.map(([n, d, days, ap]) => <tr key={n}><td><StatusBadge s={riskTone(n)}>{n}</StatusBadge></td><td>{d}</td><td className="num">{days} days</td><td className="num">{ap}</td></tr>)}</tbody>
-        </table>
-      </div>
-    </Drawer>
-  );
-}
 
 /* ---------------------------------------------------------------- the model page (asset-page look) */
 const TABS = [['overview', 'Overview'], ['lineage', 'Lineage'], ['monitoring', 'Monitoring & guardrails'], ['alerts', 'Alerts']];
