@@ -155,12 +155,12 @@ export function Fld({ label, children, hint }) {
 }
 
 /* Overlays are fixed-position, so portal them to <body> (the page fade-in transform would trap them). */
-export function Drawer({ title, onClose, footer, children, wide }) {
+export function Drawer({ title, onClose, footer, children, wide, className = '' }) {
   useEsc(onClose);
   return createPortal(
     <div className="gl">
       <div className="gl-scrim" onClick={onClose} />
-      <div className={`gl-drawer gv-drawer ${wide ? 'wide' : ''}`} role="dialog" aria-label={typeof title === 'string' ? title : 'Detail'}>
+      <div className={`gl-drawer gv-drawer ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-label={typeof title === 'string' ? title : 'Detail'}>
         <header>{title}<button className="ib" aria-label="Close" onClick={onClose}><X size={16} /></button></header>
         <div className="gl-db">{children}</div>
         {footer && <footer>{footer}</footer>}

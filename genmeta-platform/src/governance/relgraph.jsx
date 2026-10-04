@@ -4,7 +4,7 @@ import { Plus, Minus, Maximize } from 'lucide-react';
 /* A lineage-style graph (same look as Data assets and AI model lineage): columns of node cards joined by
    labelled dashed edges; hover highlights a node's links, click calls onSelect, drag pans, buttons zoom.
    columns: [{ title, nodes: [{ id, label, sub, tag, icon, focus, muted }] }]  edges: [{ s, t, rel }] */
-const NW = 220, NH = 78, GX = 92, GY = 18, PAD = 24;
+const NW = 220, NH = 78, GX = 76, GY = 18, PAD = 24;
 
 export default function RelGraph({ columns, edges, onSelect, title, hint }) {
   const { nodes, box } = useMemo(() => {
@@ -28,10 +28,10 @@ export default function RelGraph({ columns, edges, onSelect, title, hint }) {
     const el = wrap.current; if (!el) return;
     const pw = el.clientWidth || 1;
     const bw = box.x1 - box.x0, bh = box.y1 - box.y0;
-    const s = Math.max(0.6, Math.min(1, (pw - PAD * 2) / bw));
+    const s = Math.max(0.68, Math.min(1, (pw - PAD * 2 - 44) / bw));
     const desired = Math.max(240, Math.min(620, Math.round(bh * s) + PAD * 2 + 20));
     setH(desired);
-    setView({ s, x: Math.max(PAD, (pw - bw * s) / 2) - box.x0 * s, y: Math.max(PAD, (desired - bh * s) / 2) - box.y0 * s });
+    setView({ s, x: Math.max(PAD + 44, (pw - bw * s) / 2) - box.x0 * s, y: Math.max(PAD, (desired - bh * s) / 2) - box.y0 * s });
   };
   useEffect(fit, [box]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const el = wrap.current; if (!el) return undefined; const ro = new ResizeObserver(() => fit()); ro.observe(el); return () => ro.disconnect(); }, [box]); // eslint-disable-line react-hooks/exhaustive-deps

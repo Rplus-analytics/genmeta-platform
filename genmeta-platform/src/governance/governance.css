@@ -1093,3 +1093,32 @@
 .cat-search { margin-bottom: 10px; }
 .rg-colhead { position: absolute; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: center; }
 .rg-graph .lin-canvas { background-color: var(--white); }
+
+/* DPIA › Personal data map — asset detail drawer */
+.gv-drawer.wide.pd-drawer { width: min(1180px, 96vw); }
+.pd-title { display: inline-flex; align-items: center; gap: 8px; }
+.pd-title svg { color: var(--royal); }
+.pd-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; }
+.pd-cls { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; font-family: var(--mono); font-size: 10.5px; font-weight: 600; background: var(--gv-info-bg); color: var(--gv-info); }
+.pd-cls.warn { background: var(--gv-warn-bg); color: var(--gv-warn); } .pd-cls.bad { background: var(--gv-bad-bg); color: var(--gv-bad); } .pd-cls.violet { background: var(--gv-violet-bg); color: var(--gv-violet); }
+.pd-facts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+.pd-facts > div { border: 1px solid var(--line); border-top: 3px solid var(--gv-info); border-radius: 9px; padding: 9px 10px; background: var(--white); min-width: 0; }
+.pd-facts > div.ok { border-top-color: var(--gv-ok); } .pd-facts > div.warn { border-top-color: var(--gv-warn); } .pd-facts > div.bad { border-top-color: var(--gv-bad); }
+.pd-facts span { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.pd-facts b { display: block; font-size: 14px; color: var(--navy); margin: 3px 0 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-facts small { display: block; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-sec-h { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; }
+.pd-sec-h h4 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--navy); }
+.pd-sec-h small { font-size: 12px; color: var(--muted); }
+.pd-drawer .rg-graph { box-shadow: none; }
+.pd-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pd-cols td { padding-top: 7px; padding-bottom: 7px; }
+.pd-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pd-rules li { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; padding: 7px 9px; border-radius: 8px; background: var(--gv-ok-bg); }
+.pd-rules li.bad { background: var(--gv-bad-bg); }
+.pd-rules li i { font-style: normal; font-weight: 700; color: var(--gv-ok); flex: none; width: 14px; }
+.pd-rules li.bad i { color: var(--gv-bad); }
+.pd-rules b { font-weight: 500; color: var(--navy); display: block; }
+.pd-rules small { display: block; color: var(--gv-bad); margin-top: 2px; }
+@media (max-width: 900px) { .pd-facts { grid-template-columns: repeat(3, 1fr); } .pd-two { grid-template-columns: 1fr; } }
+.rg-graph .lin-canvas { min-height: 0; }
