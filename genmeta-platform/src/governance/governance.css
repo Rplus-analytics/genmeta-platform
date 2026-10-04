@@ -1123,3 +1123,22 @@
 .pd-rules small { display: block; color: var(--gv-bad); margin-top: 2px; }
 @media (max-width: 900px) { .pd-facts { grid-template-columns: repeat(3, 1fr); } .pd-two { grid-template-columns: 1fr; } }
 .rg-graph .lin-canvas { min-height: 0; }
+
+/* accountability pack — every card the same size; details open in a side panel */
+.pk-wrap { cursor: pointer; border-radius: 14px; outline: none; }
+.pk-wrap:focus-visible .pk-card, .pk-wrap:hover .pk-card { border-color: var(--blue, #3b6ff5); box-shadow: 0 4px 16px rgba(20, 40, 90, .08); }
+.pk-card { height: 300px; display: flex; flex-direction: column; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.pk-body { flex: 1; min-height: 0; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent); mask-image: linear-gradient(to bottom, #000 78%, transparent); }
+.pk-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pk-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.pk-foot b { color: var(--blue, #3b6ff5); font-weight: 600; }
+.pk-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pk-list-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pk-list-h .input { max-width: 260px; }
+.pk-scroll { max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.pk-scroll .tbl th { position: sticky; top: 0; background: var(--white); z-index: 1; }
+.pk-kv .gv-kv { grid-template-columns: 220px 1fr; }
+.pk-sec { margin-top: 18px; min-width: 0; }
+.pk-scroll { overflow-x: auto; }
+.pk-scroll .tbl td { white-space: nowrap; }
+.pk-scroll .tbl td:last-child { white-space: normal; }
