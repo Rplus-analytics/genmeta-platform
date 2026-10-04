@@ -4,7 +4,7 @@ import {
   X, Download, ChevronDown, ChevronRight, Fingerprint, Lock, ShieldCheck, Layers, Database, Scale, Boxes, GitBranch, Clock, CheckCircle2, BellRing,
   Target, Crosshair, Radar, Sigma, AlertTriangle, AlertOctagon, Tags, ScrollText, Link2, Eye, ShieldAlert, Globe2, MapPin, FileSignature,
   Landmark, Ruler, SlidersHorizontal, Archive, FileSearch, Gauge, Shield, FileWarning, UserRound, FileCheck2, ClipboardList, Flame,
-  Inbox, KeyRound, CalendarCheck, ListChecks, UserX, Users, UserCheck, RefreshCw,
+  Inbox, KeyRound, CalendarCheck, ListChecks, UserX, Users, UserCheck, RefreshCw, Workflow, Hourglass,
 } from 'lucide-react';
 import { Button } from '../components/ui.jsx';
 
@@ -23,6 +23,7 @@ const TILE_LOOK = {
   'Assets holding personal data': [UserRound, 'info'], 'Accepted records of processing': [FileCheck2, 'ok'], 'Handling rules failing': [AlertTriangle, 'bad'], 'Assessments required': [ClipboardList, 'warn'],
   'DPIA required, not started': [ClipboardList, 'bad'], 'In progress': [Clock, 'warn'], Approved: [CheckCircle2, 'ok'], 'Risks recorded': [Flame, 'bad'],
   'Requests pending': [Inbox, 'warn'], 'Active grants': [KeyRound, 'ok'], 'Access policies': [ShieldCheck, 'info'], 'Reviews open': [CalendarCheck, 'violet'], 'Grants to review': [ListChecks, 'info'],
+  'Active workflows': [Workflow, 'violet'], 'Waiting for you': [Inbox, 'warn'], 'Requests in progress': [Hourglass, 'info'], Overdue: [AlertTriangle, 'bad'],
   'Recommended to revoke': [UserX, 'bad'], Roles: [Users, 'violet'], 'Role assignments': [UserCheck, 'info'], Scopes: [Layers, 'teal'], 'Identities synchronised': [RefreshCw, 'ok'],
 };
 

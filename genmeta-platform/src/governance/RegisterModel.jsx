@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ArrowRight, ArrowLeft, Search, X, Cpu, BadgeCheck, ChevronDown, ShieldCheck, Server, Sparkles } from 'lucide-react';
+import { Check, ArrowRight, ArrowLeft, Search, X, Cpu, BadgeCheck, ChevronDown, ShieldCheck, Server, Sparkles, UserCheck, Zap, ListChecks, Bell, CircleSlash, Lock, Workflow as WorkflowIcon } from 'lucide-react';
 import { Button } from '../components/ui.jsx';
 import { MODELS, RISK_TIERS } from './data.js';
 import { PEOPLE } from './stewardship-data.js';
 import { Fld, toast } from './kit.jsx';
+import { workflowFor, pathFor, startRequest, stateOf, approverText, condText, useWorkflowStore } from './workflows.js';
 
-/* Register an externally provided AI model — a guided five-step flow (Atlan's "New AI application"
-   pattern): Overview → Select the AI model → Additional details → Ethical AI → Review.
-   Submitting adds the model to the AI model inventory at "Registered", ready for validation. */
+/* Register an externally provided AI model — a guided six-step flow (Atlan's "New AI application"
+   pattern): Overview → Select the AI model → Additional details → Ethical AI → Approval → Review.
+   The Approval step attaches the workflow from Governance › Workflows that starts on "External model
+   registered" and shows exactly which steps this model will go through. Submitting adds the model at
+   "Registered" and starts the approval request. */
 
 export const ETHICS = [
   { key: 'privacy', label: 'Privacy', desc: 'Sensitive data such as personal identifiers, health information and financial records is protected from unauthorised access, use or disclosure.',
@@ -41,7 +44,9 @@ const CATALOGUE = [
 ];
 const registeredName = (c) => MODELS.some((m) => m.name.toLowerCase() === c.name.toLowerCase() && !/test entry/i.test(m.name));
 
-const STEPS = ['Overview', 'Select the AI model', 'Additional details', 'Ethical AI', 'Review'];
+const STEPS = ['Overview', 'Select the AI model', 'Additional details', 'Ethical AI', 'Approval', 'Review'];
+const EVENT = 'External model registered';
+const ctxOf = (f) => ({ 'Risk tier': f.risk, 'Data sent': f.dataSent, 'Data held in': f.residency, 'Decisions about individuals': f.article22, 'Model source': 'External' });
 const STAGES = ['Ideation', 'Proof of concept', 'Development', 'Pilot', 'Ready for production'];
 
 export default function RegisterModel({ onRegistered, base }) {
@@ -51,7 +56,7 @@ export default function RegisterModel({ onRegistered, base }) {
     name: '', description: '', owners: ['Admin'], devStage: '', version: '',
     pick: '', custom: false, cProvider: '', cModel: '', cHost: '',
     usedBy: '', dataSent: '', dataDetail: '', residency: '', risk: '', article22: '', sunset: '',
-    ethics: {},
+    ethics: {}, wfId: workflowFor('ai-models', EVENT)[0]?.id || '', approvalNote: '',
   });
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e?.target ? e.target.value : e }));
   const model = f.custom ? { name: f.cModel, provider: f.cProvider, host: f.cHost || `${f.cProvider} API` } : CATALOGUE.find((c) => c.id === f.pick);
@@ -60,6 +65,7 @@ export default function RegisterModel({ onRegistered, base }) {
     f.custom ? f.cProvider.trim() && f.cModel.trim() : !!f.pick,
     f.usedBy.trim() && f.dataSent && f.residency && f.risk && f.article22,
     ETHICS.every((e) => f.ethics[e.key]),
+    !!f.wfId,
     true,
   ];
   const go = (n) => { if (n <= step || ok.slice(0, n).every(Boolean)) setStep(n); };
@@ -68,13 +74,17 @@ export default function RegisterModel({ onRegistered, base }) {
     const id = `${model.provider}-${f.name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const v = f.version.trim();
     const at = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(' at', ',');
+    const req = startRequest(f.wfId, { kind: 'model', id, label: `${f.name.trim()} · ${v}`, owners: f.owners, note: f.approvalNote.trim() }, ctxOf(f), 'Admin');
+    const st = stateOf(req);
+    const wf = st.wf;
+    const first = st.cur ? st.cur.step.name : 'nothing — approved';
     MODELS.unshift({
       id, name: f.name.trim(), provider: model.provider, foundIn: ['External'], risk: f.risk, owner: f.owners.join(', '), monitoring: 'not monitored', alerts: 0,
       purpose: f.description.trim() || `Uses ${model.name}`, usedBy: f.usedBy.trim(), ethical: f.ethics, devStage: f.devStage, residency: f.residency, article22: f.article22, baseModel: model.name,
       checks: ['Drift and bias results reviewed', 'Performance still acceptable', 'Continued business need confirmed'],
       versionRows: [{
         v, reg: [`External · ${model.host}`], acc: '—', auc: '—', f1: '—', stage: 'Registered', review: '—', path: ['Registered'],
-        note: `Registered ${at} — awaiting validation. Development stage: ${f.devStage}.${f.sunset ? ` Sunset date ${f.sunset}.` : ''}`,
+        note: `Registered ${at} — awaiting approval (${req.id}, ${wf.name}): next step ${first}. Development stage: ${f.devStage}.${f.sunset ? ` Sunset date ${f.sunset}.` : ''}`,
         lineage: [
           { stage: 'Consumer', items: [{ b: f.usedBy.trim(), s: f.description.trim() }] },
           { stage: 'Data sent', items: [{ b: f.dataSent, s: f.dataDetail.trim() }] },
@@ -83,6 +93,7 @@ export default function RegisterModel({ onRegistered, base }) {
         ],
         /* the registration flow captures the model card, owner and intended use, so those checks are recorded as done */
         history: [
+          { at, who: 'Admin', what: `Approval requested — ${wf.name} v${wf.version} (${req.id}); waiting on ${first}` },
           { at, who: 'Admin', what: 'Completed: Model card completed' },
           ...(f.owners.length ? [{ at, who: 'Admin', what: 'Completed: Accountable owner named' }] : []),
           ...(f.description.trim() ? [{ at, who: 'Admin', what: 'Completed: Intended use and limits stated' }] : []),
@@ -92,7 +103,7 @@ export default function RegisterModel({ onRegistered, base }) {
       versions: 1, stage: 'Registered',
     });
     onRegistered?.();
-    toast(`${f.name.trim()} registered — sent for validation`);
+    toast(`${f.name.trim()} registered — approval ${req.id} started; waiting on ${first}`);
     nav(`${base}/${id}`);
   };
 
@@ -103,9 +114,9 @@ export default function RegisterModel({ onRegistered, base }) {
         <div className="gv-inline" style={{ gap: 8 }}>
           <Button variant="secondary" onClick={() => nav(base)}>Cancel</Button>
           {step > 0 && <Button variant="secondary" icon={ArrowLeft} onClick={() => setStep(step - 1)}>Back</Button>}
-          {step < 4
+          {step < 5
             ? <Button variant="primary" disabled={!ok[step]} onClick={() => setStep(step + 1)}>Continue<ArrowRight size={15} /></Button>
-            : <Button variant="primary" icon={ShieldCheck} onClick={submit}>Submit for validation</Button>}
+            : <Button variant="primary" icon={ShieldCheck} onClick={submit}>Submit for approval</Button>}
         </div>
       </div>
       <div className="gv-wiz-bar"><i style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} /></div>
@@ -180,7 +191,9 @@ export default function RegisterModel({ onRegistered, base }) {
             </div>
           )}
 
-          {step === 4 && <Review f={f} model={model} />}
+          {step === 4 && <Approval f={f} setF={setF} />}
+
+          {step === 5 && <Review f={f} model={model} />}
         </div>
       </div>
     </div>
@@ -302,7 +315,76 @@ function Review({ f, model }) {
           </div>
         </div>
       )}
-      <p className="gv-wiz-hint" style={{ marginTop: 14 }}>On submit the model joins the AI model inventory at <b>Registered</b> and goes to validation. Every answer here is recorded in its history and audit trail.</p>
+      <ApprovalSummary f={f} />
+      <p className="gv-wiz-hint" style={{ marginTop: 14 }}>On submit the model joins the AI model inventory at <b>Registered</b> and its approval request starts. Nobody may call the model until the workflow approves it. Every answer here is recorded in its history and audit trail.</p>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- approval step */
+const KIND_ICON = { approval: UserCheck, automated: Zap, task: ListChecks, notify: Bell };
+function ApprovalPath({ wf, f }) {
+  const path = pathFor(wf, ctxOf(f));
+  const req = { subject: { owners: f.owners } };
+  return (
+    <ol className="wf-tl">
+      {path.map(({ step: s, applies }) => {
+        const I = KIND_ICON[s.kind];
+        return (
+          <li key={s.id} className={applies ? (s.kind === 'automated' ? 'done' : 'not-reached') : 'skipped'}>
+            <i>{applies ? (s.kind === 'automated' ? <Check size={11} strokeWidth={3} /> : <I size={11} />) : <CircleSlash size={11} />}</i>
+            <div>
+              <b>{s.name}</b>
+              <small>
+                {!applies && `Not needed — only runs if ${condText(s.runIf)}`}
+                {applies && s.kind === 'automated' && 'Passes automatically — everything it checks was answered in this form'}
+                {applies && (s.kind === 'approval' || s.kind === 'task') && <>{approverText(s, req)} · within {s.sla} day{s.sla === 1 ? '' : 's'}{s.sod && <> · <Lock size={10} /> not the requester</>}{s.runIf && ` · runs because ${condText(s.runIf)}`}</>}
+                {applies && s.kind === 'notify' && s.message}
+              </small>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function Approval({ f, setF }) {
+  const { workflows } = useWorkflowStore();
+  const list = workflows.filter((w) => w.module === 'ai-models' && w.event === EVENT && w.status === 'active');
+  const wf = list.find((w) => w.id === f.wfId) || list[0];
+  const n = wf ? pathFor(wf, ctxOf(f)).filter((p) => p.applies && p.step.kind === 'approval').length : 0;
+  return (
+    <div className="gv-wiz-approval">
+      <h2 className="gv-wiz-h">Approval</h2>
+      <p className="gv-muted" style={{ marginTop: 0 }}>Every external model is approved before anyone may call it. The workflow comes from <b>Governance › Workflows</b>; the steps below are worked out from your answers, so a model that sends personal data or holds it outside the UK gets the extra reviews.</p>
+      {list.length > 1 && (
+        <Fld label="Approval workflow *">
+          <select className="select" value={f.wfId} onChange={(e) => setF((o) => ({ ...o, wfId: e.target.value }))}>{list.map((w) => <option key={w.id} value={w.id}>{w.name} · v{w.version}</option>)}</select>
+        </Fld>
+      )}
+      {wf ? (
+        <div className="gv-pick on" style={{ cursor: 'default', display: 'block' }}>
+          <div className="gv-pick-t"><WorkflowIcon size={14} /><b>{wf.name}</b><span className="gv-faint">· version {wf.version} · AI model governance</span></div>
+          <p style={{ margin: '4px 0 0' }}>{wf.desc}</p>
+          <ApprovalPath wf={wf} f={f} />
+          <small className="gv-faint">{n} approval step{n === 1 ? '' : 's'} for this model · requested by Admin · approved → {wf.outcome.approved.toLowerCase()}</small>
+        </div>
+      ) : <p className="gv-wiz-hint">No active workflow starts on “{EVENT}”. Publish one in Governance › Workflows first.</p>}
+      <div style={{ marginTop: 14 }}><Fld label="Note to the approvers (optional)"><textarea className="input gv-ta" rows={2} value={f.approvalNote} onChange={(e) => setF((o) => ({ ...o, approvalNote: e.target.value }))} placeholder="e.g. Needed for the glossary pilot by 1 November" /></Fld></div>
+    </div>
+  );
+}
+
+function ApprovalSummary({ f }) {
+  const { workflows } = useWorkflowStore();
+  const wf = workflows.find((w) => w.id === f.wfId);
+  if (!wf) return null;
+  const steps = pathFor(wf, ctxOf(f)).filter((p) => p.applies && (p.step.kind === 'approval' || p.step.kind === 'task'));
+  return (
+    <div className="gv-rev-meta open" style={{ marginTop: 14 }}>
+      <button type="button" style={{ cursor: 'default' }}><WorkflowIcon size={14} /><span>Approval — {wf.name} · v{wf.version}</span></button>
+      <dl>{steps.map((p, k) => [<dt key={`${p.step.id}k`}>{k + 1}. {p.step.name}</dt>, <dd key={`${p.step.id}v`}>{approverText(p.step, { subject: { owners: f.owners } })} · {p.step.sla} day(s)</dd>])}</dl>
     </div>
   );
 }
