@@ -10,6 +10,7 @@ import { REGISTER, QUALITY_ISSUES, QUEUE } from './stewardship-data.js';
 import { applicability, hasCriteria } from './applicability.js';
 import { useWorkflowStore, stateOf, waitingOn, moduleOf, TODAY, fmt } from './workflows.js';
 import { StatusBadge } from './kit.jsx';
+import { useDpia, ruleTotals } from './dpia-store.js';
 
 /* Governance › Overview — what is happening across the whole GenMeta estate from a governance point of view:
    one posture score, what needs attention now (ranked across modules), the data estate by system, every AI model,
@@ -40,6 +41,9 @@ const COL = { ok: 'var(--gv-ok)', warn: 'var(--gv-warn)', bad: 'var(--gv-bad)', 
 export default function EstateOverview() {
   const nav = useNavigate();
   const { workflows, requests } = useWorkflowStore();
+  const dp = useDpia();
+  const hr = ruleTotals(dp);
+  const accRec = dp.records.filter((r) => r.status === 'accepted').length;
   const go = (to) => () => nav(to.startsWith('/') ? to : `${BASE}/${to}`);
 
   /* ---- data estate (ownership register, 219 assets across 9 systems) */
@@ -89,7 +93,7 @@ export default function EstateOverview() {
     ['Classification', 97, '', Tags],
     ['Policy compliance', compPct, 'dpia?view=policies', ScrollText],
     ['Retention on personal data', pct(comp.retention, comp.sens), 'dpia?view=policies', FileText],
-    ['Personal-data handling', pct(150 - 82, 150), 'dpia', ShieldCheck],
+    ['Personal-data handling', pct(hr.total - hr.failing, hr.total), 'dpia', ShieldCheck],
     ['AI models without breaches', pct(models.length - new Set(breaches.map((a) => a.model)).size, models.length), 'models', Bot],
     ['Residency inside policy', pct(9, 13), '?tab=residency', Globe2],
   ];
@@ -100,7 +104,7 @@ export default function EstateOverview() {
     breaches.length && { sev: 'bad', mod: 'AI models', icon: BellRing, t: `${breaches.length} open breach alerts on ${[...new Set(breaches.map((a) => a.model))].join(', ')}`, d: breaches.slice(0, 2).map((a) => a.title).join(' · '), to: `models/${breaches[0].model}`, cta: 'Open alerts' },
     ...overdue.map((x) => ({ sev: 'bad', mod: 'Approvals', icon: Inbox, t: `${x.r.subject.label} — “${x.st.cur.step.name}” is overdue`, d: `waiting on ${waitingOn(x.r, x.st)}`, to: `workflows?req=${x.r.id}`, cta: 'Decide' })),
     ...comp.byControl.filter((x) => x.f && x.c.severity === 'high').map((x) => ({ sev: pct(x.f, x.n) > 50 ? 'bad' : 'warn', mod: 'Policies', icon: ScrollText, t: `${x.c.title}: ${x.f} of ${x.n} assets failing`, d: 'high-severity control', to: 'dpia?view=policies', cta: 'See compliance' })),
-    { sev: 'bad', mod: 'DPIA & GDPR', icon: FileText, t: '0 of 5 records of processing accepted', d: '82 of 150 personal-data handling checks failing', to: 'dpia', cta: 'Review' },
+    accRec < dp.records.length && { sev: 'bad', mod: 'DPIA & GDPR', icon: FileText, t: `${accRec} of ${dp.records.length} records of processing accepted`, d: `${hr.failing} of ${hr.total} personal-data handling checks failing`, to: 'dpia', cta: 'Review' },
     ...dueSoon.map((x) => ({ sev: 'warn', mod: 'Approvals', icon: Inbox, t: `${x.r.subject.label} — “${x.st.cur.step.name}”`, d: `waiting on ${waitingOn(x.r, x.st)} · due ${Math.round((x.st.cur.due - TODAY) / 864e5) || 'today'}${Math.round((x.st.cur.due - TODAY) / 864e5) ? ' days' : ''}`, to: `workflows?req=${x.r.id}`, cta: 'Decide' })),
     { sev: 'warn', mod: 'Residency', icon: Globe2, t: '4 data locations outside the “United Kingdom only” policy', d: 'each needs an override with a reason, or a move', to: '?tab=residency', cta: 'Review' },
     { sev: 'warn', mod: 'Stewardship', icon: Users, t: `${estate.sensNoSteward} restricted assets have no data steward`, d: `${pct(estate.tot.steward, estate.tot.n)}% of the estate has a steward`, to: 'stewardship', cta: 'Assign' },
@@ -285,7 +289,7 @@ export default function EstateOverview() {
       {/* ---------------- privacy, access, residency, audit */}
       <div className="es-four">
         {[
-          [FileText, 'bad', 'DPIA & GDPR', '0 / 5', 'records of processing accepted', '82 of 150 handling checks failing · 25 assets hold personal data', 'dpia'],
+          [FileText, accRec === dp.records.length ? 'ok' : 'bad', 'DPIA & GDPR', `${accRec} / ${dp.records.length}`, 'records of processing accepted', `${hr.failing} of ${hr.total} handling checks failing · ${dp.assessments.filter((a) => a.stage === 'Approved').length} DPIA(s) signed off`, 'dpia'],
           [KeyRound, 'warn', 'Access & RBAC', `${revoke}`, 'grants recommended to revoke', `${REVIEW_ITEMS.length} grants in the quarterly review · 1 access request waiting`, 'access'],
           [Globe2, 'warn', 'Residency', '4', 'locations outside the UK-only policy', '13 locations in the register · 0 overrides recorded', '?tab=residency'],
           [Fingerprint, 'ok', 'Audit trail', 'Verified', 'hash chain intact', `${AUDIT.length} entries · last ${fmtTs(AUDIT[0].ts)}`, '?tab=audit'],

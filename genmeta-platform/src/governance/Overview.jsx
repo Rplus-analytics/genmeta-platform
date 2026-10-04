@@ -15,6 +15,7 @@ import {
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Drawer, Modal, MenuButton, Fld, KV, downloadText, toast, Meter, meterTone, Section, SubNav, Collapse, useWidth } from './kit.jsx';
 import { AuditTab, ResidencyTab } from './AuditResidency.jsx';
 import EstateOverview from './Estate.jsx';
+import { useDpia, liveControls } from './dpia-store.js';
 
 export const OVERVIEW_TABS = [
   { value: 'overview', label: 'Overview', icon: Landmark },
@@ -70,6 +71,7 @@ function HealthStrip({ pass, warn, total }) {
 const FRAMEWORKS_SCORED = ['UK GDPR', 'DPA 2018', 'ISO/IEC 27001:2022', 'NCSC CAF', 'HMRC residency'];
 
 function OverviewTab() {
+  const CTL = liveControls(useDpia());
   const nav = useNavigate();
   const [open, setOpen] = useState(null);
   const [actions, setActions] = useState(IMPROVEMENT_ACTIONS);
@@ -77,19 +79,19 @@ function OverviewTab() {
   const [aFilter, setAFilter] = useState('todo');
   const [cStatus, setCStatus] = useState('all');
   const [cDomain, setCDomain] = useState('all');
-  const pass = CONTROLS.filter((c) => c.status === 'Passing').length;
-  const warn = CONTROLS.filter((c) => c.status === 'Warning').length;
+  const pass = CTL.filter((c) => c.status === 'Passing').length;
+  const warn = CTL.filter((c) => c.status === 'Warning').length;
   const score = scoreOf(actions);
   const byFw = FRAMEWORKS_SCORED.map((f) => [f, scoreOf(actions.filter((a) => a.fw.includes(f)))]);
   const todo = actions.filter((a) => a.status !== 'Passed').sort((a, b) => b.points - a.points);
   const shownActions = aFilter === 'todo' ? todo : aFilter === 'done' ? actions.filter((a) => a.status === 'Passed') : actions;
-  const controls = CONTROLS.filter((c) => (cStatus === 'all' || c.status === cStatus) && (cDomain === 'all' || c.domain === cDomain));
+  const controls = CTL.filter((c) => (cStatus === 'all' || c.status === cStatus) && (cDomain === 'all' || c.domain === cDomain));
   const updateAction = (id, patch) => { setActions((all) => all.map((a) => (a.id === id ? { ...a, ...patch } : a))); setAct((a) => (a && a.id === id ? { ...a, ...patch } : a)); };
   const actionFor = (c) => actions.find((a) => a.control === c.id && a.status !== 'Passed');
   return (
     <>
-      <Tiles items={OVERVIEW_TILES.map((t) => (t.l === 'Compliance posture' ? { ...t, v: `${Math.round(score.pct * 100)}%`, s: `${score.got} of ${score.total} points · ${todo.length} actions open` } : t))} />
-      <HealthStrip pass={pass} warn={warn} total={CONTROLS.length} />
+      <Tiles items={OVERVIEW_TILES.map((t) => (t.l === 'Audit integrity' ? { ...t, s: `${AUDIT.length} entries · 0 broken links · SHA-256 chain` } : t.l === 'Compliance posture' ? { ...t, v: `${Math.round(score.pct * 100)}%`, s: `${score.got} of ${score.total} points · ${todo.length} actions open` } : t))} />
+      <HealthStrip pass={pass} warn={warn} total={CTL.length} />
       <div className="gv-two wide-l">
         <Card icon={Gauge} tone={meterTone(score.pct)} title="Compliance score" count={`${Math.round(score.pct * 100)}%`}
           sub="Points for every improvement action that has passed, weighted by risk (preventative 27 · detective 3).">
@@ -131,7 +133,7 @@ function OverviewTab() {
       </Card>
       <Card icon={ShieldCheck} tone="info" title="Governance controls" count={controls.length} sub="Cross-cutting security, privacy and compliance controls checked against the running system. Click a row for evidence."
         actions={<>
-          <select className="select" value={cDomain} onChange={(e) => setCDomain(e.target.value)} aria-label="Domain"><option value="all">All domains</option>{[...new Set(CONTROLS.map((c) => c.domain))].map((d) => <option key={d}>{d}</option>)}</select>
+          <select className="select" value={cDomain} onChange={(e) => setCDomain(e.target.value)} aria-label="Domain"><option value="all">All domains</option>{[...new Set(CTL.map((c) => c.domain))].map((d) => <option key={d}>{d}</option>)}</select>
           <Segmented size="sm" value={cStatus} onChange={setCStatus} options={[{ value: 'all', label: 'All' }, { value: 'Passing', label: 'Passing' }, { value: 'Warning', label: 'Warning' }, { value: 'Not connected', label: 'Not connected' }]} />
         </>}>
         <div className="table-wrap">
