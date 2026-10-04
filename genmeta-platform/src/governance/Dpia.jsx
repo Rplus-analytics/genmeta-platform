@@ -81,9 +81,8 @@ export default function Dpia({ filters }) {
 
 /* ------------------------------------------------------------------ personal data map */
 function PersonalDataMap() {
-  const [sel, setSel] = useState(null);
+  const nav = useNavigate();
   const [f, setF] = useState({ system: 'all', domain: 'all', region: 'all' });
-  const r = sel && PD_MAP.find((x) => x.asset === sel);
   const comesFrom = (a) => PD_MAP.filter((x) => x.shared.includes(a)).map((x) => x.asset);
   const rows = PD_MAP.filter((x) => (f.system === 'all' || x.system === f.system) && (f.domain === 'all' || x.domain === f.domain) && (f.region === 'all' || x.region === f.region));
   const bySystem = [...SYSTEMS].sort().map((s) => [s, PD_MAP.filter((x) => x.system === s)]);
@@ -122,7 +121,7 @@ function PersonalDataMap() {
           <table className="tbl">
             <thead><tr><th>Asset</th><th>Personal data</th><th>Shared with</th><th>Owner / steward</th><th>Retention</th><th>Region</th></tr></thead>
             <tbody>{rows.map((x) => { const ret = retentionOf(x.asset); const used = [...productsOf(x.asset).map((p) => `product ${p}`), ...modelsOf(x.asset).map((m) => `model ${m}`)]; return (
-              <tr key={x.asset} className={`click ${sel === x.asset ? 'on' : ''}`} onClick={() => setSel(x.asset)}>
+              <tr key={x.asset} className="click" onClick={() => nav(assetPath(x.asset))}>
                 <td><Mono>{x.asset}</Mono><span className="gv-sub">{x.system} · {x.sensitivity} · {x.domain}</span></td>
                 <td><div className="gv-tags">{x.cols.map((c) => <span key={c} className={`tag mono ${colClass(c) === 'SPECIAL_CATEGORY' ? 'gv-tag-bad' : ''}`} title={colClass(c)}>{c}</span>)}</div></td>
                 <td style={{ whiteSpace: 'normal' }}>{[...x.shared, ...used].join(', ') || '—'}</td><td>{x.owner}</td>
@@ -134,9 +133,8 @@ function PersonalDataMap() {
             </tbody>
           </table>
         </div>
-        <Note>Select an asset to see where its personal data comes from and goes.</Note>
+        <Note>Select an asset to open its page — where its personal data comes from and goes.</Note>
       </Card>
-      {r && <AssetDrawer r={r} onClose={() => setSel(null)} onOpen={(x) => setSel(x)} />}
     </>
   );
 }
@@ -725,9 +723,19 @@ function ActivityFlow({ r }) {
 }
 
 /* ------------------------------------------------------------------ personal data map: one asset, in detail */
-function AssetDrawer({ r, onClose, onOpen }) {
+export const assetPath = (a) => `${DPIA_BASE}/assets/${encodeURIComponent(a)}`;
+
+export function DpiaAssetPage() {
+  const { asset } = useParams();
+  const r = PD_MAP.find((x) => x.asset === asset);
+  if (!r) return <Navigate to={`${DPIA_BASE}?tab=map`} replace />;
+  return <AssetPage key={r.asset} r={r} />;
+}
+
+function AssetPage({ r }) {
   const st = useDpia();
   const nav = useNavigate();
+  const onOpen = (a) => nav(assetPath(a));
   const [colsAll, setColsAll] = useState(false);
   const pdx = (a) => PD_MAP.find((x) => x.asset === a);
   const ups1 = PD_MAP.filter((x) => x.shared.includes(r.asset)).map((x) => x.asset);
@@ -773,12 +781,20 @@ function AssetDrawer({ r, onClose, onOpen }) {
     ['Rules', `${rules.length - failing.length}/${rules.length} pass`, failing.length ? `${failing.length} failing` : 'all passing', failing.length ? 'bad' : 'ok'],
   ];
   return (
-    <Drawer wide className="pd-drawer" onClose={onClose}
-      title={<span className="pd-title"><Database size={16} /> <span className="mono">{r.asset}</span></span>}
-      footer={<>
-        <Button variant="secondary" size="md" onClick={onClose}>Close</Button>
-        {rec && <Button variant="primary" size="md" icon={BookOpen} onClick={() => nav(`${DPIA_BASE}/${rec.id}`)}>Open {rec.activity}</Button>}
-      </>}>
+    <div className="page asset gv pd-page fade-in">
+      <div className="asset-head">
+        <button type="button" className="icon-btn back" onClick={() => nav(`${DPIA_BASE}?tab=map`)} aria-label="Back to personal data map"><ArrowLeft size={17} /></button>
+        <div className="asset-title">
+          <div className="at-row"><h1 className="mono">{r.asset}</h1></div>
+          <div className="at-path">
+            <span><Database size={13} strokeWidth={1.75} />Personal data asset</span><span className="sep">·</span><span>DPIA &amp; GDPR › Personal data map</span>
+          </div>
+        </div>
+        <div className="head-actions">
+          {rec && <Button variant="primary" size="md" icon={BookOpen} onClick={() => nav(`${DPIA_BASE}/${rec.id}`)}>Open {rec.activity}</Button>}
+        </div>
+      </div>
+      <div className="pd-body">
       <div className="pd-head">
         <span className="tag">{r.system}</span><span className="tag">{r.domain}</span>
         <StatusBadge s="bad">{r.sensitivity}</StatusBadge>
@@ -791,7 +807,7 @@ function AssetDrawer({ r, onClose, onOpen }) {
 
       <div className="pd-sec-h"><h4>Where it flows</h4><small>Lineage two steps up and down, plus the products, models and processing activity that use it. Click an asset to open it.</small></div>
       {columns.some((c) => c.nodes.length && c.title !== 'This asset')
-        ? <RelGraph columns={columns} edges={edges} onSelect={(n) => { if (n.asset && n.asset !== r.asset && pdx(n.asset)) onOpen(n.asset); else if (n.rec) nav(`${DPIA_BASE}/${n.rec}`); }} />
+        ? <RelGraph minScale={0.55} columns={columns} edges={edges} onSelect={(n) => { if (n.asset && n.asset !== r.asset && pdx(n.asset)) onOpen(n.asset); else if (n.rec) nav(`${DPIA_BASE}/${n.rec}`); }} />
         : <Empty>No lineage recorded for this asset — it neither receives from nor feeds another asset.</Empty>}
 
       <div className="pd-two">
@@ -822,6 +838,7 @@ function AssetDrawer({ r, onClose, onOpen }) {
         ['Data products', prods.join(', ') || '—'], ['Models trained on it', models.join(', ') || '—'],
         ['Access', '0 active grant(s)'], ['Owner / steward', `${r.owner}${STEWARDED.includes(r.asset) ? ' · steward named' : ' · no steward'}`],
       ]} />
-    </Drawer>
+      </div>
+    </div>
   );
 }

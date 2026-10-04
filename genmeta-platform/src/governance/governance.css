@@ -1095,7 +1095,8 @@
 .rg-graph .lin-canvas { background-color: var(--white); }
 
 /* DPIA › Personal data map — asset detail drawer */
-.gv-drawer.wide.pd-drawer { width: min(1180px, 96vw); }
+.pd-page .pd-body { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+.pd-page .at-row h1.mono { font-family: var(--mono, ui-monospace, monospace); font-size: 22px; }
 .pd-title { display: inline-flex; align-items: center; gap: 8px; }
 .pd-title svg { color: var(--royal); }
 .pd-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; }
@@ -1110,7 +1111,7 @@
 .pd-sec-h { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; }
 .pd-sec-h h4 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--navy); }
 .pd-sec-h small { font-size: 12px; color: var(--muted); }
-.pd-drawer .rg-graph { box-shadow: none; }
+.pd-page .rg-graph { box-shadow: none; }
 .pd-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .pd-cols td { padding-top: 7px; padding-bottom: 7px; }
 .pd-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
