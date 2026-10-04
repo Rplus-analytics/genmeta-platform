@@ -14,9 +14,11 @@ import {
 } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Drawer, Modal, MenuButton, Fld, KV, downloadText, toast, Meter, meterTone, Section, SubNav, Collapse, useWidth } from './kit.jsx';
 import { AuditTab, ResidencyTab } from './AuditResidency.jsx';
+import EstateOverview from './Estate.jsx';
 
 export const OVERVIEW_TABS = [
   { value: 'overview', label: 'Overview', icon: Landmark },
+  { value: 'controls', label: 'Controls & compliance', icon: ShieldCheck },
   { value: 'ai', label: 'AI evaluation', icon: Scale },
   { value: 'audit', label: 'Audit & reporting', icon: ScrollText },
   { value: 'residency', label: 'Residency & sovereignty', icon: Globe2 },
@@ -32,11 +34,12 @@ export default function GovernanceOverview() {
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="Governance"
-        sub="The three-tier constitution and cross-cutting security, privacy and compliance controls — each verified against the running system. Unavailable controls are shown honestly, not as proof of compliance.">
+        sub="What is happening across GenMeta from a governance point of view — data assets, AI models, policies, privacy, access and approvals in one place. Controls are verified against the running system; unavailable ones are shown honestly, not as proof of compliance.">
         <MenuButton label="Export" items={EXPORTS.map(([l, f]) => [`Export ${l}`, exportGraph(f)])} />
       </PageHead>
       <Tabs items={OVERVIEW_TABS} value={tab} onChange={setTab} />
-      {tab === 'overview' && <OverviewTab />}
+      {tab === 'overview' && <EstateOverview />}
+      {tab === 'controls' && <OverviewTab />}
       {tab === 'models' && <Navigate to={`${BASE}/models`} replace />}
       {tab === 'ai' && <AiEvalTab />}
       {tab === 'audit' && <AuditTab />}
