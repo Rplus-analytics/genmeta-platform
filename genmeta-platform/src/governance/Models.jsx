@@ -10,6 +10,7 @@ import { Button, Segmented } from '../components/ui.jsx';
 import { MODELS, MODEL_ALERTS, MODEL_MONITORING, ALERT_RECIPIENTS, RISK_TIERS, DISCOVERY, BASE } from './data.js';
 import { Card, StatusBadge, Empty, Note, Mono, Fld, Drawer, Collapse, toast } from './kit.jsx';
 import TierEditor from './TierEditor.jsx';
+import { ApprovalPanel, ApprovalBanner } from './Workflows.jsx';
 import { ModelOverview, LineageFilterBar, ModelLineageGraph, filterVersions } from './ModelParts.jsx';
 
 /* Govern › Governance › AI model governance.
@@ -314,6 +315,7 @@ export function ModelPage() {
         ))}
       </nav>
 
+      {tab === 'overview' && <ApprovalBanner kind="model" id={m.id} />}
       {tab === 'overview' && <ModelOverview m={m} onChange={patch} goLineage={() => setTab('lineage')} />}
       {tab === 'lineage' && (
         <>
@@ -397,6 +399,7 @@ function LineageDetails({ m, rows, ver, onVersion }) {
           })}
         </div>
         <Note>{ver.note}</Note>
+        <ApprovalPanel kind="model" id={m.id} event={m.foundIn.includes('External') ? 'External model registered' : 'Internal model version promoted to production'} />
         {live && (
           <>
             <div className="gv-subhead">Periodic review <span className="gv-faint">· {m.checks.filter((c) => checks[c]).length} of {m.checks.length} confirmed</span></div>

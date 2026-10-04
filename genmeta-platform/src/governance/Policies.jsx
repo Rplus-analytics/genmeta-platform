@@ -230,6 +230,21 @@ function ItemDrawer({ i, items, onClose, onUpdate }) {
   const history = i.history || [['23 Sept 2026, 07:50', 'Admin', i.source ? 'Created from a document' : 'Created'], ['23 Sept 2026, 07:51', 'Admin', 'Status set to active']];
   const addRel = () => { onUpdate(i.id, { links: [...i.links, [rel, to]] }, `Relationship added — ${relLabel(rel)} ${title(to)}`); setTo(''); };
   const dropRel = (k) => { const [r, x] = i.links[k]; onUpdate(i.id, { links: i.links.filter((_, n) => n !== k) }, `Relationship removed — ${relLabel(r)} ${title(x)}`); };
+  const relBlock = (<>
+        <div className="gv-section-label">Relationships</div>
+        {i.links.length || linkedFrom.length ? (
+          <ul className="gv-lines">
+            {i.links.map(([r, x], k) => <li key={`${r}${x}`}><span className="gv-faint">This</span> {relLabel(r)} <b>{title(x)}</b> <button type="button" className="gv-x" aria-label="Remove relationship" onClick={() => dropRel(k)}><Trash2 size={13} /></button></li>)}
+            {linkedFrom.map((x) => <li key={x.id}><b>{x.title}</b> {relLabel(x.links.find(([, t2]) => t2 === i.id)[0])} this</li>)}
+          </ul>
+        ) : <Empty>Not linked to other items yet — add a relationship below.</Empty>}
+        <div className="gv-section-label" style={{ marginTop: 16 }}>Add relationship</div>
+        <div className="gv-inline" style={{ alignItems: 'flex-end' }}>
+          <Fld label="This item"><select className="select" value={rel} onChange={(e) => setRel(e.target.value)}>{RELATIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
+          <div style={{ flex: 1, minWidth: 260 }}><Fld label="Item"><select className="select" value={to} onChange={(e) => setTo(e.target.value)}><option value="">Choose item…</option>{POLICY_TYPES.map((ty) => <optgroup key={ty} label={POLICY_TYPE_LABEL[ty]}>{items.filter((x) => x.type === ty && x.id !== i.id && !i.links.some(([r, y]) => r === rel && y === x.id)).map((x) => <option key={x.id} value={x.id}>{x.type}: {x.title}</option>)}</optgroup>)}</select></Fld></div>
+          <Button variant="primary" size="md" icon={Plus} disabled={!to} onClick={addRel}>Add relationship</Button>
+        </div>
+  </>);
   if (edit) return <ItemForm initial={{ ...i, link: i.links[0]?.[1] || '' }} items={items} onClose={() => setEdit(false)} onSave={(it) => { onUpdate(i.id, it, 'Saved a new version'); setEdit(false); }} />;
   return (
     <Drawer wide title={i.title} onClose={onClose} footer={<>
@@ -252,6 +267,7 @@ function ItemDrawer({ i, items, onClose, onUpdate }) {
           ['Source', srcLabel(i.source)],
         ]} />
         <Applicability i={i} onUpdate={onUpdate} />
+        <div style={{ marginTop: 22 }}>{relBlock}</div>
       </>)}
       {t === 'trace' && (<>
         <div className="gv-flow" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))', marginBottom: 14 }}>
@@ -259,19 +275,7 @@ function ItemDrawer({ i, items, onClose, onUpdate }) {
           <div><span>This {i.type}</span><b>{i.title}</b></div>
           <div><span>Governs</span><b>{res.rows.length} data asset(s){res.viaLineage ? `, ${res.viaLineage} through lineage` : ''}</b><small>{res.systems.length} system(s) · {res.processes.length} process(es)</small></div>
         </div>
-        <div className="gv-section-label">Relationships</div>
-        {i.links.length || linkedFrom.length ? (
-          <ul className="gv-lines">
-            {i.links.map(([r, x], k) => <li key={`${r}${x}`}><span className="gv-faint">This</span> {relLabel(r)} <b>{title(x)}</b> <button type="button" className="gv-x" aria-label="Remove relationship" onClick={() => dropRel(k)}><Trash2 size={13} /></button></li>)}
-            {linkedFrom.map((x) => <li key={x.id}><b>{x.title}</b> {relLabel(x.links.find(([, t2]) => t2 === i.id)[0])} this</li>)}
-          </ul>
-        ) : <Empty>Not linked to other items yet — add a relationship below.</Empty>}
-        <div className="gv-section-label" style={{ marginTop: 16 }}>Add relationship</div>
-        <div className="gv-inline" style={{ alignItems: 'flex-end' }}>
-          <Fld label="This item"><select className="select" value={rel} onChange={(e) => setRel(e.target.value)}>{RELATIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
-          <div style={{ flex: 1, minWidth: 260 }}><Fld label="Item"><select className="select" value={to} onChange={(e) => setTo(e.target.value)}><option value="">Choose item…</option>{POLICY_TYPES.map((ty) => <optgroup key={ty} label={POLICY_TYPE_LABEL[ty]}>{items.filter((x) => x.type === ty && x.id !== i.id && !i.links.some(([r, y]) => r === rel && y === x.id)).map((x) => <option key={x.id} value={x.id}>{x.type}: {x.title}</option>)}</optgroup>)}</select></Fld></div>
-          <Button variant="primary" size="md" icon={Plus} disabled={!to} onClick={addRel}>Add relationship</Button>
-        </div>
+        {relBlock}
       </>)}
       {t === 'history' && <ul className="gv-lines">{history.map(([at, who, what], k) => <li key={k}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul>}
     </Drawer>

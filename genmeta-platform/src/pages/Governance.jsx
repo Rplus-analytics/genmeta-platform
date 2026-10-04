@@ -1,5 +1,5 @@
 import { NavLink, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users } from 'lucide-react';
+import { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users, Workflow } from 'lucide-react';
 import { GOVERNANCE_NAV } from '../nav.js';
 import InnerLayout from '../components/InnerLayout.jsx';
 import { BASE } from '../governance/data.js';
@@ -10,10 +10,11 @@ import GovernanceOverview from '../governance/Overview.jsx';
 import Policies from '../governance/Policies.jsx';
 import Dpia from '../governance/Dpia.jsx';
 import Access from '../governance/Access.jsx';
+import Workflows from '../governance/Workflows.jsx';
 import { ModelCatalogue, ModelPage, ModelFiltersPanel, useModelFilters, MODELS_BASE } from '../governance/Models.jsx';
 import '../governance/governance.css';
 
-const ICONS = { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users };
+const ICONS = { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users, Workflow };
 
 /* DPIA and policies share one menu item; a switch under the page title moves between them. */
 function DpiaAndPolicies() {
@@ -28,7 +29,7 @@ function DpiaAndPolicies() {
   return view === 'policies' ? <Policies switcher={switcher} /> : <Dpia switcher={switcher} />;
 }
 
-/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & policies, Access & RBAC, Stewardship),
+/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & policies, Access & RBAC, Stewardship, Workflows),
    docked to the sidebar like Admin and Data assets. Each section keeps its own tabs. */
 export default function Governance() {
   const { pathname } = useLocation();
@@ -56,6 +57,8 @@ export default function Governance() {
         <Route path="policies" element={<Navigate to={`${BASE}/dpia?view=policies`} replace />} />
         <Route path="stewardship" element={<Stewardship />} />
         <Route path="access" element={<Access />} />
+        <Route path="workflows" element={<Workflows />} />
+        <Route path="workflows/:wfId" element={<Workflows />} />
         <Route path="*" element={<Navigate to={BASE} replace />} />
       </Routes>
       <Toaster />

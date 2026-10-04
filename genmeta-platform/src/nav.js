@@ -32,6 +32,7 @@ export const GOVERNANCE_NAV = [
   { to: 'dpia', label: 'DPIA & policies', icon: 'ScrollText' },
   { to: 'access', label: 'Access & RBAC', icon: 'KeyRound' },
   { to: 'stewardship', label: 'Stewardship', icon: 'Users' },
+  { to: 'workflows', label: 'Workflows', icon: 'Workflow' },
 ];
 
 /* Left-hand rail inside Admin. `section` starts a labelled sub-group. */
