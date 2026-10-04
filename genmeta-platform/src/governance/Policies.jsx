@@ -1,45 +1,84 @@
 import { useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import {
   Plus, Upload, Link2, FolderSearch, Check, X, Search, AlertTriangle, Library as LibraryIcon, FileSearch, FileText, Network, SlidersHorizontal, Layers, Database,
-  Building2, Flame, GitFork, UserX, Unlink, FileQuestion, Sparkles, Trash2,
+  Building2, Flame, GitFork, UserX, Unlink, FileQuestion, Sparkles, Trash2, ArrowLeft, Shapes, CircleDot, UserRound, Scale, Gauge, CalendarClock, ShieldCheck,
+  Landmark, Ruler, Archive, BookMarked, Server, Workflow as WorkflowIcon, History as HistoryIcon,
 } from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
-  POLICY_ITEMS, POLICY_TYPES, POLICY_TYPE_LABEL, DOCUMENTS, EXTRACTED_PENDING, APPLY_OPTIONS, APPLY_LABELS,
+  POLICY_TYPES, POLICY_TYPE_LABEL, APPLY_OPTIONS, APPLY_LABELS, BASE,
   ASSET_NAMES, PD_MAP, systemOf, LIFECYCLE, REVIEW_DUE, REG_GROUP, REPO_SCAN,
 } from './data.js';
 import { applicability, interpret, sensitivityLine, domainOf, hasCriteria, BUSINESS, PROFILES, productsOf, modelsOf, TAX_SHORT, DOWNSTREAM } from './applicability.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, ChipPick, KV, toast, Meter } from './kit.jsx';
+import { usePolicies, setItems, setPending, setDocs, updateItem, defaultHistory, controlChecks, controlsUnder } from './policies-store.js';
+import { useFacets, ResultsHead } from './catalog.jsx';
+import RelGraph from './relgraph.jsx';
 
+export const POLICIES_BASE = `${BASE}/policies`;
 const TABS = [
-  { value: 'library', label: 'Library & applicability', icon: LibraryIcon },
+  { value: 'library', label: 'Library', icon: LibraryIcon },
   { value: 'documents', label: 'Documents & extraction', icon: FileSearch },
   { value: 'map', label: 'Relationship map', icon: Network },
   { value: 'compliance', label: 'Compliance', icon: SlidersHorizontal },
 ];
 const srcLabel = (s) => (s ? `${s[0]} · p${s[1]}` : 'Manual');
-export default function Policies({ switcher }) {
-  const [tab, setTab] = useState('library');
-  const [items, setItems] = useState(POLICY_ITEMS);
-  const [pending, setPending] = useState(EXTRACTED_PENDING);
-  const [docs, setDocs] = useState(DOCUMENTS);
+const TYPE_ICON = { policy: Landmark, standard: Ruler, control: SlidersHorizontal, obligation: Scale, retention: Archive };
+const TYPE_ONE = { policy: 'Policy', standard: 'Standard', control: 'Control', obligation: 'Regulatory obligation', retention: 'Retention requirement' };
+const statusTone = (s) => (s === 'active' ? 'active' : s === 'retired' ? 'retired' : 'warn');
+
+/* ---------------------------------------------------------------- catalogue filters (inner menu + list) */
+const P_FACETS = [
+  { key: 'type', label: 'Type', icon: Shapes, open: true, of: (i) => [POLICY_TYPE_LABEL[i.type]] },
+  { key: 'status', label: 'Status', icon: CircleDot, open: true, of: (i) => [i.status] },
+  { key: 'reg', label: 'Regulation or source', icon: BookMarked, drop: true, all: 'All regulations and sources', of: (i) => [REG_GROUP(i)] },
+  { key: 'owner', label: 'Owner', icon: UserRound, of: (i) => [i.owner || 'No owner yet'] },
+  { key: 'severity', label: 'Severity', icon: Gauge, of: (i) => [i.severity] },
+  { key: 'gaps', label: 'Gaps', icon: AlertTriangle, of: (i) => i.gaps },
+];
+const P_SORTS = {
+  type: ['Type', (a, b) => POLICY_TYPES.indexOf(a.type) - POLICY_TYPES.indexOf(b.type) || a.title.localeCompare(b.title)],
+  name: ['Name (A–Z)', (a, b) => a.title.localeCompare(b.title)],
+  status: ['Status', (a, b) => LIFECYCLE.indexOf(a.status) - LIFECYCLE.indexOf(b.status)],
+  severity: ['Severity', (a, b) => ['high', 'medium', 'low'].indexOf(a.severity) - ['high', 'medium', 'low'].indexOf(b.severity)],
+};
+const withGaps = (items) => items.map((i) => ({
+  ...i,
+  gaps: [
+    ...(i.status !== 'retired' && !i.owner ? ['No owner'] : []),
+    ...(i.status !== 'retired' && !i.links.length && !items.some((x) => x.links.some(([, to]) => to === i.id)) ? ['Not linked'] : []),
+    ...(i.status !== 'retired' && !i.regulation && !i.source ? ['No regulation or source'] : []),
+  ],
+}));
+export function usePolicyFilters() {
+  const { items } = usePolicies();
+  const list = useMemo(() => withGaps(items), [items]);
+  return useFacets('policies', list, P_FACETS, (i) => `${i.title} ${i.statement} ${i.regulation} ${i.id} ${i.owner}`, P_SORTS);
+}
+
+/* ---------------------------------------------------------------- landing page */
+export default function Policies({ filters }) {
+  const { items, pending, docs } = usePolicies();
+  const [sp, setSp] = useSearchParams();
+  const tab = sp.get('tab') || 'library';
+  const setTab = (t) => setSp(t === 'library' ? {} : { tab: t });
   const counts = Object.fromEntries(POLICY_TYPES.map((t) => [t, items.filter((i) => i.type === t && i.status !== 'retired').length]));
   const accept = (p) => {
     const id = `${p.type.slice(0, 3)}-${p.req.toLowerCase().replace(/[^a-z]+/g, '-').slice(0, 40)}`;
     setItems((a) => [...a, { id, type: p.type, title: p.req.split(' ').slice(0, 7).join(' ').replace(/[.,]$/, ''), statement: p.req, regulation: '', owner: '', severity: 'medium', status: 'draft', source: p.src, applies: {}, inherit: false, links: [], ...(p.retention ? { retention: p.retention } : {}), history: [[new Date().toLocaleString('en-GB'), 'Admin', `Accepted from ${p.src ? p.src[0] : 'a document'} — created as a draft`]] }]);
-    setPending((x) => x.filter((y) => y !== p)); toast('Accepted into the library as a draft — submit it for review from the Library');
+    setPending((x) => x.filter((y) => y !== p)); toast('Accepted into the library as a draft — submit it for review from its page');
   };
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="Policies"
         sub="Create and extract policies, standards, controls, regulatory obligations and retention requirements; see where each applies across tax regimes, processes, systems and data; track coverage, compliance, exceptions and risk." />
-      {switcher}
       <Tiles items={[
-        ...POLICY_TYPES.map((t) => ({ l: POLICY_TYPE_LABEL[t], v: counts[t], s: 'in the library' })),
+        ...POLICY_TYPES.map((t) => ({ l: POLICY_TYPE_LABEL[t], v: counts[t], s: `${items.filter((i) => i.type === t && i.status === 'active').length} active` })),
         { l: 'Extracted, awaiting review', v: pending.length, s: `from ${docs.length} document(s)` },
       ]} />
       <Tabs items={TABS} value={tab} onChange={setTab} />
-      {tab === 'library' && <Library items={items} setItems={setItems} />}
+      {tab === 'library' && <LibraryCatalogue state={filters} items={items} />}
       {tab === 'documents' && <Documents docs={docs} setDocs={setDocs} pending={pending} setPending={setPending} onAccept={accept} />}
       {tab === 'map' && <RelationshipMap items={items} />}
       {tab === 'compliance' && <Compliance items={items} />}
@@ -47,79 +86,83 @@ export default function Policies({ switcher }) {
   );
 }
 
-/* ------------------------------------------------------------------ Library
-   v2 patterns: Collibra Policy Manager (regulation → requirement traceability, lifecycle with
-   approval) and Alation Policy Center (search, type facets, owners and review dates up front). */
+/* ------------------------------------------------------------------ Library — catalogue look (like Data assets / AI models) */
 const STEP_NEXT = { draft: ['Submit for review', 'in review'], 'in review': ['Approve', 'approved'], approved: ['Activate', 'active'] };
-function Library({ items, setItems }) {
-  const [type, setType] = useState('all');
-  const [q, setQ] = useState('');
-  const [view, setView] = useState('list');
-  const [status, setStatus] = useState('all');
-  const [open, setOpen] = useState(null);
+function LibraryCatalogue({ state, items }) {
+  const nav = useNavigate();
   const [creating, setCreating] = useState(false);
-  const rows = items.filter((i) => (type === 'all' || i.type === type) && (status === 'all' || i.status === status)
-    && (!q || `${i.title} ${i.statement} ${i.regulation} ${i.id}`.toLowerCase().includes(q.toLowerCase())));
-  const update = (id, patch, what) => { setItems((a) => a.map((i) => (i.id === id ? { ...i, ...patch, history: [[new Date().toLocaleString('en-GB'), 'Admin', what || 'Edited'], ...(i.history || [])] } : i))); setOpen((o) => (o && o.id === id ? { ...o, ...patch } : o)); if (what) toast(what); };
-  const noOwner = items.filter((i) => i.status !== 'retired' && !i.owner);
-  const orphan = items.filter((i) => i.status !== 'retired' && !i.links.length && !items.some((x) => x.links.some(([, to]) => to === i.id)));
-  const noReg = items.filter((i) => i.status !== 'retired' && !i.regulation && !i.source);
-  const groups = [...new Set(rows.map(REG_GROUP))].sort();
-  const row = (i) => (
-    <tr key={i.id} className="click" onClick={() => setOpen(i)}>
-      <td><span className="gv-strong">{i.title}</span><span className="gv-sub mono">{i.id}</span></td>
-      <td><span className={`gv-type t-${i.type}`}>{i.type}</span></td>
-      <td>{i.owner || <StatusBadge s="warn">no owner</StatusBadge>}</td>
-      <td><StatusBadge s={i.status === 'active' ? 'active' : i.status === 'retired' ? 'retired' : 'warn'}>{i.status}</StatusBadge></td>
-      <td className="gv-muted">{i.status === 'retired' ? '—' : REVIEW_DUE[i.type]}</td>
-      <td className="gv-muted">{srcLabel(i.source)}</td>
-    </tr>
-  );
-  const head = <thead><tr><th>Item</th><th>Type</th><th>Owner</th><th>Status</th><th>Next review</th><th>Source</th></tr></thead>;
-  return (
-    <>
-      <Card icon={AlertTriangle} tone="warn" title="Gaps to close" sub="Library hygiene, checked continuously — each gap weakens the evidence an auditor will ask for.">
-        <div className="gv-three">
-          {[[noOwner, 'Items with no owner', 'Nobody is accountable for keeping these current.', UserX], [orphan, 'Items not linked to anything', 'Not implemented by a control and not supporting a policy.', Unlink], [noReg, 'Items with no regulation or source', 'The legal basis for these is not recorded.', FileQuestion]].map(([list, t, d, I]) => (
-            <div key={t} className={`gv-tier ${list.length > 5 ? 'gap-bad' : list.length ? 'gap-warn' : ''}`}>
-              <header><span className="gv-inline" style={{ alignItems: 'center', gap: 8 }}><span className={`gv-chip sm ${list.length > 5 ? 'bad' : list.length ? 'warn' : 'ok'}`}><I size={14} /></span><b>{t}</b></span><span className={`gv-badge ${list.length > 5 ? 'bad' : list.length ? 'warn' : 'ok'}`}><i />{list.length}</span></header>
-              <p>{d}</p>
-              {list.length > 0 && <Button variant="link" onClick={() => { setQ(''); setType('all'); setStatus('all'); setView('list'); setOpen(list[0]); }}>Fix the first: {list[0].title.slice(0, 40)}{list[0].title.length > 40 ? '…' : ''}</Button>}
-            </div>
-          ))}
+  const [view, setView] = useState('list');
+  const { results, toggle, sel } = state;
+  const all = withGaps(items);
+  const gap = (g) => all.filter((i) => i.gaps.includes(g)).length;
+  const checks = useMemo(() => controlChecks(items), [items]);
+  const rate = (c) => { const x = checks.filter((k) => k.c.id === c.id); return x.length ? [x.filter((k) => k.ok).length, x.length] : null; };
+  const groups = [...new Set(results.map(REG_GROUP))].sort();
+  const row = (i) => {
+    const res = applicability(i); const I = TYPE_ICON[i.type]; const r = i.type === 'control' ? rate(i) : null;
+    const linkedFrom = items.filter((x) => x.links.some(([, to]) => to === i.id)).length;
+    return (
+      <article key={i.id} className="arow" onClick={() => nav(`${POLICIES_BASE}/${i.id}`)} onKeyDown={(e) => e.key === 'Enter' && nav(`${POLICIES_BASE}/${i.id}`)} tabIndex={0} role="link" aria-label={`Open ${i.title}`}>
+        <div className="arow-main">
+          <div className="arow-t">
+            <span className={`gv-chip sm ${{ policy: 'violet', standard: 'info', control: 'teal', obligation: 'warn', retention: 'ok' }[i.type]}`}><I size={13} /></span>
+            <b>{i.title}</b>
+            <StatusBadge s={statusTone(i.status)}>{i.status}</StatusBadge>
+            {i.gaps.map((g) => <span key={g} className="gv-badge warn"><i />{g.toLowerCase()}</span>)}
+          </div>
+          <div className="arow-path">
+            <span className={`gv-type t-${i.type}`}>{i.type}</span><span className="sep">·</span><span>{REG_GROUP(i)}</span>
+            <span className="sep">·</span><span className="mono">{i.id}</span>
+          </div>
+          <p className="arow-d">{i.statement}</p>
+          <div className="arow-meta">
+            <span>Owner <b>{i.owner || '—'}</b></span>
+            <span>Severity <b>{i.severity}</b></span>
+            <span>Applies to <b>{res.all ? 'every asset' : `${res.rows.length} asset(s)`}</b></span>
+            <span>Links <b>{i.links.length + linkedFrom}</b></span>
+            <span>Next review <b>{i.status === 'retired' ? '—' : REVIEW_DUE[i.type]}</b></span>
+            {i.retention && <span className="term">{i.retention.split(' · ')[0]}</span>}
+            {i.source && <span className="term">{srcLabel(i.source)}</span>}
+          </div>
         </div>
-      </Card>
-      <Card icon={LibraryIcon} tone="violet" title="Library" count={rows.length} actions={<>
+        <div className="arow-side">
+          <span className={`gv-riskband ${i.severity === 'high' ? 'bad' : i.severity === 'low' ? 'ok' : 'warn'}`}>{i.severity} severity</span>
+          {r ? <><span className="trust"><i style={{ width: `${Math.round((r[0] / r[1]) * 100)}%` }} /></span><small>{r[0]} of {r[1]} checks pass</small></> : <small>{i.type === 'control' ? 'No automated check' : `${controlsUnder(items, i.id).length} control(s) under it`}</small>}
+        </div>
+      </article>
+    );
+  };
+  return (
+    <div className="cat gv fade-in">
+      <div className="pl-gaps">
+        {[['No owner', 'Items with no owner', UserX], ['Not linked', 'Items not linked to anything', Unlink], ['No regulation or source', 'Items with no regulation or source', FileQuestion]].map(([g, t, I]) => {
+          const n = gap(g); const on = (sel.gaps || []).includes(g);
+          return (
+            <button key={g} type="button" className={`pl-gap ${n > 5 ? 'bad' : n ? 'warn' : 'ok'} ${on ? 'on' : ''}`} onClick={() => toggle('gaps', g)}>
+              <span className={`gv-chip sm ${n > 5 ? 'bad' : n ? 'warn' : 'ok'}`}><I size={14} /></span><span><b>{n}</b> {t}</span><small>{on ? 'showing — click to clear' : 'show them'}</small>
+            </button>
+          );
+        })}
+        <span style={{ flex: 1 }} />
         <Segmented size="sm" value={view} onChange={setView} options={[{ value: 'list', label: 'List' }, { value: 'regulation', label: 'By regulation' }]} />
         <Button variant="primary" size="md" icon={Plus} onClick={() => setCreating(true)}>New item</Button>
-      </>}>
-        <div className="gv-toolbar" style={{ alignItems: 'center' }}>
-          <div className="gl-msearch" style={{ minWidth: 280 }}><Search size={14} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search titles, statements, regulations…" aria-label="Search the library" /></div>
-          <div className="gv-chips">
-            <button type="button" className={`chip ${type === 'all' ? 'on' : ''}`} onClick={() => setType('all')}>All {items.length}</button>
-            {POLICY_TYPES.map((t) => <button type="button" key={t} className={`chip gv-tchip t-${t} ${type === t ? 'on' : ''}`} onClick={() => setType(t)}><i />{t} <b>{items.filter((i) => i.type === t).length}</b></button>)}
-          </div>
-          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="all">Any status</option>{LIFECYCLE.map((s) => <option key={s}>{s}</option>)}</select>
-        </div>
-        {view === 'list' ? (
-          <div className="table-wrap"><table className="tbl">{head}<tbody>
-            {rows.map(row)}
-            {!rows.length && <tr><td colSpan={6}><Empty>Nothing matches — create an item or extract from a document.</Empty></td></tr>}
-          </tbody></table></div>
-        ) : (
-          groups.map((g) => { const list = rows.filter((i) => REG_GROUP(i) === g); const act = list.filter((i) => i.status === 'active').length; return (
+      </div>
+      <section className="results">
+        <ResultsHead state={state} noun="items" placeholder="Search titles, statements, regulations, owners…" />
+        {!results.length ? (
+          <div className="empty card"><Search size={20} /><b>Nothing matches</b><p>Remove a filter, or create an item or extract one from a document.</p></div>
+        ) : view === 'list' ? <div className="arows">{results.map(row)}</div> : groups.map((g) => {
+          const list = results.filter((i) => REG_GROUP(i) === g);
+          return (
             <div key={g} style={{ marginBottom: 18 }}>
-              <div className="gv-inline" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span className="gv-strong">{g}</span><span className="gv-faint">{list.length} requirement(s) · {act} active</span>
-              </div>
-              <div className="table-wrap"><table className="tbl">{head}<tbody>{list.map(row)}</tbody></table></div>
+              <div className="gv-inline" style={{ alignItems: 'center', justifyContent: 'space-between', margin: '6px 0' }}><span className="gv-strong">{g}</span><span className="gv-faint">{list.length} requirement(s) · {list.filter((i) => i.status === 'active').length} active</span></div>
+              <div className="arows">{list.map(row)}</div>
             </div>
-          ); })
-        )}
-      </Card>
-      {creating && <ItemForm onClose={() => setCreating(false)} onSave={(it) => { setItems((a) => [{ ...it, history: [[new Date().toLocaleString('en-GB'), 'Admin', 'Created as draft']] }, ...a]); setCreating(false); toast(`Created “${it.title}” as a draft`); }} items={items} />}
-      {open && <ItemDrawer i={items.find((x) => x.id === open.id) || open} items={items} onClose={() => setOpen(null)} onUpdate={update} />}
-    </>
+          );
+        })}
+      </section>
+      {creating && <ItemForm onClose={() => setCreating(false)} onSave={(it) => { setItems((a) => [{ ...it, history: [[new Date().toLocaleString('en-GB'), 'Admin', 'Created as draft']] }, ...a]); setCreating(false); toast(`Created “${it.title}” as a draft`); nav(`${POLICIES_BASE}/${it.id}`); }} items={items} />}
+    </div>
   );
 }
 
@@ -217,68 +260,188 @@ function Applicability({ i, onUpdate }) {
   );
 }
 
-function ItemDrawer({ i, items, onClose, onUpdate }) {
+/* ------------------------------------------------------------------ item page (asset-page look) */
+const I_TABS = [['overview', 'Overview'], ['applicability', 'Applicability'], ['relationships', 'Relationships'], ['compliance', 'Compliance'], ['history', 'History']];
+export function PolicyItemPage() {
+  const { itemId } = useParams();
+  const nav = useNavigate();
+  const { items } = usePolicies();
+  const i = items.find((x) => x.id === itemId);
+  const [tab, setTab] = useState('overview');
   const [edit, setEdit] = useState(false);
-  const [t, setT] = useState('detail');
+  const [lastId, setLastId] = useState(itemId);
+  if (lastId !== itemId) { setLastId(itemId); setTab('overview'); }
+  if (!i) return <Navigate to={POLICIES_BASE} replace />;
+  const onUpdate = (id, patch, what) => { updateItem(id, patch, what); if (what) toast(what); };
+  const res = applicability(i);
+  const linkedFrom = items.filter((x) => x.links.some(([, t2]) => t2 === i.id));
+  const history = i.history || defaultHistory(i);
+  const stepIdx = LIFECYCLE.indexOf(i.status);
+  const next = STEP_NEXT[i.status];
+  const I = TYPE_ICON[i.type];
+  return (
+    <div className="page asset gv fade-in" key={i.id}>
+      <div className="asset-head">
+        <button type="button" className="icon-btn back" onClick={() => nav(POLICIES_BASE)} aria-label="Back to the library"><ArrowLeft size={17} /></button>
+        <div className="asset-title">
+          <div className="at-row">
+            <h1>{i.title}</h1>
+            <StatusBadge s={statusTone(i.status)}>{i.status}</StatusBadge>
+            <span className={`gv-riskband ${i.severity === 'high' ? 'bad' : i.severity === 'low' ? 'ok' : 'warn'}`}>{i.severity} severity</span>
+          </div>
+          <div className="at-path">
+            <span><I size={13} strokeWidth={1.75} />{TYPE_ONE[i.type]}</span>
+            <span className="sep">·</span><span>{REG_GROUP(i)}</span>
+            <span className="sep">·</span><span className="mono">{i.id}</span>
+            <span className="sep">·</span><span>version {history.filter((h) => /version|Edited/.test(h[2])).length + 1}</span>
+          </div>
+        </div>
+        <div className="head-actions">
+          {i.status !== 'retired' && <button type="button" className="btn ghost" onClick={() => onUpdate(i.id, { status: 'retired' }, 'Status set to retired')}>Retire</button>}
+          <button type="button" className="btn ghost" onClick={() => setEdit(true)}>Edit</button>
+          {next && <button type="button" className="btn primary" onClick={() => onUpdate(i.id, { status: next[1] }, `${next[0]} — status set to ${next[1]}`)}>{next[0]}</button>}
+          {i.status === 'retired' && <button type="button" className="btn primary" onClick={() => onUpdate(i.id, { status: 'draft' }, 'Restored as a draft')}>Restore as draft</button>}
+        </div>
+      </div>
+      <nav className="asset-tabs" role="tablist">
+        {I_TABS.map(([k, l]) => (
+          <button type="button" key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
+            {l}{k === 'relationships' && <em>{i.links.length + linkedFrom.length}</em>}{k === 'history' && <em>{history.length}</em>}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'overview' && (
+        <div className="gv-two wide-l">
+          <Card icon={I} tone="violet" title="Statement">
+            <p style={{ fontSize: 14.5, margin: '0 0 16px', lineHeight: 1.65 }}>{i.statement || <span className="gv-faint">No statement.</span>}</p>
+            <div className="gv-steps" style={{ marginBottom: 16 }}>
+              {LIFECYCLE.slice(0, 4).map((s, k) => <div key={s} className={i.status === 'retired' ? '' : k < stepIdx ? 'done' : k === stepIdx ? 'cur' : ''}><i>{k + 1}</i>{s}</div>)}
+            </div>
+            <KV rows={[
+              ['Regulation', i.regulation || '—'], ['Owner', i.owner || <StatusBadge key="o" s="warn">no owner — assign one</StatusBadge>], ['Severity', i.severity],
+              ['Next review', i.status === 'retired' ? '—' : REVIEW_DUE[i.type]],
+              ...(i.retention ? [['Retention', i.retention]] : []), ...(i.check ? [['Automated check', <Mono key="c">{i.check}</Mono>]] : []),
+              ['Source', srcLabel(i.source)],
+            ]} />
+          </Card>
+          <Card icon={Network} tone="teal" title="At a glance">
+            <div className="gv-flow" style={{ gridTemplateColumns: '1fr', gap: 8 }}>
+              <div><span>Comes from</span><b>{REG_GROUP(i)}</b>{i.source && <small>{srcLabel(i.source)}</small>}</div>
+              <div><span>Relationships</span><b>{i.links.length} outgoing · {linkedFrom.length} incoming</b><small>{[...i.links.map(([r, t]) => `${r.replace('_', ' ')} ${items.find((x) => x.id === t)?.title || t}`), ...linkedFrom.map((x) => `${x.title} → this`)].slice(0, 3).join(' · ') || 'not linked yet'}</small></div>
+              <div><span>Governs</span><b>{res.all ? 'every data asset' : `${res.rows.length} data asset(s)`}{res.viaLineage ? `, ${res.viaLineage} through lineage` : ''}</b><small>{res.systems.length} system(s) · {res.processes.length} process(es) · {res.tax_regimes.length} tax regime(s)</small></div>
+            </div>
+            <div className="gv-inline" style={{ marginTop: 12, gap: 8 }}>
+              <Button variant="secondary" size="sm" onClick={() => setTab('applicability')}>Applicability</Button>
+              <Button variant="secondary" size="sm" onClick={() => setTab('relationships')}>Relationships</Button>
+              <Button variant="secondary" size="sm" onClick={() => setTab('compliance')}>Compliance</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+      {tab === 'applicability' && <Card icon={Database} tone="info" title="Applicability" sub="Which data assets, systems, information assets, processes, tax regimes and units this item applies to."><Applicability i={i} onUpdate={onUpdate} /></Card>}
+      {tab === 'relationships' && <Relationships i={i} items={items} onUpdate={onUpdate} />}
+      {tab === 'compliance' && <ItemCompliance i={i} items={items} />}
+      {tab === 'history' && <Card icon={HistoryIcon} tone="info" title="History" count={history.length}><ul className="gv-lines">{history.map(([at, who, what], k) => <li key={k}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul></Card>}
+      {edit && <ItemForm initial={{ ...i, link: i.links[0]?.[1] || '' }} items={items} onClose={() => setEdit(false)} onSave={(it) => { onUpdate(i.id, it, 'Saved a new version'); setEdit(false); }} />}
+    </div>
+  );
+}
+
+/* relationships as a lineage graph: sources → what it implements → this item → what implements it → systems → data assets */
+function Relationships({ i, items, onUpdate }) {
+  const nav = useNavigate();
   const [rel, setRel] = useState('implements');
   const [to, setTo] = useState('');
   const title = (id) => items.find((x) => x.id === id)?.title || id;
+  const byId = (id) => items.find((x) => x.id === id);
   const linkedFrom = items.filter((x) => x.links.some(([, t2]) => t2 === i.id));
-  const res = useMemo(() => applicability(i), [i]);
-  const stepIdx = LIFECYCLE.indexOf(i.status);
-  const next = STEP_NEXT[i.status];
-  const history = i.history || [['23 Sept 2026, 07:50', 'Admin', i.source ? 'Created from a document' : 'Created'], ['23 Sept 2026, 07:51', 'Admin', 'Status set to active']];
+  const res = applicability(i);
+  const { columns, edges } = useMemo(() => {
+    const node = (it, extra = {}) => ({ id: it.id, label: it.title, kind: it.type, tag: it.status, icon: TYPE_ICON[it.type], sub: it.owner ? `owner ${it.owner}` : 'no owner', item: it.id, ...extra });
+    const up1 = i.links.map(([r, t]) => byId(t)).filter(Boolean);
+    const up2 = [...new Map(up1.flatMap((u) => u.links.map(([, t]) => byId(t)).filter(Boolean)).filter((x) => x.id !== i.id).map((x) => [x.id, x])).values()].filter((x) => !up1.some((u) => u.id === x.id));
+    const down = linkedFrom;
+    const leftmost = [...up2, ...up1, i];
+    const srcs = [...new Set(leftmost.map(REG_GROUP))];
+    const sys = res.all ? [] : res.systems.slice(0, 6);
+    const assets = res.all ? [] : res.rows.slice(0, 7);
+    const more = res.all ? 0 : res.rows.length - assets.length;
+    const cols = [
+      { title: 'Sources & regulations', nodes: srcs.map((g) => ({ id: `src:${g}`, label: g, kind: 'source', icon: BookMarked, sub: `${leftmost.filter((x) => REG_GROUP(x) === g).length} item(s) here` })) },
+      { title: 'Further upstream', nodes: up2.map((x) => node(x)) },
+      { title: 'Implements, supports or satisfies', nodes: up1.map((x) => node(x)) },
+      { title: 'This item', nodes: [node(i, { focus: true, flag: TYPE_ONE[i.type] })] },
+      { title: 'Implemented or supported by', nodes: down.map((x) => node(x)) },
+      { title: 'Applies to — systems', nodes: res.all ? [{ id: 'sys:all', label: 'Every system', kind: 'scope', icon: Server, sub: 'no narrowing criteria' }] : sys.map((s) => ({ id: `sys:${s}`, label: s, kind: 'system', icon: Server, sub: `${res.rows.filter((r) => r.profile.system === s).length} asset(s)` })) },
+      { title: 'Data assets', nodes: res.all ? [{ id: 'as:all', label: `All ${ASSET_NAMES.length} data assets`, kind: 'data assets', icon: Database, sub: 'the whole estate' }] : [...assets.map((r) => ({ id: `as:${r.asset}`, label: r.asset, kind: r.lineage ? 'via lineage' : 'data asset', icon: Database, sub: r.why, muted: r.lineage })), ...(more > 0 ? [{ id: 'as:more', label: `+ ${more} more`, kind: 'data assets', icon: Database, sub: 'see Applicability' }] : [])] },
+    ];
+    const es = [];
+    srcs.forEach((g) => leftmost.filter((x) => REG_GROUP(x) === g).forEach((x) => es.push({ s: `src:${g}`, t: x.id, rel: x.source ? 'extracted' : 'source' })));
+    up1.forEach((u) => u.links.forEach(([r, t]) => { if (up2.some((x) => x.id === t)) es.push({ s: t, t: u.id, rel: r.replace('_', ' ') }); }));
+    i.links.forEach(([r, t]) => es.push({ s: t, t: i.id, rel: r.replace('_', ' ') }));
+    down.forEach((x) => es.push({ s: i.id, t: x.id, rel: x.links.find(([, t2]) => t2 === i.id)[0].replace('_', ' ') }));
+    if (res.all) { es.push({ s: i.id, t: 'sys:all', rel: 'applies to' }); es.push({ s: 'sys:all', t: 'as:all', rel: '' }); }
+    else {
+      sys.forEach((s) => es.push({ s: i.id, t: `sys:${s}`, rel: 'applies to' }));
+      assets.forEach((r) => es.push({ s: `sys:${r.profile.system}`, t: `as:${r.asset}`, rel: r.lineage ? 'lineage' : '' }));
+      if (more > 0) es.push({ s: `sys:${sys[0]}`, t: 'as:more', rel: '' });
+    }
+    return { columns: cols, edges: es };
+  }, [i, items]); // eslint-disable-line react-hooks/exhaustive-deps
   const addRel = () => { onUpdate(i.id, { links: [...i.links, [rel, to]] }, `Relationship added — ${relLabel(rel)} ${title(to)}`); setTo(''); };
   const dropRel = (k) => { const [r, x] = i.links[k]; onUpdate(i.id, { links: i.links.filter((_, n) => n !== k) }, `Relationship removed — ${relLabel(r)} ${title(x)}`); };
-  const relBlock = (<>
-        <div className="gv-section-label">Relationships</div>
-        {i.links.length || linkedFrom.length ? (
-          <ul className="gv-lines">
-            {i.links.map(([r, x], k) => <li key={`${r}${x}`}><span className="gv-faint">This</span> {relLabel(r)} <b>{title(x)}</b> <button type="button" className="gv-x" aria-label="Remove relationship" onClick={() => dropRel(k)}><Trash2 size={13} /></button></li>)}
-            {linkedFrom.map((x) => <li key={x.id}><b>{x.title}</b> {relLabel(x.links.find(([, t2]) => t2 === i.id)[0])} this</li>)}
-          </ul>
-        ) : <Empty>Not linked to other items yet — add a relationship below.</Empty>}
-        <div className="gv-section-label" style={{ marginTop: 16 }}>Add relationship</div>
-        <div className="gv-inline" style={{ alignItems: 'flex-end' }}>
-          <Fld label="This item"><select className="select" value={rel} onChange={(e) => setRel(e.target.value)}>{RELATIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
-          <div style={{ flex: 1, minWidth: 260 }}><Fld label="Item"><select className="select" value={to} onChange={(e) => setTo(e.target.value)}><option value="">Choose item…</option>{POLICY_TYPES.map((ty) => <optgroup key={ty} label={POLICY_TYPE_LABEL[ty]}>{items.filter((x) => x.type === ty && x.id !== i.id && !i.links.some(([r, y]) => r === rel && y === x.id)).map((x) => <option key={x.id} value={x.id}>{x.type}: {x.title}</option>)}</optgroup>)}</select></Fld></div>
-          <Button variant="primary" size="md" icon={Plus} disabled={!to} onClick={addRel}>Add relationship</Button>
-        </div>
-  </>);
-  if (edit) return <ItemForm initial={{ ...i, link: i.links[0]?.[1] || '' }} items={items} onClose={() => setEdit(false)} onSave={(it) => { onUpdate(i.id, it, 'Saved a new version'); setEdit(false); }} />;
   return (
-    <Drawer wide title={i.title} onClose={onClose} footer={<>
-      {i.status !== 'retired' && <Button variant="secondary" size="md" onClick={() => onUpdate(i.id, { status: 'retired' }, 'Status set to retired')}>Retire</Button>}
-      <Button variant="secondary" size="md" onClick={() => setEdit(true)}>Edit</Button>
-      {next && <Button variant="primary" size="md" onClick={() => onUpdate(i.id, { status: next[1] }, `${next[0]} — status set to ${next[1]}`)}>{next[0]}</Button>}
-      {i.status === 'retired' && <Button variant="primary" size="md" onClick={() => onUpdate(i.id, { status: 'draft' }, 'Restored as a draft')}>Restore as draft</Button>}
-    </>}>
-      <div className="gv-inline" style={{ marginBottom: 12, alignItems: 'center' }}><span className={`gv-type t-${i.type}`}>{i.type}</span><span className="gv-faint mono">{i.id}</span><span className="gv-faint">· version {history.filter((h) => /version|Edited/.test(h[2])).length + 1}</span></div>
-      <div className="gv-steps" style={{ marginBottom: 16 }}>
-        {LIFECYCLE.slice(0, 4).map((s, k) => <div key={s} className={i.status === 'retired' ? '' : k < stepIdx ? 'done' : k === stepIdx ? 'cur' : ''}><i>{k + 1}</i>{s}</div>)}
+    <>
+      <RelGraph columns={columns} edges={edges} title={`Relationship lineage — ${i.title}`} hint="From the regulation it comes from, through the items it implements and the items that implement it, to the systems and data it governs. Click an item to open it · hover to highlight · drag to pan."
+        onSelect={(n) => { if (n.item && n.item !== i.id) nav(`${POLICIES_BASE}/${n.item}`); }} />
+      <div className="gv-two" style={{ marginTop: 16 }}>
+        <Card icon={Link2} tone="violet" title="Relationships" count={i.links.length + linkedFrom.length}>
+          {i.links.length || linkedFrom.length ? (
+            <ul className="gv-lines">
+              {i.links.map(([r, x], k) => <li key={`${r}${x}`}><span className="gv-faint">This</span> {relLabel(r)} <button type="button" className="gl-tlink" onClick={() => nav(`${POLICIES_BASE}/${x}`)}><b>{title(x)}</b></button> <button type="button" className="gv-x" aria-label="Remove relationship" onClick={() => dropRel(k)}><Trash2 size={13} /></button></li>)}
+              {linkedFrom.map((x) => <li key={x.id}><button type="button" className="gl-tlink" onClick={() => nav(`${POLICIES_BASE}/${x.id}`)}><b>{x.title}</b></button> {relLabel(x.links.find(([, t2]) => t2 === i.id)[0])} this</li>)}
+            </ul>
+          ) : <Empty>Not linked to other items yet — add a relationship.</Empty>}
+        </Card>
+        <Card icon={Plus} tone="info" title="Add relationship">
+          <div className="gv-form" style={{ margin: 0 }}>
+            <Fld label="This item"><select className="select" value={rel} onChange={(e) => setRel(e.target.value)}>{RELATIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
+            <Fld label="Item"><select className="select" value={to} onChange={(e) => setTo(e.target.value)}><option value="">Choose item…</option>{POLICY_TYPES.map((ty) => <optgroup key={ty} label={POLICY_TYPE_LABEL[ty]}>{items.filter((x) => x.type === ty && x.id !== i.id && !i.links.some(([r, y]) => r === rel && y === x.id)).map((x) => <option key={x.id} value={x.id}>{x.type}: {x.title}</option>)}</optgroup>)}</select></Fld>
+          </div>
+          <Button variant="primary" size="md" icon={Plus} disabled={!to} onClick={addRel}>Add relationship</Button>
+        </Card>
       </div>
-      <Tabs items={[{ value: 'detail', label: 'Detail' }, { value: 'trace', label: `Relationships (${i.links.length + linkedFrom.length})` }, { value: 'history', label: `History (${history.length})` }]} value={t} onChange={setT} />
-      {t === 'detail' && (<>
-        <p style={{ fontSize: 14, margin: '0 0 16px', lineHeight: 1.6 }}>{i.statement || <span className="gv-faint">No statement.</span>}</p>
-        <KV rows={[
-          ['Regulation', i.regulation || '—'], ['Owner', i.owner || <StatusBadge key="o" s="warn">no owner — assign one</StatusBadge>], ['Severity', i.severity],
-          ['Next review', i.status === 'retired' ? '—' : REVIEW_DUE[i.type]],
-          ...(i.retention ? [['Retention', i.retention]] : []), ...(i.check ? [['Automated check', <Mono key="c">{i.check}</Mono>]] : []),
-          ['Source', srcLabel(i.source)],
-        ]} />
-        <Applicability i={i} onUpdate={onUpdate} />
-        <div style={{ marginTop: 22 }}>{relBlock}</div>
-      </>)}
-      {t === 'trace' && (<>
-        <div className="gv-flow" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))', marginBottom: 14 }}>
-          <div><span>Comes from</span><b>{REG_GROUP(i)}</b>{i.source && <small>{srcLabel(i.source)}</small>}</div>
-          <div><span>This {i.type}</span><b>{i.title}</b></div>
-          <div><span>Governs</span><b>{res.rows.length} data asset(s){res.viaLineage ? `, ${res.viaLineage} through lineage` : ''}</b><small>{res.systems.length} system(s) · {res.processes.length} process(es)</small></div>
-        </div>
-        {relBlock}
-      </>)}
-      {t === 'history' && <ul className="gv-lines">{history.map(([at, who, what], k) => <li key={k}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul>}
-    </Drawer>
+    </>
+  );
+}
+
+/* compliance for one item: a control's own checks, or the controls beneath a policy, standard or obligation */
+function ItemCompliance({ i, items }) {
+  const nav = useNavigate();
+  const checks = useMemo(() => controlChecks(items), [items]);
+  if (i.type === 'control') {
+    const mine = checks.filter((x) => x.c.id === i.id);
+    const pass = mine.filter((x) => x.ok).length;
+    return (
+      <Card icon={SlidersHorizontal} tone="teal" title="Automated checks" count={mine.length} sub={i.check ? `Check ${i.check} run against every asset this control applies to.` : 'This control has no automated check.'}>
+        {mine.length > 0 && <div className="gv-inbar" style={{ marginBottom: 12 }}><Meter pct={pass / mine.length} /><b>{pass} of {mine.length} pass ({Math.round((pass / mine.length) * 100)}%)</b></div>}
+        <div className="table-wrap gv-scroll"><table className="tbl"><thead><tr><th>Asset</th><th>System</th><th>Result</th><th>Finding</th></tr></thead>
+          <tbody>{[...mine].sort((a, b) => a.ok - b.ok).map((x) => <tr key={x.a}><td><Mono>{x.a}</Mono></td><td>{systemOf(x.a)}</td><td><StatusBadge s={x.ok ? 'pass' : 'fail'} /></td><td className="gv-muted">{x.ok ? '—' : x.finding}</td></tr>)}
+            {!mine.length && <tr><td colSpan={4}><Empty>{i.status !== 'active' ? 'Checks run once the control is active.' : 'No checks for this control.'}</Empty></td></tr>}</tbody></table></div>
+      </Card>
+    );
+  }
+  const under = controlsUnder(items, i.id);
+  return (
+    <Card icon={SlidersHorizontal} tone="teal" title="Controls that evidence this item" count={under.length} sub="Every control that implements, supports or satisfies this item — directly or through other items — and how its checks are doing.">
+      <div className="table-wrap"><table className="tbl"><thead><tr><th>Control</th><th>Status</th><th className="num">Checks</th><th>Compliance</th></tr></thead>
+        <tbody>{under.map((c) => { const m = checks.filter((x) => x.c.id === c.id); const p = m.filter((x) => x.ok).length; return (
+          <tr key={c.id} className="click" onClick={() => nav(`${POLICIES_BASE}/${c.id}`)}><td className="gv-strong">{c.title}</td><td><StatusBadge s={statusTone(c.status)}>{c.status}</StatusBadge></td><td className="num">{m.length}</td>
+            <td style={{ width: '34%' }}>{m.length ? <div className="gv-inbar"><Meter pct={p / m.length} /><b>{Math.round((p / m.length) * 100)}%</b></div> : <span className="gv-faint">no automated check</span>}</td></tr>
+        ); })}
+          {!under.length && <tr><td colSpan={4}><Empty>No control implements this item yet — add one under Relationships.</Empty></td></tr>}</tbody></table></div>
+    </Card>
   );
 }
 

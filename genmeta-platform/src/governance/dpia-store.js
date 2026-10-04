@@ -25,10 +25,12 @@ export function retentionOf(a) {
   return POLICY_ITEMS.filter((i) => i.type === 'retention' && i.status === 'active' && hasCriteria(i.applies) && applicability(i).rows.some((r) => r.asset === a));
 }
 export const retentionText = (i) => `${i.title} — ${(i.retention || '').split(' · ')[0] || 'period not stated'}`;
+/* approved = the model has a version that is currently Approved or In production (retired / rejected versions do not count) */
 export const modelApproved = (id) => {
   const m = MODELS.find((x) => x.id === id);
-  return !!m && m.versionRows.some((v) => (v.path || []).includes('In production'));
+  return !!m && m.versionRows.some((v) => ['Approved', 'In production'].includes(v.stage));
 };
+export const modelStages = (id) => (MODELS.find((x) => x.id === id)?.versionRows || []).map((v) => `${v.v} ${v.stage.toLowerCase()}`).join(', ');
 
 /* ---------------------------------------------------------------- record of processing helpers */
 export const recipientsOf = (assets) => {
@@ -91,7 +93,7 @@ export function handlingRules(st) {
     R('residency', 'Personal data stays in the UK region', PD_ASSETS, PD_ASSETS.filter((a) => pd(a).region === 'not recorded'), (a) => `the region of ${pd(a).system} is not recorded — confirm where this personal data is held`),
     R('classified', 'Personal data columns carry a classification', PD_ASSETS, [], () => ''),
     R('access_expiry', 'Access to personal data expires (no open-ended grants)', PD_ASSETS, [], () => ''),
-    R('model_record', 'Models trained on personal data hold an approved governance record', modelAssets, modelAssets.filter((a) => modelsOf(a).some((m) => !modelApproved(m))), (a) => `${modelsOf(a).filter((m) => !modelApproved(m)).join(', ')} has no approved governance record`),
+    R('model_record', 'Models trained on personal data hold an approved governance record', modelAssets, modelAssets.filter((a) => modelsOf(a).some((m) => !modelApproved(m))), (a) => modelsOf(a).filter((m) => !modelApproved(m)).map((m) => `${m} has no version at Approved or In production (${modelStages(m)})`).join('; ')),
     R('product_basis', 'Published data products containing personal data name a lawful basis', productAssets, productAssets.filter((a) => !inRecord.has(a)), (a) => `data product ${productsOf(a).join(', ')} uses ${a}, which no accepted record (and so no lawful basis) covers`),
   ];
 }
@@ -134,6 +136,7 @@ let st = {
   lastRun: { at: '3 Oct 2026, 11:30', by: 'scheduler' },
   packAt: null,
   templates: [{ ...ICO_TEMPLATE }],
+  ticked: [],
   auditN: AUDIT.length,
 };
 st.lastRun = { ...st.lastRun, ...(() => { const t = ruleTotals(st); return { total: t.total, failing: t.failing }; })() };
@@ -145,6 +148,7 @@ export const getDpia = () => st;
 const who = () => ROLE_PERSON[st.role] || st.role;
 
 export function setRole(role) { st = { ...st, role }; emit(); }
+export function setTicked(ticked) { st = { ...st, ticked }; emit(); }
 export function saveRecord(rec, status) {
   const by = who();
   st = { ...st, records: st.records.map((x) => (x.id === rec.id ? { ...rec, status, history: [[now(), `${by} (${st.role})`, status === 'accepted' ? 'Accepted the record' : 'Saved as draft'], ...rec.history] } : x)) };
@@ -212,4 +216,17 @@ export function liveControls(s = st) {
     if (c.id === 'audit-log') return { ...c, evidence: `sha-256 hash-chain · ${AUDIT.length} entries · 0 broken links` };
     return c;
   });
+}
+
+/* Governance › Controls & compliance › improvement actions whose status follows the live state */
+export function liveActionStatus(s = st) {
+  const n = s.records.length; const acc = s.records.filter((r) => r.status === 'accepted').length;
+  const withRet = PD_ASSETS.filter((a) => retentionOf(a).length).length;
+  const stew = PD_ASSETS.filter((a) => STEWARDED.includes(a)).length;
+  const st3 = (got, of) => (got >= of ? 'Passed' : got > 0 ? 'In progress' : 'Not started');
+  return {
+    'IA-03': { status: st3(acc, n), progress: `${acc}/${n} records accepted` },
+    'IA-04': { status: st3(withRet, PD_ASSETS.length), progress: `${withRet}/${PD_ASSETS.length} assets under retention` },
+    'IA-05': { status: st3(stew, PD_ASSETS.length), progress: `${stew}/${PD_ASSETS.length} assets with a steward` },
+  };
 }

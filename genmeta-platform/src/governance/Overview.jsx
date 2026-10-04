@@ -15,7 +15,7 @@ import {
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Drawer, Modal, MenuButton, Fld, KV, downloadText, toast, Meter, meterTone, Section, SubNav, Collapse, useWidth } from './kit.jsx';
 import { AuditTab, ResidencyTab } from './AuditResidency.jsx';
 import EstateOverview from './Estate.jsx';
-import { useDpia, liveControls } from './dpia-store.js';
+import { useDpia, liveControls, liveActionStatus } from './dpia-store.js';
 
 export const OVERVIEW_TABS = [
   { value: 'overview', label: 'Overview', icon: Landmark },
@@ -71,10 +71,13 @@ function HealthStrip({ pass, warn, total }) {
 const FRAMEWORKS_SCORED = ['UK GDPR', 'DPA 2018', 'ISO/IEC 27001:2022', 'NCSC CAF', 'HMRC residency'];
 
 function OverviewTab() {
-  const CTL = liveControls(useDpia());
+  const dpst = useDpia();
+  const CTL = liveControls(dpst);
+  const liveA = liveActionStatus(dpst);
   const nav = useNavigate();
   const [open, setOpen] = useState(null);
-  const [actions, setActions] = useState(IMPROVEMENT_ACTIONS);
+  const [manual, setActions] = useState(IMPROVEMENT_ACTIONS);
+  const actions = manual.map((a) => (liveA[a.id] ? { ...a, ...liveA[a.id], live: true } : a));
   const [act, setAct] = useState(null);
   const [aFilter, setAFilter] = useState('todo');
   const [cStatus, setCStatus] = useState('all');
@@ -125,7 +128,7 @@ function OverviewTab() {
                 <td><span className="gv-strong">{a.title}</span><span className="gv-sub"><span className="mono">{a.id}</span> · {CONTROLS.find((c) => c.id === a.control)?.name}</span></td>
                 <td className="gv-muted">{a.type}</td><td className="num gv-strong">+{a.points}</td>
                 <td><div className="gv-tags">{a.fw.map((f) => <span key={f} className="tag">{f}</span>)}</div></td>
-                <td>{a.owner}</td><td>{a.due}</td><td><StatusBadge s={STATUS_TONE[a.status]}>{a.status}</StatusBadge></td>
+                <td>{a.owner}</td><td>{a.due}</td><td><StatusBadge s={STATUS_TONE[a.status]}>{a.status}</StatusBadge>{a.progress && <span className="gv-sub">{a.progress} · live</span>}</td>
               </tr>
             ))}</tbody>
           </table>

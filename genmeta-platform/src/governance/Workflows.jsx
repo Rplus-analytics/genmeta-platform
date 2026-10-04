@@ -30,27 +30,27 @@ export default function Workflows() {
 function WorkflowsHome() {
   const { workflows, requests } = useWorkflowStore();
   const [sp, setSp] = useSearchParams();
-  const tab = sp.get('tab') || 'approvals';
+  const tab = sp.get('tab') || (sp.get('req') ? 'approvals' : 'workflows');
   const [actor, setActor] = useState('Admin');
   const states = requests.map((r) => ({ r, st: stateOf(r, workflows) }));
   const open = states.filter((x) => x.st.status === 'in progress');
   const mine = open.filter((x) => canAct(x.r, actor)[0]);
   const overdue = open.filter((x) => x.st.cur && x.st.cur.due < TODAY);
-  const setTab = (t) => setSp(t === 'approvals' ? {} : { tab: t });
+  const setTab = (t) => setSp(t === 'workflows' ? {} : { tab: t });
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="Workflows"
-        sub="Design an approval workflow once and attach it wherever GenMeta needs a decision. AI model governance is the first module; policies, access, data products, DPIA, glossary and quality use the same engine." />
+        sub="Every approval in GenMeta runs on one workflow engine. Design a workflow once and attach it wherever a decision is needed — AI models, policies, access, data products, DPIA, glossary and quality." />
       <Tiles items={[
-        { l: 'Active workflows', v: workflows.filter((w) => w.status === 'active').length, s: `${workflows.filter((w) => w.status === 'draft').length} draft · ${new Set(workflows.map((w) => w.module)).size} modules` },
+        { l: 'Active workflows', v: workflows.filter((w) => w.status === 'active').length, s: `${workflows.filter((w) => w.status === 'draft').length} draft · across ${new Set(workflows.map((w) => w.module)).size} of ${MODULES.length} modules` },
         { l: 'Waiting for you', v: mine.length, s: `acting as ${actor}` },
         { l: 'Requests in progress', v: open.length, s: `${states.length} requests in total` },
         { l: 'Overdue', v: overdue.length, s: 'past the step’s SLA' },
         { l: 'Approved', v: states.filter((x) => x.st.status === 'approved').length, s: `${states.filter((x) => x.st.status === 'rejected').length} rejected` },
       ]} />
-      <Tabs items={[{ value: 'approvals', label: `Approvals (${open.length})`, icon: Inbox }, { value: 'workflows', label: 'Workflows', icon: WorkflowIcon }, { value: 'activity', label: 'Activity', icon: History }]} value={tab} onChange={setTab} />
+      <Tabs items={[{ value: 'workflows', label: 'Workflows by module', icon: WorkflowIcon }, { value: 'approvals', label: `Approvals (${open.length})`, icon: Inbox }, { value: 'activity', label: 'Activity', icon: History }]} value={tab} onChange={setTab} />
       {tab === 'approvals' && <Approvals states={states} actor={actor} setActor={setActor} openId={sp.get('req')} />}
-      {tab === 'workflows' && <Library workflows={workflows} requests={requests} />}
+      {tab === 'workflows' && <ModuleSections workflows={workflows} states={states} />}
       {tab === 'activity' && <Activity states={states} />}
     </div>
   );
@@ -158,7 +158,7 @@ function RequestDrawer({ r, actor, setActor, onClose }) {
   const evidence = s?.evidence || [];
   const allChecked = evidence.every((e) => checked[e]);
   const act = (verdict) => { decide(r.id, actor, verdict, comment.trim()); toast(`${verdict === 'rejected' ? 'Rejected' : verdict === 'done' ? 'Task completed' : 'Approved'} — ${s.name}`); setComment(''); setChecked({}); };
-  const subjectLink = r.subject.kind === 'model' ? `${BASE}/models/${r.subject.id}` : r.subject.kind === 'policy' ? `${BASE}/dpia?view=policies` : r.subject.kind === 'access' ? `${BASE}/access` : null;
+  const subjectLink = r.subject.kind === 'model' ? `${BASE}/models/${r.subject.id}` : r.subject.kind === 'policy' ? `${BASE}/policies/${r.subject.id}` : r.subject.kind === 'access' ? `${BASE}/access` : null;
   return (
     <Drawer wide title={r.subject.label} onClose={onClose} footer={st.cur ? <>
       <Button variant="secondary" size="md" icon={X} disabled={!ok || !comment.trim()} onClick={() => act('rejected')}>Reject</Button>
@@ -192,51 +192,60 @@ function RequestDrawer({ r, actor, setActor, onClose }) {
   );
 }
 
-/* ================================================================== library */
-function Library({ workflows, requests }) {
+/* ================================================================== workflows, one section per module */
+function WfCard({ w, states }) {
   const nav = useNavigate();
-  const [mod, setMod] = useState('ai-models');
-  const [creating, setCreating] = useState(false);
-  const m = moduleOf(mod);
-  const list = workflows.filter((w) => w.module === mod);
+  const running = states.filter((x) => x.r.wfId === w.id && x.st.status === 'in progress').length;
+  const approvals = w.steps.filter((st) => st.kind === 'approval').length;
   return (
-    <div className="wf-lib">
-      <nav className="wf-mods" aria-label="Modules">
-        <div className="gv-section-label" style={{ margin: '0 0 6px' }}>Modules</div>
-        {MODULES.map((x) => {
-          const I = MOD_ICON[x.icon];
-          const n = workflows.filter((w) => w.module === x.key).length;
-          return <button key={x.key} type="button" className={mod === x.key ? 'on' : ''} onClick={() => setMod(x.key)}><I size={15} /><span>{x.label}</span><em>{n || '—'}</em></button>;
-        })}
-        <Note>Any part of GenMeta that needs a decision can start a workflow. New modules appear here as they connect.</Note>
-      </nav>
-      <div>
-        <Card icon={MOD_ICON[m.icon]} tone="violet" title={m.label} count={list.length}
-          sub={`Starts on: ${m.events.join(' · ')}`}
-          actions={<Button variant="primary" size="md" icon={Plus} onClick={() => setCreating(true)}>New workflow</Button>}>
-          {list.length ? (
-            <div className="wf-cards">
-              {list.map((w) => {
-                const running = requests.filter((r) => r.wfId === w.id && stateOf(r, workflows).status === 'in progress').length;
-                const approvals = w.steps.filter((s) => s.kind === 'approval').length;
-                return (
-                  <button key={w.id} type="button" className="wf-card" onClick={() => nav(`${WF_BASE}/${w.id}`)}>
-                    <div className="wf-card-h"><b>{w.name}</b><StatusBadge s={w.status === 'active' ? 'active' : 'draft'}>{w.status}</StatusBadge></div>
-                    <p>{w.desc}</p>
-                    <div className="wf-mini">{w.steps.map((s) => { const I = KIND_ICON[s.kind]; return <span key={s.id} className={`gv-chip sm ${KIND_TONE[s.kind]} ${s.runIf ? 'cond' : ''}`} title={`${s.name}${s.runIf ? ` — only if ${condText(s.runIf)}` : ''}`}><I size={12} /></span>; })}</div>
-                    <small><Zap size={12} /> {w.event} · {approvals} approval step{approvals === 1 ? '' : 's'} · v{w.version} · {running} running</small>
-                    {w.usedBy.length > 0 && <small className="gv-faint">Used by {w.usedBy.join('; ')}</small>}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty>{m.live ? 'No workflows yet.' : `${m.label} is not connected to workflows yet.`} Create one and it will run when “{m.events[0]}” happens.</Empty>
-          )}
-        </Card>
+    <button type="button" className="wf-card" onClick={() => nav(`${WF_BASE}/${w.id}`)}>
+      <div className="wf-card-h"><b>{w.name}</b><StatusBadge s={w.status === 'active' ? 'active' : 'draft'}>{w.status}</StatusBadge></div>
+      <p>{w.desc}</p>
+      <div className="wf-mini">{w.steps.map((st) => { const I = KIND_ICON[st.kind]; return <span key={st.id} className={`gv-chip sm ${KIND_TONE[st.kind]} ${st.runIf ? 'cond' : ''}`} title={`${st.name}${st.runIf ? ` — only if ${condText(st.runIf)}` : ''}`}><I size={12} /></span>; })}</div>
+      <small><Zap size={12} /> {w.event} · {approvals} approval step{approvals === 1 ? '' : 's'} · v{w.version} · {running} running</small>
+      {w.usedBy.length > 0 && <small className="gv-faint">Used by {w.usedBy.join('; ')}</small>}
+    </button>
+  );
+}
+function ModuleSections({ workflows, states }) {
+  const nav = useNavigate();
+  const [creating, setCreating] = useState(null);
+  const [only, setOnly] = useState('all');
+  return (
+    <>
+      <div className="wf-modnav">
+        <button type="button" className={only === 'all' ? 'on' : ''} onClick={() => setOnly('all')}>All modules <em>{workflows.length}</em></button>
+        {MODULES.map((m) => { const I = MOD_ICON[m.icon]; const n = workflows.filter((w) => w.module === m.key).length; return <button type="button" key={m.key} className={only === m.key ? 'on' : ''} onClick={() => setOnly(m.key)}><I size={14} />{m.label} <em>{n}</em></button>; })}
       </div>
-      {creating && <NewWorkflow mod={mod} workflows={workflows} onClose={() => setCreating(false)} />}
-    </div>
+      {MODULES.filter((m) => only === 'all' || only === m.key).map((m) => {
+        const I = MOD_ICON[m.icon];
+        const list = workflows.filter((w) => w.module === m.key);
+        const mine = states.filter((x) => x.st.wf.module === m.key);
+        const open = mine.filter((x) => x.st.status === 'in progress');
+        const late = open.filter((x) => x.st.cur && x.st.cur.due < TODAY).length;
+        return (
+          <section key={m.key} className="dash-card wf-sec">
+            <header>
+              <span className="gv-chip violet"><I size={17} /></span>
+              <div className="wf-sec-t"><h3>{m.label}</h3><p>Starts on: {m.events.join(' · ')}</p></div>
+              <div className="wf-sec-n">
+                <span><b>{list.filter((w) => w.status === 'active').length}</b>active</span>
+                <span><b>{open.length}</b>in progress</span>
+                <span className={late ? 'bad' : ''}><b>{late}</b>overdue</span>
+                <span><b>{mine.length - open.length}</b>completed</span>
+              </div>
+              <div className="gv-inline" style={{ gap: 8 }}>
+                {open.length > 0 && <Button variant="secondary" size="sm" icon={Inbox} onClick={() => nav(`${WF_BASE}?tab=approvals`)}>Approvals</Button>}
+                <Button variant="primary" size="sm" icon={Plus} onClick={() => setCreating(m.key)}>New workflow</Button>
+              </div>
+            </header>
+            {list.length ? <div className="wf-cards">{list.map((w) => <WfCard key={w.id} w={w} states={states} />)}</div>
+              : <Empty>No workflows for {m.label.toLowerCase()} yet. Create one and it runs when “{m.events[0]}” happens.</Empty>}
+          </section>
+        );
+      })}
+      {creating && <NewWorkflow mod={creating} workflows={workflows} onClose={() => setCreating(null)} />}
+    </>
   );
 }
 

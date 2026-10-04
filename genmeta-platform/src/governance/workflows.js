@@ -16,7 +16,7 @@ export const fmtDay = (dt) => dt.toLocaleDateString('en-GB', { day: 'numeric', m
 
 /* modules: each declares the events that can start a workflow and the fields conditions can use */
 export const MODULES = [
-  { key: 'ai-models', label: 'AI model governance', icon: 'Bot', live: true,
+  { key: 'ai-models', label: 'AI models', icon: 'Bot', live: true,
     events: ['External model registered', 'Internal model version promoted to production', 'Periodic model review due', 'Model retired'],
     fields: {
       'Risk tier': ['Low risk', 'Medium risk', 'High risk'],
@@ -28,13 +28,13 @@ export const MODULES = [
   { key: 'policies', label: 'Policies', icon: 'ScrollText', live: true,
     events: ['Item submitted for review', 'Exception requested'],
     fields: { Type: ['policy', 'standard', 'control', 'obligation', 'retention'], Severity: ['low', 'medium', 'high'] } },
-  { key: 'access', label: 'Access & RBAC', icon: 'KeyRound', live: true,
+  { key: 'access', label: 'Access', icon: 'KeyRound', live: true,
     events: ['Access requested', 'Role changed'],
     fields: { Sensitivity: ['Internal', 'Confidential', 'Restricted'], 'Requested role': ['analyst', 'data-engineer', 'product-owner'] } },
-  { key: 'data-products', label: 'Data products', icon: 'Package', live: false, events: ['Data product published', 'Data contract changed'], fields: { Sensitivity: ['Internal', 'Confidential', 'Restricted'] } },
-  { key: 'dpia', label: 'DPIA & GDPR', icon: 'ShieldCheck', live: false, events: ['DPIA submitted for sign-off'], fields: { 'Risk level': ['Low', 'Medium', 'High'] } },
-  { key: 'metadata', label: 'Metadata & glossary', icon: 'BookOpen', live: false, events: ['Glossary term proposed', 'Classification changed'], fields: { Classification: ['PII', 'FINANCIAL', 'COMMERCIAL'] } },
-  { key: 'quality', label: 'Data quality', icon: 'Gauge', live: false, events: ['Quality rule changed', 'Remediation closed'], fields: { Severity: ['low', 'medium', 'high'] } },
+  { key: 'data-products', label: 'Data products', icon: 'Package', live: true, events: ['Data product published', 'Data contract changed'], fields: { Sensitivity: ['Internal', 'Confidential', 'Restricted'] } },
+  { key: 'dpia', label: 'DPIA', icon: 'ShieldCheck', live: true, events: ['DPIA submitted for sign-off'], fields: { 'Risk level': ['Low', 'Medium', 'High'] } },
+  { key: 'metadata', label: 'Glossary', icon: 'BookOpen', live: true, events: ['Glossary term proposed', 'Classification changed'], fields: { Classification: ['PII', 'FINANCIAL', 'COMMERCIAL'] } },
+  { key: 'quality', label: 'Quality', icon: 'Gauge', live: true, events: ['Quality rule changed', 'Remediation closed'], fields: { Severity: ['low', 'medium', 'high'] } },
 ];
 export const moduleOf = (k) => MODULES.find((m) => m.key === k);
 
@@ -92,7 +92,7 @@ let workflows = [
     ] },
   { id: 'wf-policy', name: 'Policy item approval', module: 'policies', event: 'Item submitted for review', status: 'active', version: 1,
     desc: 'Policies, standards, controls, obligations and retention requirements are reviewed and approved before they become active.', updatedAt: d('2026-09-23T07:50:00'), updatedBy: 'Admin',
-    usedBy: ['DPIA & policies › Policies › Submit for review'],
+    usedBy: ['Policies › item page › Submit for review'],
     outcome: { approved: 'Status moves to approved, then active', rejected: 'Item goes back to draft with the reviewer’s comment' },
     steps: [
       S('q1', 'approval', 'Owner review', { approvers: ['owner'], sla: 5 }),
@@ -108,6 +108,35 @@ let workflows = [
       S('a2', 'approval', 'Governance lead approves', { approvers: ['governance-lead'], sla: 2, sod: true, runIf: { field: 'Sensitivity', op: 'is', value: ['Restricted'] } }),
       S('a3', 'notify', 'Tell the requester', { message: 'Access granted for 90 days.' }),
     ] },
+  { id: 'wf-product-publish', name: 'Data product publication', module: 'data-products', event: 'Data product published', status: 'active', version: 1,
+    desc: 'A data product is checked and approved by its owner, and by the DPO when it contains Restricted data, before consumers can subscribe.', updatedAt: d('2026-09-25T10:00:00'), updatedBy: 'Priya Shah',
+    usedBy: ['Data products › Publish'], outcome: { approved: 'Product is published to the marketplace', rejected: 'Product stays in draft with the reviewer’s comment' },
+    steps: [
+      S('dp1', 'automated', 'Contract and quality checks pass', { desc: 'Schema contract, freshness SLA and minimum quality score are met.' }),
+      S('dp2', 'approval', 'Product owner approves', { approvers: ['product-owner'], sla: 3 }),
+      S('dp3', 'approval', 'Data protection review', { approvers: ['dpo'], sla: 5, runIf: { field: 'Sensitivity', op: 'is', value: ['Restricted'] } }),
+      S('dp4', 'notify', 'Tell subscribers', { message: 'A new data product is available.' }),
+    ] },
+  { id: 'wf-dpia-signoff', name: 'DPIA sign-off', module: 'dpia', event: 'DPIA submitted for sign-off', status: 'active', version: 1,
+    desc: 'The ICO-template stages for every DPIA: the assessor completes it, the DPO advises, a governance lead accepts the residual risk.', updatedAt: d('2026-09-19T12:00:00'), updatedBy: 'Admin',
+    usedBy: ['DPIA & GDPR › Assessments'], outcome: { approved: 'DPIA is signed off; review date set from the template', rejected: 'DPIA returns to the assessor' },
+    steps: [
+      S('dd1', 'task', 'Assessor completes the assessment', { approvers: ['owner'], sla: 10, evidence: ['Every risk has a measure'] }),
+      S('dd2', 'approval', 'DPO review and advice', { approvers: ['dpo'], sla: 10, evidence: ['DPO advice recorded'] }),
+      S('dd3', 'approval', 'Governance lead accepts residual risk', { approvers: ['governance-lead'], sla: 5, sod: true }),
+      S('dd4', 'notify', 'Consult the ICO if residual risk is high', { message: 'High residual risk — ICO prior consultation required.', runIf: { field: 'Risk level', op: 'is', value: ['High'] } }),
+    ] },
+  { id: 'wf-glossary-term', name: 'Glossary term approval', module: 'metadata', event: 'Glossary term proposed', status: 'active', version: 1,
+    desc: 'New or changed business terms are reviewed by a steward and approved by the domain owner before they appear in the glossary.', updatedAt: d('2026-09-21T09:30:00'), updatedBy: 'Admin',
+    usedBy: ['Glossary › Propose a term'], outcome: { approved: 'Term is published in the glossary', rejected: 'Term goes back to the proposer' },
+    steps: [
+      S('g1', 'approval', 'Steward review', { approvers: ['data-engineer'], sla: 3 }),
+      S('g2', 'approval', 'Domain owner approves', { approvers: ['owner'], sla: 5, sod: true }),
+    ] },
+  { id: 'wf-quality-rule', name: 'Quality rule change', module: 'quality', event: 'Quality rule changed', status: 'draft', version: 1,
+    desc: 'Changes to a quality rule on a high-severity asset are approved by the asset owner.', updatedAt: d('2026-10-02T15:00:00'), updatedBy: 'Rajesh',
+    usedBy: [], outcome: { approved: 'Rule change goes live at the next run', rejected: 'Rule stays as it was' },
+    steps: [S('qq1', 'approval', 'Asset owner approves', { approvers: ['owner'], sla: 2, runIf: { field: 'Severity', op: 'is', value: ['high'] } })] },
   { id: 'wf-policy-exc', name: 'Policy exception', module: 'policies', event: 'Exception requested', status: 'draft', version: 1,
     desc: 'An exception to a failing control needs a reason and a governance lead other than the requester.', updatedAt: d('2026-10-03T16:40:00'), updatedBy: 'Admin',
     usedBy: [], outcome: { approved: 'Check is counted as excepted', rejected: 'Check stays failing' },
