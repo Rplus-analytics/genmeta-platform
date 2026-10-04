@@ -1,35 +1,62 @@
-import { ShieldCheck, KeyRound, ScrollText, Fingerprint, Lock, FileSearch } from 'lucide-react';
-import { PageHead, Ring } from '../components/ui.jsx';
-import { STANDARDS } from '../data.js';
+import { NavLink, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users } from 'lucide-react';
+import { GOVERNANCE_NAV } from '../nav.js';
+import InnerLayout from '../components/InnerLayout.jsx';
+import { BASE } from '../governance/data.js';
+import { Toaster, SubNav } from '../governance/kit.jsx';
+import Stewardship from '../governance/Stewardship.jsx';
+import GovernanceOverview from '../governance/Overview.jsx';
+import Policies from '../governance/Policies.jsx';
+import Dpia from '../governance/Dpia.jsx';
+import Access from '../governance/Access.jsx';
+import { ModelCatalogue, ModelPage, ModelFiltersPanel, useModelFilters, MODELS_BASE } from '../governance/Models.jsx';
+import '../governance/governance.css';
 
-const POLICIES = [
-  { icon: KeyRound, name: 'Role-based access', id: 'GOV-01', d: 'Least-privilege roles federated from Microsoft Entra ID; steward approval for PERSONAL assets.', cov: 0.96 },
-  { icon: Fingerprint, name: 'Sensitive data masking', id: 'GOV-07', d: 'Dynamic masking on PERSONAL and FINANCIAL fields for non-steward roles.', cov: 0.91 },
-  { icon: ScrollText, name: 'Retention & disposal', id: 'GOV-12', d: 'Retention schedules attached at table level, enforced through lifecycle rules.', cov: 0.74 },
-  { icon: FileSearch, name: 'Lineage completeness', id: 'GOV-15', d: 'Every reporting asset must trace to a registered source system.', cov: 0.83 },
-  { icon: Lock, name: 'Encryption at rest', id: 'SEC-02', d: 'AWS KMS customer-managed keys; key rotation every 365 days.', cov: 1 },
-  { icon: ShieldCheck, name: 'Audit logging', id: 'SEC-05', d: 'Hash-chained audit log of every metadata change via CloudTrail.', cov: 1 },
-];
+const ICONS = { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users };
 
+/* DPIA and policies share one menu item; a switch under the page title moves between them. */
+function DpiaAndPolicies() {
+  const [sp, setSp] = useSearchParams();
+  const view = sp.get('view') === 'policies' ? 'policies' : 'dpia';
+  const switcher = (
+    <SubNav value={view} onChange={(v) => setSp(v === 'policies' ? { view: 'policies' } : {})} items={[
+      { value: 'dpia', label: 'DPIA & GDPR' },
+      { value: 'policies', label: 'Policies' },
+    ]} />
+  );
+  return view === 'policies' ? <Policies switcher={switcher} /> : <Dpia switcher={switcher} />;
+}
+
+/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & policies, Access & RBAC, Stewardship),
+   docked to the sidebar like Admin and Data assets. Each section keeps its own tabs. */
 export default function Governance() {
+  const { pathname } = useLocation();
+  const models = useModelFilters();
+  const onModelList = pathname === MODELS_BASE || pathname === `${MODELS_BASE}/`;
+  const links = GOVERNANCE_NAV.map((n) => {
+    const I = ICONS[n.icon];
+    return (
+      <NavLink key={n.label} to={n.to ? `${BASE}/${n.to}` : BASE} end={!n.to} title={n.label}
+        className={({ isActive }) => `admin-link ${isActive ? 'on' : ''}`}>
+        <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
+      </NavLink>
+    );
+  });
+  /* on the AI model list the catalogue-style filters sit under the links, as in Data assets */
+  const menu = <>{links}{onModelList && <ModelFiltersPanel state={models} />}</>;
   return (
-    <div className="page fade-in">
-      <PageHead title="Governance" sub="Policies, controls and standards alignment across the estate." />
-      <section className="rings card pad">
-        {STANDARDS.map(([n, v]) => (
-          <div key={n} className="ring-item"><Ring value={v} size={92} stroke={8}><b>{Math.round(v * 100)}%</b></Ring><span>{n}</span></div>
-        ))}
-      </section>
-      <section className="policy-grid">
-        {POLICIES.map((p) => (
-          <article key={p.id} className="card policy">
-            <span className="stat-ico"><p.icon size={19} /></span>
-            <div className="policy-t"><b>{p.name}</b><small>{p.id}</small></div>
-            <p>{p.d}</p>
-            <div className="cov"><div className="cov-bar"><i style={{ width: `${p.cov * 100}%` }} /></div><span>{Math.round(p.cov * 100)}% enforced</span></div>
-          </article>
-        ))}
-      </section>
-    </div>
+    <InnerLayout title="Governance" menu={menu}>
+      <Routes>
+        <Route index element={<GovernanceOverview />} />
+        <Route path="models" element={<ModelCatalogue state={models} />} />
+        <Route path="models/:modelId" element={<ModelPage />} />
+        <Route path="dpia" element={<DpiaAndPolicies />} />
+        <Route path="policies" element={<Navigate to={`${BASE}/dpia?view=policies`} replace />} />
+        <Route path="stewardship" element={<Stewardship />} />
+        <Route path="access" element={<Access />} />
+        <Route path="*" element={<Navigate to={BASE} replace />} />
+      </Routes>
+      <Toaster />
+    </InnerLayout>
   );
 }
