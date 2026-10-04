@@ -1,57 +1,57 @@
 import { useState } from 'react';
 import {
   Download, Play, Copy, Plus, Database, Tags, Map as MapIcon, FileCheck2, BookOpen, Scale, ShieldAlert, Minimize2, CheckCircle2, Target, ListChecks,
-  AlertTriangle, Filter, Flame, ClipboardList, LayoutTemplate, FileText, PackageCheck, Search as Search2, Archive, Share2, Link2,
+  AlertTriangle, Filter, Flame, ClipboardList, LayoutTemplate, FileText, PackageCheck, Search as Search2, Archive, Share2, Link2, Lock, RefreshCw, History, Recycle,
 } from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
-  ORG, PD_MAP, colKind, DPIA_TILES, DOMAIN_SYSTEMS, ROPA_DOMAINS, LAWFUL_BASES, SPECIAL_CONDITIONS, SECURITY_DEFAULT,
-  HANDLING_RULES, ownerOf, UNUSED, SCREEN_INDICATORS, ICO_TEMPLATE, SYSTEMS, AUDIT,
-  LIKELIHOOD, SEVERITY, riskLevel, EFFECTS, SUGGESTED_RISKS,
+  ORG, PD_MAP, colKind, colClass, ROPA_DOMAINS, LAWFUL_BASES, SPECIAL_CONDITIONS, ownerOf, SCREEN_INDICATORS, ICO_TEMPLATE, SYSTEMS, AUDIT,
+  LIKELIHOOD, SEVERITY, riskLevel, EFFECTS,
 } from './data.js';
-import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, KV, downloadCsv, toast , Meter } from './kit.jsx';
+import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, KV, downloadCsv, toast, Meter } from './kit.jsx';
+import {
+  useDpia, setRole, saveRecord, runChecks, regeneratePack, setTemplates, startAssessment, updateAssessment, advanceAssessment,
+  PD_ASSETS, productsOf, modelsOf, classesOf, retentionOf, retentionText, recipientsOf, recipientsText, retentionFor, evidenceOf, beyondDeclared, specialIn,
+  undeclared, ruleTotals, unusedNow, screen, INDICATOR_WEIGHT, VIEW_ROLES, ROLE_PERSON, EARLIER_RISKS, residualOf, STEWARDED,
+} from './dpia-store.js';
 
 const TABS = ['Personal data map', 'Records of processing', 'Lawful basis & minimisation', 'Data-handling rules', 'Assessments', 'Templates', 'Accountability pack']
   .map((label, i) => ({ value: ['map', 'ropa', 'lawful', 'rules', 'assess', 'templates', 'pack'][i], label, icon: [MapIcon, BookOpen, Scale, ShieldAlert, ClipboardList, LayoutTemplate, PackageCheck][i] }));
-const PD_ASSETS = PD_MAP.map((r) => r.asset);
-const piiCols = PD_MAP.reduce((n, r) => n + r.cols.filter((c) => !/BALANCE|AMOUNT|PRICE|amount|balance/.test(c)).length, 0);
-const finCols = PD_MAP.reduce((n, r) => n + r.cols.length, 0) - piiCols;
+const ALL_COLS = PD_MAP.flatMap((r) => r.cols);
+const countClass = (k) => ALL_COLS.filter((c) => colClass(c) === k).length;
 const basisLabel = (k) => LAWFUL_BASES.find(([v]) => v === k)?.[1] || k;
-
-/* one drafted Article 30 record per business domain holding personal data */
-const proposal = (d) => {
-  const rows = PD_MAP.filter((r) => r.domain === d);
-  return {
-    id: d, activity: `${d} data processing`, controller: ORG.controller, contact: ORG.contact, basis: 'public_task', special: 'not_applicable', transfers: 'None outside the UK recorded',
-    purpose: `Processing of ${d.toLowerCase()} data across ${DOMAIN_SYSTEMS(d)} for ${d.toLowerCase()} operations.`,
-    subjects: 'Individuals whose records the department holds', categories: [...new Set(rows.flatMap((r) => r.cols.map((c) => (/BALANCE|AMOUNT|PRICE|amount|balance/.test(c) ? 'FINANCIAL' : 'PII'))))].sort().join('\n'),
-    recipients: '', retention: '', security: SECURITY_DEFAULT, assets: rows.map((r) => r.asset), status: 'proposed',
-    evidence: `domain: ${d} · assets: ${rows.map((r) => r.asset).join(', ')} · systems: ${DOMAIN_SYSTEMS(d)} · columns: ${[...new Set(rows.flatMap((r) => r.cols))].sort().join(', ')} · shared with downstream: ${[...new Set(rows.flatMap((r) => r.shared))].join(', ') || '—'} · data products: — · models trained on it: — · retention rules: — · regions: ${[...new Set(rows.map((r) => r.region))].join(', ')} · owners: ${[...new Set(rows.map((r) => r.owner))].join(', ')}`,
-    history: [['3 Oct 2026, 11:30', 'Claude', 'Drafted from the evidence']],
-  };
-};
+const CLASS_TONE = { PII: 'info', FINANCIAL: 'warn', SPECIAL_CATEGORY: 'bad', GOVERNMENT_ID: 'violet' };
+const statusWord = (s) => (s === 'proposed' ? 'drafted — not accepted' : s);
 
 export default function Dpia({ switcher }) {
+  const st = useDpia();
   const [tab, setTab] = useState('map');
-  const [records, setRecords] = useState(() => ROPA_DOMAINS.map(proposal));
-  const [assessments, setAssessments] = useState([]);
+  const { records, assessments } = st;
   const accepted = records.filter((r) => r.status === 'accepted');
   const drafts = records.filter((r) => r.status === 'draft');
-  const tiles = DPIA_TILES.map((t) => (t.l === 'Accepted records of processing' ? { ...t, v: accepted.length, s: `${drafts.length} draft` }
-    : t.l === 'Assessments required' ? { ...t, v: assessments.filter((a) => a.stage !== 'Approved').length, s: `${records.length} activities screened` } : t));
-  /* OneTrust-style guided path: each step shows progress and opens its tab */
-  const failing = HANDLING_RULES.reduce((n, r) => n + r.fail.length, 0);
+  const { total, failing } = ruleTotals(st);
+  const required = records.filter((r) => screen(r).verdict === 'DPIA required' && !assessments.some((a) => a.id === r.id && a.stage === 'Approved'));
+  const tiles = [
+    { l: 'Assets holding personal data', v: PD_ASSETS.length, s: `${ALL_COLS.length} personal data columns` },
+    { l: 'Accepted records of processing', v: accepted.length, s: `${drafts.length} draft · ${records.length - accepted.length - drafts.length} proposed` },
+    { l: 'Handling rules failing', v: failing, s: `of ${total} checks on personal data` },
+    { l: 'Assessments required', v: required.length, s: `${records.length} activities screened` },
+  ];
   const path = [
     ['map', 'Find personal data', `${PD_MAP.length} of ${PD_MAP.length} assets mapped`, true],
     ['ropa', 'Record the processing', `${accepted.length} of ${records.length} records accepted`, accepted.length === records.length],
-    ['rules', 'Fix the handling rules', `${150 - failing} of 150 checks passing`, failing === 0],
-    ['assess', 'Assess the high-risk activities', `${assessments.length} assessment(s) started`, assessments.length > 0 && assessments.every((a) => a.stage === 'Approved')],
-    ['pack', 'Produce the accountability pack', 'ready when the steps above are done', false],
+    ['rules', 'Fix the handling rules', `${total - failing} of ${total} checks passing`, failing === 0],
+    ['assess', 'Assess the high-risk activities', `${assessments.filter((a) => a.stage === 'Approved').length} signed off · ${required.length} still required`, required.length === 0],
+    ['pack', 'Produce the accountability pack', st.packAt ? `regenerated ${st.packAt}` : 'built live from the steps above', !!st.packAt && required.length === 0 && failing === 0],
   ];
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="DPIA & GDPR"
-        sub="Where personal data is identified, processed, stored and shared; the records of processing and the basis for each; the rules that govern personal data, monitored; and the impact assessments behind them." />
+        sub="Where personal data is identified, processed, stored and shared; the records of processing and the basis for each; the rules that govern personal data, monitored; and the impact assessments behind them.">
+        <Fld label="Viewing as (test)">
+          <select className="select" value={st.role} onChange={(e) => setRole(e.target.value)} aria-label="Viewing as">{VIEW_ROLES.map((r) => <option key={r} value={r}>{r} · {ROLE_PERSON[r]}</option>)}</select>
+        </Fld>
+      </PageHead>
       {switcher}
       <div className="gv-path" role="list" aria-label="Path to accountability">
         {path.map(([k, t, s, done], i) => (
@@ -63,19 +63,17 @@ export default function Dpia({ switcher }) {
       <Tabs items={TABS} value={tab} onChange={setTab} />
       {tab !== 'assess' && tab !== 'templates' && tab !== 'pack' && <Tiles items={tiles} />}
       {tab === 'map' && <PersonalDataMap />}
-      {tab === 'ropa' && <Ropa records={records} setRecords={setRecords} />}
-      {tab === 'lawful' && <Lawful accepted={accepted} />}
-      {tab === 'rules' && <HandlingRules />}
-      {tab === 'assess' && <Assessments records={records} list={assessments} setList={setAssessments} />}
-      {tab === 'templates' && <Templates />}
-      {tab === 'pack' && <Pack records={records} assessments={assessments} />}
+      {tab === 'ropa' && <Ropa st={st} />}
+      {tab === 'lawful' && <Lawful st={st} />}
+      {tab === 'rules' && <HandlingRules st={st} />}
+      {tab === 'assess' && <Assessments st={st} />}
+      {tab === 'templates' && <Templates st={st} />}
+      {tab === 'pack' && <Pack st={st} />}
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ personal data map
-   v2: OneTrust data map — filter by system, domain and region, and see where personal data
-   concentrates before opening an asset. */
+/* ------------------------------------------------------------------ personal data map */
 function PersonalDataMap() {
   const [sel, setSel] = useState(null);
   const [f, setF] = useState({ system: 'all', domain: 'all', region: 'all' });
@@ -85,6 +83,9 @@ function PersonalDataMap() {
   const bySystem = [...SYSTEMS].sort().map((s) => [s, PD_MAP.filter((x) => x.system === s)]);
   const maxCols = Math.max(...bySystem.map(([, l]) => l.reduce((n, x) => n + x.cols.length, 0)));
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }));
+  const sp = specialIn(PD_ASSETS);
+  const gov = PD_MAP.flatMap((x) => x.cols.filter((c) => colClass(c) === 'GOVERNMENT_ID').map((c) => `${x.asset}.${c}`));
+  const withRet = PD_ASSETS.filter((a) => retentionOf(a).length).length;
   return (
     <>
       <div className="gv-two">
@@ -97,17 +98,15 @@ function PersonalDataMap() {
             ); })}
           </div>
         </Card>
-        <Card icon={Tags} tone="violet" title="What kind of personal data" sub="From the classifier — names and contact details (PII) and money values linked to a person (FINANCIAL).">
+        <Card icon={Tags} tone="violet" title="What kind of personal data" sub="From the classifier — names and contact details (PII), money linked to a person (FINANCIAL), National Insurance numbers (GOVERNMENT_ID) and Article 9 special-category data.">
           <div className="gv-health-n" style={{ marginBottom: 12 }}>
-            <div><b>{piiCols}</b><span>PII columns</span></div>
-            <div><b>{finCols}</b><span>FINANCIAL columns</span></div>
-            <div><b>{PD_MAP.filter((x) => x.region === 'not recorded').length}</b><span>assets, region unknown</span></div>
+            {['PII', 'FINANCIAL', 'SPECIAL_CATEGORY', 'GOVERNMENT_ID'].map((k) => <div key={k}><b>{countClass(k)}</b><span>{k.replace('_', ' ').toLowerCase()}</span></div>)}
           </div>
-          <Note>No special-category data has been found. Nothing is held under a retention requirement yet.</Note>
+          <Note>Special-category data found: {sp.map((x) => `${x.asset}.${x.col}`).join(', ')} — needs an Article 9 condition. NI numbers in {gov.join(', ')}. {withRet} of {PD_ASSETS.length} assets are held under a retention requirement.</Note>
         </Card>
       </div>
       <Card icon={MapIcon} tone="teal" title="Personal data map" count={rows.length}
-        sub={`Built from the classifier, lineage, data products, models, the ownership register and access grants — 25 of 37 catalogued assets hold personal data (${piiCols} PII, ${finCols} FINANCIAL columns) across ${[...SYSTEMS].sort().join(', ')}.`}
+        sub={`Built from the classifier, lineage, data products, models, the ownership register and access grants — ${PD_ASSETS.length} of 37 catalogued assets hold personal data across ${[...SYSTEMS].sort().join(', ')}.`}
         actions={<>
           <select className="select" value={f.system} onChange={set('system')} aria-label="System"><option value="all">All systems</option>{[...SYSTEMS].sort().map((s) => <option key={s}>{s}</option>)}</select>
           <select className="select" value={f.domain} onChange={set('domain')} aria-label="Domain"><option value="all">All domains</option>{ROPA_DOMAINS.map((s) => <option key={s}>{s}</option>)}</select>
@@ -116,14 +115,15 @@ function PersonalDataMap() {
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Asset</th><th>Personal data</th><th>Shared with</th><th>Owner / steward</th><th>Retention</th><th>Region</th></tr></thead>
-            <tbody>{rows.map((x) => (
+            <tbody>{rows.map((x) => { const ret = retentionOf(x.asset); const used = [...productsOf(x.asset).map((p) => `product ${p}`), ...modelsOf(x.asset).map((m) => `model ${m}`)]; return (
               <tr key={x.asset} className={`click ${sel === x.asset ? 'on' : ''}`} onClick={() => setSel(x.asset)}>
                 <td><Mono>{x.asset}</Mono><span className="gv-sub">{x.system} · {x.sensitivity} · {x.domain}</span></td>
-                <td><div className="gv-tags">{x.cols.map((c) => <span key={c} className="tag mono">{c}</span>)}</div></td>
-                <td>{x.shared.join(', ') || '—'}</td><td>{x.owner}</td><td className="gv-muted">none</td>
+                <td><div className="gv-tags">{x.cols.map((c) => <span key={c} className={`tag mono ${colClass(c) === 'SPECIAL_CATEGORY' ? 'gv-tag-bad' : ''}`} title={colClass(c)}>{c}</span>)}</div></td>
+                <td style={{ whiteSpace: 'normal' }}>{[...x.shared, ...used].join(', ') || '—'}</td><td>{x.owner}</td>
+                <td>{ret.length ? <span title={ret.map((i) => i.retention).join('; ')}>{ret.map(retentionText).join('; ')}</span> : <span className="gv-muted">none</span>}</td>
                 <td>{x.region === 'not recorded' ? <StatusBadge s="warn">not recorded</StatusBadge> : x.region}</td>
               </tr>
-            ))}
+            ); })}
             {!rows.length && <tr><td colSpan={6}><Empty>No assets match these filters.</Empty></td></tr>}
             </tbody>
           </table>
@@ -132,7 +132,7 @@ function PersonalDataMap() {
       </Card>
       {r && (
         <Drawer title={r.asset} onClose={() => setSel(null)}>
-          <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 14px' }}>{r.system} · {r.sensitivity}</p>
+          <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 14px' }}>{r.system} · {r.sensitivity} · {classesOf(r.asset).join(', ')}</p>
           <div className="gv-section-label" style={{ marginTop: 0 }}>Personal data</div>
           <ul className="gv-lines">{r.cols.map((c) => <li key={c}><Mono>{c}</Mono> — {colKind(c)}</li>)}</ul>
           <div className="gv-section-label">Where it flows</div>
@@ -142,7 +142,11 @@ function PersonalDataMap() {
             <div><span>Goes to</span><b>{r.shared.join(', ') || '—'}</b></div>
           </div>
           <div className="gv-section-label">Context</div>
-          <KV rows={[['Data products', '—'], ['Models', '—'], ['Access', '0 active grant(s)'], ['Retention', 'no retention requirement applies'], ['Held in', r.region], ['Owner / steward', r.owner]]} />
+          <KV rows={[
+            ['Data products', productsOf(r.asset).join(', ') || '—'], ['Models', modelsOf(r.asset).length ? modelsOf(r.asset).map((m) => `${m} (trained on it)`).join(', ') : '—'],
+            ['Access', '0 active grant(s)'], ['Retention', retentionOf(r.asset).map((i) => `${i.title} — ${i.retention}`).join('; ') || 'no retention requirement applies'],
+            ['Held in', r.region], ['Owner / steward', `${r.owner}${STEWARDED.includes(r.asset) ? ' · steward named' : ' · no steward'}`],
+          ]} />
         </Drawer>
       )}
     </>
@@ -150,28 +154,33 @@ function PersonalDataMap() {
 }
 
 /* ------------------------------------------------------------------ records of processing */
-function Ropa({ records, setRecords }) {
+const builtFrom = (r) => {
+  const prods = [...new Set(r.assets.flatMap(productsOf))]; const models = [...new Set(r.assets.flatMap(modelsOf))];
+  return <>{r.assets.join(', ')}{prods.length > 0 && <span className="gv-sub">Data product: {prods.join(', ')}</span>}{models.length > 0 && <span className="gv-sub">Model trained on it: {models.join(', ')}</span>}</>;
+};
+function Ropa({ st }) {
+  const { records } = st;
   const [open, setOpen] = useState(null);
   const proposed = records.filter((r) => r.status === 'proposed');
   const register = records.filter((r) => r.status !== 'proposed');
   const notIn = PD_ASSETS.filter((a) => !register.some((r) => r.status === 'accepted' && r.assets.includes(a)));
-  const save = (rec, status) => { setRecords((all) => all.map((x) => (x.id === rec.id ? { ...rec, status, history: [[new Date().toLocaleString('en-GB'), 'governance-lead', status === 'accepted' ? 'Accepted the record' : 'Saved as draft'], ...rec.history] } : x))); setOpen(null); toast(status === 'accepted' ? `Accepted “${rec.activity}”` : 'Draft saved'); };
-  const exportCsv = () => downloadCsv('records-of-processing.csv', [['Activity', 'Status', 'Controller', 'Lawful basis', 'Purpose', 'Data subjects', 'Categories', 'Recipients', 'Retention', 'Assets'], ...records.map((r) => [r.activity, r.status, r.controller, basisLabel(r.basis), r.purpose, r.subjects, r.categories.replace(/\n/g, '; '), r.recipients, r.retention, r.assets.join('; ')])]);
+  const save = (rec, status) => { saveRecord(rec, status); setOpen(null); toast(status === 'accepted' ? `Accepted “${rec.activity}” — written to the audit log` : 'Draft saved'); };
+  const exportCsv = () => downloadCsv('records-of-processing.csv', [['Activity', 'Status', 'Controller', 'Lawful basis', 'Purpose', 'Data subjects', 'Categories', 'Recipients', 'Retention', 'Assets'], ...records.map((r) => [r.activity, r.status, r.controller, basisLabel(r.basis), r.purpose, r.subjects, r.categories.replace(/\n/g, '; '), r.recipients.replace(/\n/g, '; '), r.retention.replace(/\n/g, '; '), r.assets.join('; ')])]);
   return (
     <>
       <Card icon={FileCheck2} tone="info" title="Records of processing" sub={`Article 30 records. GenMeta proposes one per business domain that holds personal data, drafted from the evidence it can see; a governance lead accepts it. Controller ${ORG.controller}, contact ${ORG.contact}.`}
         actions={<Button variant="secondary" size="md" icon={Download} onClick={exportCsv}>Export register (CSV)</Button>}>
-        <div className="gv-section-label" style={{ marginTop: 0 }}>Proposed from the evidence ({proposed.length}) — {notIn.length} asset(s) not yet in a record</div>
+        <div className="gv-section-label" style={{ marginTop: 0 }}>Proposed from the evidence ({proposed.length}) — {notIn.length} asset(s) not yet in an accepted record</div>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Activity</th><th>Purpose (drafted)</th><th>Lawful basis</th><th>Built from</th><th /></tr></thead>
             <tbody>
               {proposed.map((r) => (
                 <tr key={r.id}>
-                  <td className="gv-strong">{r.activity}<span className="gv-sub">drafted by Claude</span></td>
+                  <td className="gv-strong">{r.activity}<span className="gv-sub">drafted by Claude{r.later.length ? ` · ${r.later.length} column(s) found since` : ''}</span></td>
                   <td>{r.purpose}</td>
                   <td>{basisLabel(r.basis)}<span className="gv-sub">Default for a public authority carrying out its functions; confirm before accepting.</span></td>
-                  <td className="gv-muted">{r.assets.join(', ')}</td>
+                  <td className="gv-muted" style={{ whiteSpace: 'normal' }}>{builtFrom(r)}</td>
                   <td><Button variant="secondary" size="sm" onClick={() => setOpen(r)}>Review…</Button></td>
                 </tr>
               ))}
@@ -183,33 +192,45 @@ function Ropa({ records, setRecords }) {
       <Card icon={BookOpen} tone="ok" title="Register" count={register.length}>
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>Activity</th><th>Status</th><th>Lawful basis</th><th>Data subjects & categories</th><th>Recipients</th><th>Retention</th><th /></tr></thead>
+            <thead><tr><th>Activity</th><th>Status</th><th>Lawful basis</th><th>Data subjects & categories</th><th>Built from</th><th>Recipients</th><th>Retention</th><th /></tr></thead>
             <tbody>
               {register.map((r) => (
                 <tr key={r.id}>
                   <td className="gv-strong">{r.activity}</td><td><StatusBadge s={r.status} /></td><td>{basisLabel(r.basis)}</td>
-                  <td>{r.subjects}<span className="gv-sub">{r.categories.replace(/\n/g, ', ')}</span></td><td>{r.recipients || '—'}</td><td>{r.retention || '—'}</td>
+                  <td>{r.subjects}<span className="gv-sub">{r.categories.replace(/\n/g, ', ')}</span></td>
+                  <td className="gv-muted" style={{ whiteSpace: 'normal' }}>{builtFrom(r)}</td>
+                  <td style={{ whiteSpace: 'pre-line' }}>{r.recipients || '—'}</td><td style={{ whiteSpace: 'normal' }}>{r.retention || '—'}</td>
                   <td><Button variant="secondary" size="sm" onClick={() => setOpen(r)}>Open</Button></td>
                 </tr>
               ))}
-              {!register.length && <tr><td colSpan={7}><Empty>No records yet — review a proposal above.</Empty></td></tr>}
+              {!register.length && <tr><td colSpan={8}><Empty>No records yet — review a proposal above.</Empty></td></tr>}
             </tbody>
           </table>
         </div>
       </Card>
-      {open && <RopaForm rec={open} onClose={() => setOpen(null)} onSave={save} />}
+      {open && <RopaForm rec={open} role={st.role} onClose={() => setOpen(null)} onSave={save} />}
     </>
   );
 }
 
-function RopaForm({ rec, onClose, onSave }) {
-  const [f, setF] = useState(rec);
+function RopaForm({ rec, role, onClose, onSave }) {
+  const prefRecip = !rec.recipients.trim() && recipientsOf(rec.assets).length > 0;
+  const prefRet = !rec.retention.trim() && !!retentionFor(rec.assets);
+  const [f, setF] = useState({ ...rec, recipients: rec.recipients || recipientsText(rec.assets), retention: rec.retention || retentionFor(rec.assets) });
   const [hist, setHist] = useState(false);
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }));
-  const ta = (k, label) => <div className="full"><Fld label={label}><textarea className="input" rows={2} value={f[k]} onChange={set(k)} /></Fld></div>;
+  const canAccept = role === 'governance-lead';
+  const beyond = beyondDeclared(f);
+  const sp = specialIn(f.assets);
+  const missing = [...new Set(beyond.map((b) => b.cls))];
+  const ta = (k, label, hint) => <div className="full"><Fld label={label} hint={hint}><textarea className="input" rows={k === 'recipients' || k === 'retention' ? 3 : 2} value={f[k]} onChange={set(k)} /></Fld></div>;
   return (
     <Drawer wide title={<span>{f.activity} <span className="tag" style={{ marginLeft: 6 }}>{rec.status === 'proposed' ? 'draft' : rec.status}</span></span>} onClose={onClose}
-      footer={<><Button variant="secondary" size="md" onClick={onClose}>Close</Button><Button variant="secondary" size="md" onClick={() => onSave(f, 'draft')}>Save draft</Button><Button variant="primary" size="md" onClick={() => onSave(f, 'accepted')}>Accept record</Button></>}>
+      footer={<><Button variant="secondary" size="md" onClick={onClose}>Close</Button><Button variant="secondary" size="md" onClick={() => onSave(f, 'draft')}>Save draft</Button>
+        <Button variant="primary" size="md" icon={canAccept ? undefined : Lock} disabled={!canAccept} onClick={() => onSave(f, 'accepted')} title={canAccept ? '' : 'Only a governance lead can accept'}>Accept record</Button></>}>
+      {!canAccept && <div className="gv-callout info" style={{ marginBottom: 12 }}><Lock size={15} /><span>You are viewing as <b>{role}</b>. Only a <b>governance-lead</b> can accept a record of processing — switch “Viewing as (test)” at the top of the page.</span></div>}
+      {sp.length > 0 && f.special === 'not_applicable' && <div className="gv-callout bad" style={{ marginBottom: 12 }}><AlertTriangle size={15} /><span>This activity holds special-category data ({sp.map((x) => `${x.asset}.${x.col}`).join(', ')}). Choose an Article 9 condition before accepting.</span></div>}
+      {missing.length > 0 && <div className="gv-callout warn" style={{ marginBottom: 12 }}><AlertTriangle size={15} /><span>Held but not declared: {missing.join(', ')} ({beyond.map((b) => `${b.asset}.${b.col}`).join(', ')}). <Button variant="link" onClick={() => setF((o) => ({ ...o, categories: [...o.categories.split('\n').filter(Boolean), ...missing].join('\n') }))}>Add to categories</Button></span></div>}
       <div className="gv-form">
         <div className="full"><Fld label="Activity"><input className="input" value={f.activity} onChange={set('activity')} /></Fld></div>
         <Fld label="Controller"><input className="input" value={f.controller} onChange={set('controller')} /></Fld>
@@ -217,9 +238,12 @@ function RopaForm({ rec, onClose, onSave }) {
         <Fld label="Lawful basis (Article 6)"><select className="select" value={f.basis} onChange={set('basis')}>{LAWFUL_BASES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
         <Fld label="Special category condition (Article 9)"><select className="select" value={f.special} onChange={set('special')}>{SPECIAL_CONDITIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
         <div className="full"><Fld label="Transfers"><input className="input" value={f.transfers} onChange={set('transfers')} /></Fld></div>
-        {ta('purpose', 'Purpose')}{ta('subjects', 'Data subjects (one per line)')}{ta('categories', 'Personal data categories')}{ta('recipients', 'Recipients')}{ta('retention', 'Retention')}{ta('security', 'Security measures')}
+        {ta('purpose', 'Purpose')}{ta('subjects', 'Data subjects (one per line)')}{ta('categories', 'Personal data categories')}
+        {ta('recipients', 'Recipients', prefRecip ? 'Pre-filled from lineage (downstream assets), data products and models that use this data — edit as needed.' : '')}
+        {ta('retention', 'Retention', prefRet ? 'Pre-filled from the retention rule applied to these assets in Policies.' : '')}
+        {ta('security', 'Security measures')}
       </div>
-      <Note>Evidence behind this record: {rec.evidence}</Note>
+      <Note>Evidence behind this record: {evidenceOf(f)}</Note>
       <div style={{ marginTop: 12 }}>
         <Button variant="link" onClick={() => setHist((h) => !h)}>History ({rec.history.length})</Button>
         {hist && <ul className="gv-lines">{rec.history.map(([at, who, what], i) => <li key={i}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul>}
@@ -229,10 +253,15 @@ function RopaForm({ rec, onClose, onSave }) {
 }
 
 /* ------------------------------------------------------------------ lawful basis & minimisation */
-function Lawful({ accepted }) {
+function Lawful({ st }) {
+  const accepted = st.records.filter((r) => r.status === 'accepted');
   const covered = new Set(accepted.flatMap((r) => r.assets));
   const notCovered = PD_ASSETS.filter((a) => !covered.has(a));
-  const special = accepted.filter((r) => r.special !== 'not_applicable');
+  const sp = specialIn(PD_ASSETS);
+  const recFor = (a) => st.records.find((r) => r.assets.includes(a));
+  const unused = unusedNow();
+  const beyond = accepted.flatMap((r) => beyondDeclared(r).map((b) => ({ ...b, r })));
+  const und = accepted.flatMap((r) => undeclared(r).map((u) => ({ ...u, r })));
   return (
     <>
       <Card icon={Scale} tone="info" title="Lawful basis">
@@ -242,16 +271,29 @@ function Lawful({ accepted }) {
         ) : <Empty>No accepted records yet.</Empty>}
         <Note>{covered.size} of {PD_ASSETS.length} assets holding personal data are named in an accepted record.{notCovered.length ? ` Not yet covered: ${notCovered.join(', ')}.` : ''}</Note>
       </Card>
-      <Card icon={ShieldAlert} tone="violet" title="Special category">
-        {special.length ? <ul className="gv-lines">{special.map((r) => <li key={r.id}><b>{r.activity}</b> — {SPECIAL_CONDITIONS.find(([v]) => v === r.special)[1]}</li>)}</ul> : <Empty>No special category condition recorded in an accepted record.</Empty>}
+      <Card icon={ShieldAlert} tone="violet" title="Special category (Article 9)" count={sp.length} sub="Every special-category column the classifier has found, and the condition recorded for it.">
+        <div className="table-wrap"><table className="tbl"><thead><tr><th>Column</th><th>Record</th><th>Article 9 condition</th></tr></thead>
+          <tbody>{sp.map((x) => { const r = recFor(x.asset); const ok = r && r.status === 'accepted' && r.special !== 'not_applicable'; return (
+            <tr key={x.asset + x.col}><td><Mono>{x.asset}.{x.col}</Mono><span className="gv-sub">{colKind(x.col)}</span></td><td>{r ? `${r.activity} (${statusWord(r.status)})` : '—'}</td>
+              <td>{ok ? <StatusBadge s="ok">{SPECIAL_CONDITIONS.find(([v]) => v === r.special)[1]}</StatusBadge> : <StatusBadge s="bad">{r && r.status === 'accepted' ? 'no condition recorded' : 'no accepted record'}</StatusBadge>}</td></tr>
+          ); })}</tbody></table></div>
       </Card>
-      <Card icon={Minimize2} tone="warn" title="Data minimisation" count={UNUSED.length} sub="Personal data that nothing reads — no downstream asset, no data product, no model and no query in 30 days.">
-        <ul className="gv-lines">{UNUSED.map((a) => <li key={a}><Mono>{a}</Mono> — holds personal data but nothing reads it and no query has touched it in 30 days ({PD_MAP.find((r) => r.asset === a).cols.join(', ')})</li>)}</ul>
+      <Card icon={Minimize2} tone="warn" title="Data minimisation" count={unused.length} sub="Personal data that nothing reads — no downstream asset, no data product, no model and no query in 30 days. Assets that feed a model or product are never listed.">
+        <ul className="gv-lines">{unused.map((a) => <li key={a}><Mono>{a}</Mono> — holds personal data but nothing reads it and no query has touched it in 30 days ({PD_MAP.find((r) => r.asset === a).cols.join(', ')})</li>)}</ul>
       </Card>
       <div className="gv-two">
-        <Card icon={CheckCircle2} tone="ok" title="Beyond the declared categories"><Empty>Nothing held beyond what the records declare.</Empty></Card>
-        <Card icon={Target} tone="ok" title="Purpose limitation" sub="Processing GenMeta can see that the record does not declare.">
-          <div className="table-wrap"><table className="tbl"><thead><tr><th>Asset</th><th>Record</th><th>Undeclared recipient</th><th>Kind</th></tr></thead><tbody><tr><td colSpan={4}><Empty>Every use matches a declared recipient.</Empty></td></tr></tbody></table></div>
+        <Card icon={beyond.length ? AlertTriangle : CheckCircle2} tone={beyond.length ? 'bad' : 'ok'} title="Beyond the declared categories" count={beyond.length} sub="Data an accepted record holds that its declared categories do not list.">
+          {beyond.length ? (
+            <div className="table-wrap"><table className="tbl"><thead><tr><th>Column</th><th>Class</th><th>Record</th></tr></thead>
+              <tbody>{beyond.map((b) => <tr key={b.asset + b.col}><td><Mono>{b.asset}.{b.col}</Mono></td><td><StatusBadge s={CLASS_TONE[b.cls] === 'bad' ? 'bad' : 'warn'}>{b.cls}</StatusBadge></td><td>{b.r.activity}</td></tr>)}</tbody></table></div>
+          ) : <Empty>{accepted.length ? 'Nothing held beyond what the accepted records declare.' : 'Accept a record to compare what it declares with what its assets hold.'}</Empty>}
+        </Card>
+        <Card icon={Target} tone={und.length ? 'warn' : 'ok'} title="Purpose limitation" count={und.length} sub="Downstream assets, data products and models using a record’s data that its Recipients do not name.">
+          <div className="table-wrap"><table className="tbl"><thead><tr><th>Asset</th><th>Record</th><th>Undeclared recipient</th><th>Kind</th></tr></thead>
+            <tbody>
+              {und.map((u) => <tr key={u.r.id + u.v}><td><Mono>{u.from || '—'}</Mono></td><td>{u.r.activity}</td><td className="gv-strong">{u.v}</td><td>{u.kind}</td></tr>)}
+              {!und.length && <tr><td colSpan={4}><Empty>{accepted.length ? 'Every use matches a declared recipient.' : 'Accept a record to check its recipients.'}</Empty></td></tr>}
+            </tbody></table></div>
         </Card>
       </div>
     </>
@@ -259,30 +301,33 @@ function Lawful({ accepted }) {
 }
 
 /* ------------------------------------------------------------------ data-handling rules */
-function HandlingRules() {
-  const [last, setLast] = useState('3 Oct 2026, 11:30 by scheduler');
+function HandlingRules({ st }) {
   const [filter, setFilter] = useState('all');
-  const total = HANDLING_RULES.length * PD_ASSETS.length;
-  const failing = HANDLING_RULES.reduce((n, r) => n + r.fail.length, 0);
-  const findings = HANDLING_RULES.flatMap((r) => r.fail.map((a) => ({ rule: r, a })))
-    .sort((x, y) => (x.rule.key === 'residency' ? -1 : y.rule.key === 'residency' ? 1 : 0));
+  const { rules, total, failing } = ruleTotals(st);
+  const findings = rules.flatMap((r) => r.fail.map((a) => ({ rule: r, a })));
   const shown = filter === 'all' ? findings : findings.filter((f) => f.rule.key === filter);
+  const lr = st.lastRun;
+  const stale = lr.total !== total || lr.failing !== failing;
   return (
     <>
       <Card icon={ListChecks} tone="warn" title="Data-handling rules for personal data"
-        actions={<Button variant="primary" size="md" icon={Play} onClick={() => { setLast(`${new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} by you`); toast(`${total} checks run · ${failing} failing · 22 issue(s) raised`); }}>Run checks and raise issues</Button>}>
-        <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 16px' }}>Last run {last}: {total} checks, {failing} failing, 22 issue(s) raised.</p>
+        actions={<Button variant="primary" size="md" icon={Play} onClick={() => { const r = runChecks(); toast(`${r.total} checks run · ${r.failing} failing · ${r.issues} issue(s) raised — written to the audit log`); }}>Run checks and raise issues</Button>}>
+        <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 6px' }}>Now: {total} checks across {rules.length} rules, {failing} failing — computed from the current records, retention rules, stewards, models and data products.</p>
+        <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 16px' }}>Last run {lr.at} by {lr.by}: {lr.total} checks, {lr.failing} failing{lr.issues != null ? `, ${lr.issues} issue(s) raised` : ''}.{stale && <b style={{ color: 'var(--gv-warn)' }}> Things have changed since — run the checks to raise issues on the current state.</b>}</p>
         <div className="gv-rules">
-          {HANDLING_RULES.map((r) => { const ok = PD_ASSETS.length - r.fail.length; return (
-            <div key={r.key}><span>{r.req}</span><Meter pct={ok / PD_ASSETS.length} /><b>{ok}/{PD_ASSETS.length}</b></div>
+          {rules.map((r) => { const ok = r.scope.length - r.fail.length; return (
+            <div key={r.key}><span>{r.req}{r.scope.length !== PD_ASSETS.length && <small className="gv-faint"> · {r.scope.length} asset(s) in scope</small>}</span><Meter pct={r.scope.length ? ok / r.scope.length : 1} /><b>{ok}/{r.scope.length}</b></div>
           ); })}
         </div>
       </Card>
-      <Card icon={AlertTriangle} tone="bad" title="Findings" count={shown.length} actions={<select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Rule"><option value="all">All rules</option>{HANDLING_RULES.filter((r) => r.fail.length).map((r) => <option key={r.key} value={r.key}>{r.req}</option>)}</select>}>
+      <Card icon={AlertTriangle} tone="bad" title="Findings" count={shown.length} actions={<select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Rule"><option value="all">All rules</option>{rules.filter((r) => r.fail.length).map((r) => <option key={r.key} value={r.key}>{r.req}</option>)}</select>}>
         <div className="table-wrap gv-scroll">
           <table className="tbl">
             <thead><tr><th>Status</th><th>Requirement</th><th>Asset</th><th>Finding</th><th>Responsible</th></tr></thead>
-            <tbody>{shown.map(({ rule, a }) => <tr key={rule.key + a}><td><StatusBadge s="fail" /></td><td>{rule.req}</td><td><Mono>{a}</Mono></td><td className="gv-muted">{rule.finding(a)}</td><td>{ownerOf(a)}</td></tr>)}</tbody>
+            <tbody>
+              {shown.map(({ rule, a }) => <tr key={rule.key + a}><td><StatusBadge s="fail" /></td><td>{rule.req}</td><td><Mono>{a}</Mono></td><td className="gv-muted">{rule.finding(a)}</td><td>{ownerOf(a)}</td></tr>)}
+              {!shown.length && <tr><td colSpan={5}><Empty>No failing checks.</Empty></td></tr>}
+            </tbody>
           </table>
         </div>
       </Card>
@@ -290,17 +335,10 @@ function HandlingRules() {
   );
 }
 
-/* ------------------------------------------------------------------ assessments
-   v2: ICO DPIA template as a real workspace (likelihood × severity → overall risk, measures with
-   effect, residual risk and approval) and a OneTrust-style inherent vs residual heatmap. */
-const residual = (r) => {
-  if (r.effect === 'Eliminated') return ['Remote', 'Minimal'];
-  if (r.effect === 'Reduced') return [LIKELIHOOD[Math.max(0, LIKELIHOOD.indexOf(r.l) - 1)], r.s];
-  return [r.l, r.s];
-};
+/* ------------------------------------------------------------------ assessments */
 const LEVEL_TONE = { High: 'fail', Medium: 'warn', Low: 'ok' };
 function Heatmap({ risks, mode }) {
-  const cell = (l, s) => risks.filter((r) => { const [a, b] = mode === 'residual' ? residual(r) : [r.l, r.s]; return a === l && b === s; }).length;
+  const cell = (l, s) => risks.filter((r) => { const [a, b] = mode === 'residual' ? residualOf(r) : [r.l, r.s]; return a === l && b === s; }).length;
   return (
     <table className="gv-heat">
       <tbody>
@@ -312,43 +350,41 @@ function Heatmap({ risks, mode }) {
     </table>
   );
 }
-function Assessments({ records, list, setList }) {
+const highest = (a) => ['High', 'Medium', 'Low'].find((lv) => a.risks.some((r) => riskLevel(...residualOf(r)) === lv)) || '—';
+const STAGE_NEXT = { Completion: ['Send to DPO review', 'DPO review', 'assessor'], 'DPO review': ['Send for approval', 'Approval', 'dpo'], Approval: ['Approve and sign off', 'Approved', 'governance-lead'] };
+const holder = (a) => (a.stage === 'Completion' ? `assessor · ${a.assessor}` : a.stage === 'DPO review' ? `DPO · ${a.dpo}` : a.stage === 'Approval' ? `governance lead · ${a.lead}` : `review due ${a.reviewDue}`);
+
+function Assessments({ st }) {
+  const { records, assessments: list } = st;
   const [ind, setInd] = useState({});
   const [open, setOpen] = useState(null);
   const [mode, setMode] = useState('inherent');
   const ticked = SCREEN_INDICATORS.filter((i) => ind[i]);
-  const auto = (r) => [r.assets.length >= 10 && 'Large-scale processing of personal data', PD_MAP.filter((x) => r.assets.includes(x.asset)).some((x) => x.shared.length) && 'Datasets combined or matched'].filter(Boolean);
-  const verdict = (r) => { const n = new Set([...auto(r), ...ticked]).size; return r.special !== 'not_applicable' || n >= 2 ? ['DPIA required', n] : n === 1 ? ['Consider a DPIA', n] : ['Not required', 0]; };
-  const start = (r) => {
-    const a = { id: r.id, name: `DPIA — ${r.activity}`, domain: r.id, stage: 'Completion', template: 'ICO standard DPIA v1', assignees: 'assessor',
-      risks: (SUGGESTED_RISKS[r.id] || []).map(([t, l, s, m]) => ({ t, l, s, measure: m, effect: 'Reduced', approved: false })),
-      need: `${r.purpose} Screening found: ${[...new Set([...auto(r), ...ticked])].join(', ') || 'no high-risk indicators'}.`, dpo: '', acceptedBy: '', ico: 'No' };
-    setList((l) => [...l, a]); setOpen(a.id); toast('Assessment started from the ICO template, pre-filled from GenMeta\'s metadata');
-  };
   const allRisks = list.flatMap((a) => a.risks);
   const cur = list.find((a) => a.id === open);
-  const update = (id, patch) => setList((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const start = (r) => { startAssessment(r, ticked); setOpen(r.id); toast('Assessment started from the template, pre-filled from GenMeta’s metadata'); };
   return (
     <>
       <Tiles items={[
-        { l: 'DPIA required, not started', v: records.filter((r) => verdict(r)[0] === 'DPIA required' && !list.some((a) => a.id === r.id)).length, s: 'from sensitivity, processing and risk indicators' },
+        { l: 'DPIA required, not started', v: records.filter((r) => screen(r, ticked).verdict === 'DPIA required' && !list.some((a) => a.id === r.id)).length, s: 'from sensitivity, processing and risk indicators' },
         { l: 'In progress', v: list.filter((a) => a.stage !== 'Approved').length, s: 'completion, review or approval' },
-        { l: 'Approved', v: list.filter((a) => a.stage === 'Approved').length, s: '0 overdue review(s)' },
-        { l: 'Risks recorded', v: allRisks.length, s: `${allRisks.filter((r) => riskLevel(...residual(r)) === 'High').length} high residual` },
+        { l: 'Approved', v: list.filter((a) => a.stage === 'Approved').length, s: list.filter((a) => a.reviewDue).length ? `next review ${list.filter((a) => a.reviewDue).map((a) => a.reviewDue)[0]}` : '0 overdue review(s)' },
+        { l: 'Risks recorded', v: allRisks.length, s: `${allRisks.filter((r) => riskLevel(...residualOf(r)) === 'High').length} high residual` },
       ]} />
       <div className="gv-two wide-l">
-        <Card icon={Filter} tone="info" title="When a DPIA may be needed" sub="Screened automatically for each activity from data sensitivity, the kind of processing and risk indicators GenMeta can see. Tick anything it cannot see; it is added to the assessment.">
+        <Card icon={Filter} tone="info" title="When a DPIA may be needed" sub="Screened automatically for each activity from data sensitivity, lineage, models and risk indicators GenMeta can see — each indicator is weighted. Tick anything it cannot see.">
           <div className="gv-checks" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))' }}>
-            {SCREEN_INDICATORS.map((i) => <label key={i}><input type="checkbox" checked={!!ind[i]} onChange={(e) => setInd((o) => ({ ...o, [i]: e.target.checked }))} />{i}</label>)}
+            {SCREEN_INDICATORS.map((i) => <label key={i}><input type="checkbox" checked={!!ind[i]} onChange={(e) => setInd((o) => ({ ...o, [i]: e.target.checked }))} />{i} <span className="gv-faint">+{INDICATOR_WEIGHT[i]}</span></label>)}
           </div>
           <div className="table-wrap">
             <table className="tbl">
-              <thead><tr><th>Activity</th><th>Record</th><th>Verdict</th><th>Why</th><th /></tr></thead>
-              <tbody>{records.map((r) => { const [v] = verdict(r); const a = list.find((x) => x.id === r.id); const why = [...new Set([...auto(r), ...ticked])]; return (
-                <tr key={r.id}><td className="gv-strong">{r.activity}</td><td><StatusBadge s={r.status === 'accepted' ? 'accepted' : 'warn'}>{r.status}</StatusBadge></td>
-                  <td><StatusBadge s={v === 'Not required' ? 'ok' : v === 'DPIA required' ? 'fail' : 'warn'}>{v}</StatusBadge></td>
-                  <td className="gv-muted">{why.join(', ') || 'no high-risk indicators'}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>{a ? <Button variant="secondary" size="sm" onClick={() => setOpen(a.id)}>Open</Button> : v !== 'Not required' && <Button variant="secondary" size="sm" onClick={() => start(r)}>Start assessment</Button>}</td></tr>
+              <thead><tr><th>Activity</th><th>Record</th><th className="num">Score</th><th>Verdict</th><th>Why</th><th /></tr></thead>
+              <tbody>{records.map((r) => { const s = screen(r, ticked); const a = list.find((x) => x.id === r.id); return (
+                <tr key={r.id}><td className="gv-strong">{r.activity}</td><td><StatusBadge s={r.status === 'accepted' ? 'accepted' : r.status === 'draft' ? 'draft' : 'warn'}>{statusWord(r.status)}</StatusBadge></td>
+                  <td className="num gv-strong">{s.score}</td>
+                  <td><StatusBadge s={s.verdict === 'Not required' ? 'ok' : s.verdict === 'DPIA required' ? 'fail' : 'warn'}>{s.verdict}</StatusBadge></td>
+                  <td className="gv-muted" style={{ whiteSpace: 'normal', minWidth: 240 }}>{s.found.length ? s.found.map(([f, why]) => <span key={f} className="gv-sub" style={{ display: 'block' }}><b>{f}</b> +{INDICATOR_WEIGHT[f] || 1} — {why}</span>) : 'no high-risk indicators'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{a ? <Button variant="secondary" size="sm" onClick={() => setOpen(a.id)}>Open</Button> : s.verdict !== 'Not required' && <Button variant="secondary" size="sm" onClick={() => start(r)}>Start assessment</Button>}</td></tr>
               ); })}</tbody>
             </table>
           </div>
@@ -359,50 +395,74 @@ function Assessments({ records, list, setList }) {
           <Note>{allRisks.length ? `${allRisks.length} risk(s). Residual applies each measure's effect: eliminated → low, reduced → one step less likely.` : 'Start an assessment to record risks.'}</Note>
         </Card>
       </div>
-      <Card icon={ClipboardList} tone="violet" title="Assessments" count={list.length} actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('dpia-register.csv', [['Assessment', 'Stage', 'Template', 'Risks', 'Highest residual', 'Assignees'], ...list.map((a) => [a.name, a.stage, a.template, a.risks.length, highest(a), a.assignees])])}>Export register (CSV)</Button>}>
+      <Card icon={ClipboardList} tone="violet" title="Assessments" count={list.length} actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('dpia-register.csv', [['Assessment', 'Stage', 'Template', 'Risks', 'Highest residual', 'Assessor', 'DPO', 'Governance lead', 'Review due'], ...list.map((a) => [a.name, a.stage, a.template, a.risks.length, highest(a), a.assessor, a.dpo, a.lead, a.reviewDue || ''])])}>Export register (CSV)</Button>}>
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>Assessment</th><th>Stage</th><th>Template</th><th className="num">Risks</th><th>Highest residual</th><th>Assignees</th><th /></tr></thead>
+            <thead><tr><th>Assessment</th><th>Record</th><th>Stage</th><th className="num">Risks</th><th>Highest residual</th><th>With</th><th /></tr></thead>
             <tbody>
-              {list.map((a) => (
-                <tr key={a.id} className="click" onClick={() => setOpen(a.id)}><td className="gv-strong">{a.name}</td><td><StatusBadge s={a.stage === 'Approved' ? 'approved' : 'pending'}>{a.stage}</StatusBadge></td><td>{a.template}</td><td className="num">{a.risks.length}</td>
-                  <td>{a.risks.length ? <StatusBadge s={LEVEL_TONE[highest(a)]}>{highest(a)}</StatusBadge> : '—'}</td><td>{a.assignees}</td><td><span className="gl-tlink">Open</span></td></tr>
-              ))}
+              {list.map((a) => { const r = records.find((x) => x.id === a.id); return (
+                <tr key={a.id} className="click" onClick={() => setOpen(a.id)}><td className="gv-strong">{a.name}<span className="gv-sub">{a.template}</span></td>
+                  <td><StatusBadge s={r.status === 'accepted' ? 'accepted' : 'warn'}>{statusWord(r.status)}</StatusBadge></td>
+                  <td><StatusBadge s={a.stage === 'Approved' ? 'approved' : 'pending'}>{a.stage}</StatusBadge>{a.reviewDue && <span className="gv-sub">review due {a.reviewDue}</span>}</td><td className="num">{a.risks.length}</td>
+                  <td>{a.risks.length ? <StatusBadge s={LEVEL_TONE[highest(a)]}>{highest(a)}</StatusBadge> : '—'}</td><td>{holder(a)}</td><td><span className="gl-tlink">Open</span></td></tr>
+              ); })}
               {!list.length && <tr><td colSpan={7}><Empty>No assessments yet — start one from the screening table above.</Empty></td></tr>}
             </tbody>
           </table>
         </div>
       </Card>
-      {cur && <AssessmentDrawer a={cur} onClose={() => setOpen(null)} onUpdate={(p) => update(cur.id, p)} />}
+      {cur && <AssessmentDrawer a={cur} st={st} onClose={() => setOpen(null)} />}
     </>
   );
 }
-const highest = (a) => ['High', 'Medium', 'Low'].find((lv) => a.risks.some((r) => riskLevel(...residual(r)) === lv)) || '—';
-const STAGE_NEXT = { Completion: ['Send to DPO review', 'DPO review', 'dpo'], 'DPO review': ['Send for approval', 'Approval', 'governance-lead'], Approval: ['Approve and sign off', 'Approved', '—'] };
 
-function AssessmentDrawer({ a, onClose, onUpdate }) {
+function AssessmentDrawer({ a, st, onClose }) {
   const [sec, setSec] = useState('risks');
-  const setRisk = (i, patch) => onUpdate({ risks: a.risks.map((r, k) => (k === i ? { ...r, ...patch } : r)) });
+  const [reuse, setReuse] = useState(false);
+  const rec = st.records.find((r) => r.id === a.id);
+  const upd = (patch, what) => updateAssessment(a.id, patch, what);
+  const setRisk = (i, patch) => upd({ risks: a.risks.map((r, k) => (k === i ? { ...r, ...patch } : r)) });
   const next = STAGE_NEXT[a.stage];
   const stages = ['Completion', 'DPO review', 'Approval', 'Approved'];
-  const blocked = a.stage === 'Approval' && (!a.dpo.trim() || !a.acceptedBy.trim() || a.risks.some((r) => !r.approved));
+  const noMeasure = a.risks.filter((r) => !r.measure.trim());
+  const wrongRole = next && st.role !== next[2] && !(next[2] === 'assessor' && st.role === 'governance-lead');
+  const blockReason = !next ? '' : wrongRole ? `Only the ${next[2]} can do this — you are viewing as ${st.role}.`
+    : a.stage === 'Completion' && (!a.risks.length || noMeasure.length) ? (a.risks.length ? `Every risk needs a measure first — ${noMeasure.length} without one.` : 'Record at least one risk first.')
+      : a.stage === 'Approval' && (!a.advice.trim() || !a.acceptedBy.trim() || a.risks.some((r) => !r.approved)) ? 'To approve: add DPO advice and who accepts the residual risk, and approve every measure.' : '';
+  const earlier = [...EARLIER_RISKS, ...st.assessments.filter((x) => x.id !== a.id).flatMap((x) => x.risks.map((r) => [x.name, r.t, r.l, r.s, r.measure]))]
+    .filter(([, t]) => !a.risks.some((r) => r.t === t));
   return (
     <Drawer wide title={a.name} onClose={onClose} footer={<>
       <Button variant="secondary" size="md" onClick={onClose}>Close</Button>
-      {next && <Button variant="primary" size="md" disabled={blocked} onClick={() => { onUpdate({ stage: next[1], assignees: next[2] }); toast(`${next[0]} — now ${next[1]}`); }}>{next[0]}</Button>}
+      {next && <Button variant="primary" size="md" disabled={!!blockReason} onClick={() => { advanceAssessment(a.id, next[1], next[0]); toast(`${next[0]} — now ${next[1]} · written to the audit log`); }}>{next[0]}</Button>}
     </>}>
       <div className="gv-steps" style={{ marginBottom: 14 }}>{stages.map((s, i) => <div key={s} className={i < stages.indexOf(a.stage) ? 'done' : s === a.stage ? 'cur' : ''}><i>{i + 1}</i>{s}</div>)}</div>
-      <Tabs items={[{ value: 'need', label: '1–4 Need & processing' }, { value: 'risks', label: `5–6 Risks & measures (${a.risks.length})` }, { value: 'sign', label: '7 Sign off' }]} value={sec} onChange={setSec} />
+      <KV rows={[['Record', `${rec.activity} — ${statusWord(rec.status)}`], ['Template', a.template], ['Now with', holder(a)], ...(a.reviewDue ? [['Review due', a.reviewDue]] : [])]} />
+      {blockReason && <div className="gv-callout warn" style={{ margin: '10px 0' }}><Lock size={15} /><span>{blockReason}</span></div>}
+      <Tabs items={[{ value: 'need', label: '1–4 Need & processing' }, { value: 'risks', label: `5–6 Risks & measures (${a.risks.length})` }, { value: 'sign', label: '7 Sign off' }, { value: 'people', label: 'Assignees' }, { value: 'trail', label: `Audit trail (${a.history.length})` }]} value={sec} onChange={setSec} />
       {sec === 'need' && (<>
-        <Fld label="What is the processing and why (pre-filled from the record)"><textarea className="input" rows={4} value={a.need} onChange={(e) => onUpdate({ need: e.target.value })} /></Fld>
-        <KV rows={[['Template', a.template], ['Nature, scope, context', 'pre-filled from the record of processing, lineage and the personal-data map'], ['Consultation', 'DPO, information assurance and the asset owners']]} />
+        <Fld label="What is the processing and why (pre-filled from the record and screening)"><textarea className="input" rows={5} value={a.need} onChange={(e) => upd({ need: e.target.value })} /></Fld>
+        <KV rows={[['Nature, scope, context', `${rec.assets.length} assets · recipients: ${recipientsOf(rec.assets).map(([, v]) => v).join(', ') || '—'}`], ['Retention', retentionFor(rec.assets) || 'none applied'], ['Consultation', 'DPO, information assurance and the asset owners']]} />
       </>)}
       {sec === 'risks' && (<>
+        <div className="gv-inline" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
+          <Button variant="secondary" size="sm" icon={Recycle} onClick={() => setReuse((v) => !v)}>Reuse from earlier assessments</Button>
+          <Button variant="secondary" size="sm" icon={Plus} onClick={() => upd({ risks: [...a.risks, { t: 'New risk', l: 'Possible', s: 'Significant', measure: '', effect: 'Reduced', approved: false }] }, 'Added a risk')}>Add a risk</Button>
+        </div>
+        {reuse && (
+          <div className="gv-proposal">
+            <b>Risks and measures from earlier assessments</b>
+            {earlier.length ? <ul className="gv-lines" style={{ marginTop: 6 }}>{earlier.map(([from, t, l, s, m]) => (
+              <li key={from + t}><b>{t}</b> <span className="gv-faint">· {l} × {s} · {from}</span><br /><span className="gv-muted">Measure: {m}</span>{' '}
+                <Button variant="link" onClick={() => upd({ risks: [...a.risks, { t, l, s, measure: m, effect: 'Reduced', approved: false }] }, `Reused a risk from ${from}: ${t}`)}>Reuse</Button></li>
+            ))}</ul> : <p className="gv-muted" style={{ margin: '6px 0 0' }}>Nothing else to reuse.</p>}
+          </div>
+        )}
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Risk to individuals</th><th>Likelihood</th><th>Severity</th><th>Overall</th></tr></thead>
             <tbody>{a.risks.map((r, i) => (
-              <tr key={i}><td>{r.t}</td>
+              <tr key={i}><td><input className="input" value={r.t} onChange={(e) => setRisk(i, { t: e.target.value })} /></td>
                 <td><select className="select" value={r.l} onChange={(e) => setRisk(i, { l: e.target.value })}>{LIKELIHOOD.map((x) => <option key={x}>{x}</option>)}</select></td>
                 <td><select className="select" value={r.s} onChange={(e) => setRisk(i, { s: e.target.value })}>{SEVERITY.map((x) => <option key={x}>{x}</option>)}</select></td>
                 <td><StatusBadge s={LEVEL_TONE[riskLevel(r.l, r.s)]}>{riskLevel(r.l, r.s)}</StatusBadge></td></tr>
@@ -414,40 +474,47 @@ function AssessmentDrawer({ a, onClose, onUpdate }) {
           <table className="tbl">
             <thead><tr><th>Measure</th><th>Effect on risk</th><th>Residual</th><th>Approved</th></tr></thead>
             <tbody>{a.risks.map((r, i) => (
-              <tr key={i}><td><input className="input" value={r.measure} onChange={(e) => setRisk(i, { measure: e.target.value })} /></td>
+              <tr key={i}><td><input className="input" value={r.measure} placeholder="Required before DPO review" style={!r.measure.trim() ? { borderColor: 'var(--gv-warn)' } : undefined} onChange={(e) => setRisk(i, { measure: e.target.value })} /></td>
                 <td><select className="select" value={r.effect} onChange={(e) => setRisk(i, { effect: e.target.value })}>{EFFECTS.map((x) => <option key={x}>{x}</option>)}</select></td>
-                <td><StatusBadge s={LEVEL_TONE[riskLevel(...residual(r))]}>{riskLevel(...residual(r))}</StatusBadge></td>
-                <td><label className="gv-check"><input type="checkbox" checked={r.approved} onChange={(e) => setRisk(i, { approved: e.target.checked })} />yes</label></td></tr>
+                <td><StatusBadge s={LEVEL_TONE[riskLevel(...residualOf(r))]}>{riskLevel(...residualOf(r))}</StatusBadge></td>
+                <td><label className="gv-check"><input type="checkbox" checked={r.approved} disabled={st.role !== 'governance-lead' && st.role !== 'dpo'} onChange={(e) => upd({ risks: a.risks.map((x, k) => (k === i ? { ...x, approved: e.target.checked } : x)) }, `${e.target.checked ? 'Approved' : 'Withdrew approval of'} the measure for “${r.t}”`)} />yes</label></td></tr>
             ))}</tbody>
           </table>
         </div>
-        <div style={{ marginTop: 10 }}><Button variant="secondary" size="sm" icon={Plus} onClick={() => onUpdate({ risks: [...a.risks, { t: 'New risk', l: 'Possible', s: 'Significant', measure: '', effect: 'Reduced', approved: false }] })}>Add a risk</Button></div>
       </>)}
       {sec === 'sign' && (<>
-        <Fld label="DPO advice"><textarea className="input" rows={3} value={a.dpo} onChange={(e) => onUpdate({ dpo: e.target.value })} /></Fld>
+        <Fld label="DPO advice"><textarea className="input" rows={3} value={a.advice} onChange={(e) => upd({ advice: e.target.value })} /></Fld>
         <div className="gv-form">
-          <Fld label="Residual risk accepted by"><input className="input" value={a.acceptedBy} onChange={(e) => onUpdate({ acceptedBy: e.target.value })} /></Fld>
-          <Fld label="ICO consultation needed"><select className="select" value={a.ico} onChange={(e) => onUpdate({ ico: e.target.value })}><option>No</option><option>Yes</option></select></Fld>
+          <Fld label="Residual risk accepted by"><input className="input" value={a.acceptedBy} onChange={(e) => upd({ acceptedBy: e.target.value })} placeholder={a.lead} /></Fld>
+          <Fld label="ICO consultation needed"><select className="select" value={a.ico} onChange={(e) => upd({ ico: e.target.value }, `ICO consultation set to ${e.target.value}`)}><option>No</option><option>Yes</option></select></Fld>
         </div>
-        <Note>Sign-off needs DPO advice, a named person accepting the residual risk, and every measure approved. Any high residual risk means the ICO must be consulted before processing starts.</Note>
+        <Note>Sign-off needs DPO advice, a named person accepting the residual risk, and every measure approved. Any high residual risk means the ICO must be consulted before processing starts. On approval the review date is set from the template ({(st.templates.find((t) => t.name === a.template) || st.templates[0]).review} days).</Note>
       </>)}
-      {blocked && <Note>To approve: add DPO advice and who accepts the residual risk, and approve every measure.</Note>}
+      {sec === 'people' && (<>
+        <div className="gv-form">
+          <Fld label="Assessor (completion)"><input className="input" value={a.assessor} onChange={(e) => upd({ assessor: e.target.value })} onBlur={(e) => upd({}, `Assessor set to ${e.target.value}`)} /></Fld>
+          <Fld label="Data protection officer (review)"><input className="input" value={a.dpo} onChange={(e) => upd({ dpo: e.target.value })} onBlur={(e) => upd({}, `DPO set to ${e.target.value}`)} /></Fld>
+          <Fld label="Governance lead (approval)"><input className="input" value={a.lead} onChange={(e) => upd({ lead: e.target.value })} onBlur={(e) => upd({}, `Governance lead set to ${e.target.value}`)} /></Fld>
+        </div>
+        <Note>Each stage is assigned to the person named here. The stage only moves on when someone with that role acts (switch “Viewing as (test)” to try it).</Note>
+      </>)}
+      {sec === 'trail' && <ul className="gv-lines">{a.history.map(([at, who, what], k) => <li key={k}><b>{who}</b> · {what} <span className="gv-faint">· {at}</span></li>)}</ul>}
     </Drawer>
   );
 }
 
 /* ------------------------------------------------------------------ templates */
-function Templates() {
-  const [list, setList] = useState([{ ...ICO_TEMPLATE }]);
+function Templates({ st }) {
+  const list = st.templates;
   const [name, setName] = useState('');
   const [sel, setSel] = useState(0);
-  const t = list[sel];
+  const t = list[sel] || list[0];
   return (
     <>
       <Card icon={LayoutTemplate} tone="info" title="Templates" sub="The standard template follows the ICO's DPIA structure. Copy it to make a departmental version — sections, guidance, fields, the review interval and the workflow stages are all editable by a governance lead.">
         <div className="gv-inline" style={{ marginBottom: 14 }}>
           <Fld label="New template name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="New template name" /></Fld>
-          <Button variant="secondary" size="md" icon={Copy} disabled={!name.trim()} onClick={() => { setList((l) => [...l, { ...ICO_TEMPLATE, name, kind: 'departmental', version: 'v1' }]); setSel(list.length); setName(''); toast(`Copied “ICO standard DPIA” as ${name}`); }}>Copy “ICO standard DPIA”</Button>
+          <Button variant="secondary" size="md" icon={Copy} disabled={!name.trim()} onClick={() => { setTemplates([...list, { ...ICO_TEMPLATE, name, kind: 'departmental', version: 'v1' }]); setSel(list.length); setName(''); toast(`Copied “ICO standard DPIA” as ${name}`); }}>Copy “ICO standard DPIA”</Button>
         </div>
         <div className="table-wrap">
           <table className="tbl">
@@ -463,7 +530,7 @@ function Templates() {
       </Card>
       <Card icon={FileText} tone="violet" title={t.name} sub={t.intro}>
         <div className="gv-inline" style={{ marginBottom: 12 }}>
-          <Fld label="Review every (days)" ><input className="input" type="number" value={t.review} disabled={t.kind === 'standard'} onChange={(e) => setList((l) => l.map((x, i) => (i === sel ? { ...x, review: +e.target.value } : x)))} /></Fld>
+          <Fld label="Review every (days)"><input className="input" type="number" value={t.review} disabled={t.kind === 'standard' || st.role !== 'governance-lead'} onChange={(e) => setTemplates(list.map((x, i) => (i === sel ? { ...x, review: +e.target.value } : x)))} /></Fld>
         </div>
         <div className="gv-section-label" style={{ marginTop: 0 }}>Stages</div>
         <div className="gv-steps">{t.stages.map(([s, who], i) => <div key={s}><i>{i + 1}</i>{s} <span className="gv-faint">({who})</span></div>)}</div>
@@ -474,28 +541,39 @@ function Templates() {
   );
 }
 
-/* ------------------------------------------------------------------ accountability pack */
+/* ------------------------------------------------------------------ accountability pack (built live) */
 const PACK_ICONS = [[Search2, 'info'], [Scale, 'violet'], [Archive, 'teal'], [Share2, 'warn'], [ListChecks, 'bad'], [ClipboardList, 'violet'], [Link2, 'ok'], [Minimize2, 'warn']];
-function Pack({ records, assessments }) {
+function Pack({ st }) {
+  const { records, assessments } = st;
   const acc = records.filter((r) => r.status === 'accepted');
   const dr = records.filter((r) => r.status === 'draft');
   const covered = new Set(acc.flatMap((r) => r.assets));
   const without = PD_ASSETS.filter((a) => !covered.has(a));
+  const noRet = PD_ASSETS.filter((a) => !retentionOf(a).length);
+  const rules = [...new Set(PD_ASSETS.flatMap((a) => retentionOf(a).map((i) => i.title)))];
+  const { rules: hr, total, failing } = ruleTotals(st);
+  const und = acc.flatMap((r) => undeclared(r).map((u) => u.v));
+  const beyond = acc.flatMap((r) => beyondDeclared(r));
+  const unused = unusedNow();
+  const sp = specialIn(PD_ASSETS);
   const list = (a) => (a.length ? a.join(', ') : '—');
   const sections = [
-    ['Identification — what personal data is held', [['assets holding personal data', 25], ['of total', 37], ['personal data columns', 56], ['by category', `PII: ${piiCols} · FINANCIAL: ${finCols}`], ['systems', [...SYSTEMS].sort().join(', ')]]],
-    ['Processing — on what basis', [['records', records.filter((r) => r.status !== 'proposed').length], ['accepted', acc.length], ['draft', dr.length], ['lawful bases', list([...new Set(acc.map((r) => basisLabel(r.basis)))])], ['assets without a record', list(without)]]],
-    ['Storage — where and for how long', [['regions', 'eu-west-2 (London), not recorded'], ['retention rules applied', 0], ['without retention', list(PD_ASSETS)]]],
-    ['Sharing — who receives it', [['data products', '—'], ['models', '—'], ['downstream assets', 15], ['undeclared recipients', '—']]],
-    ['Data-handling rules', [['checks', 150], ['failed', 82], ...HANDLING_RULES.map((r) => [r.req, `${r.fail.length} of 25 failing`])]],
-    ['Assessments', [['screened', acc.length], ['assessment required', assessments.filter((a) => a.stage !== 'Approved').length], ['signed off', assessments.filter((a) => a.stage === 'Approved').length]]],
+    ['Identification — what personal data is held', [['assets holding personal data', PD_ASSETS.length], ['of total', 37], ['personal data columns', ALL_COLS.length], ['by category', ['PII', 'FINANCIAL', 'SPECIAL_CATEGORY', 'GOVERNMENT_ID'].map((k) => `${k}: ${countClass(k)}`).join(' · ')], ['systems', [...SYSTEMS].sort().join(', ')]]],
+    ['Processing — on what basis', [['records', records.filter((r) => r.status !== 'proposed').length], ['accepted', acc.length], ['draft', dr.length], ['lawful bases', list([...new Set(acc.map((r) => basisLabel(r.basis)))])], ['special category (Article 9)', `${sp.length} column(s) · ${acc.filter((r) => r.special !== 'not_applicable').length} record(s) name a condition`], ['assets without a record', list(without)]]],
+    ['Storage — where and for how long', [['regions', [...new Set(PD_MAP.map((r) => r.region))].join(', ')], ['retention rules applied', `${rules.length} (${list(rules)}) on ${PD_ASSETS.length - noRet.length} asset(s)`], ['without retention', list(noRet)]]],
+    ['Sharing — who receives it', [['data products', list([...new Set(PD_ASSETS.flatMap(productsOf))])], ['models', list([...new Set(PD_ASSETS.flatMap(modelsOf))])], ['downstream assets', [...new Set(PD_MAP.flatMap((r) => r.shared))].length], ['undeclared recipients', list([...new Set(und)])]]],
+    ['Data-handling rules', [['checks', total], ['failed', failing], ['last run', `${st.lastRun.at} by ${st.lastRun.by}`], ...hr.map((r) => [r.req, `${r.fail.length} of ${r.scope.length} failing`])]],
+    ['Assessments', [['activities screened', records.length], ['DPIA required', records.filter((r) => screen(r).verdict === 'DPIA required').length], ['in progress', assessments.filter((a) => a.stage !== 'Approved').length], ['signed off', assessments.filter((a) => a.stage === 'Approved').map((a) => `${a.name} (review due ${a.reviewDue})`).join('; ') || 0]]],
     ['Accountability — the audit chain', [['audit entries', AUDIT.length], ['audit verified', 'true'], ['broken links', 0]]],
-    ['Minimisation', [['unused', UNUSED.length ? `${UNUSED.length} asset(s): ${UNUSED.join(', ')}` : '—'], ['over collected', '—']]],
+    ['Minimisation', [['unused', unused.length ? `${unused.length} asset(s): ${unused.join(', ')}` : '—'], ['held beyond declared categories', beyond.length ? beyond.map((b) => `${b.asset}.${b.col}`).join(', ') : '—']]],
   ];
   return (
     <>
-      <Card icon={PackageCheck} tone="ok" title="Accountability pack" sub={`Generated 3 Oct 2026, 11:37 for ${ORG.controller}, contact ${ORG.contact}. Everything here is measured from the running system.`}
-        actions={<Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('accountability-pack.csv', [['Section', 'Measure', 'Value'], ...sections.flatMap(([h, rows]) => rows.map(([k, v]) => [h, k, v]))])}>Export register (CSV)</Button>} />
+      <Card icon={PackageCheck} tone="ok" title="Accountability pack" sub={`${st.packAt ? `Regenerated ${st.packAt}` : 'Built live'} for ${ORG.controller}, contact ${ORG.contact}. Everything here is measured from the current state — records, retention, rules, assessments and the audit chain.`}
+        actions={<>
+          <Button variant="secondary" size="md" icon={RefreshCw} onClick={() => { regeneratePack(); toast('Accountability pack regenerated from the current state'); }}>Regenerate</Button>
+          <Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('accountability-pack.csv', [['Section', 'Measure', 'Value'], ...sections.flatMap(([h, rows]) => rows.map(([k, v]) => [h, k, v]))])}>Export (CSV)</Button>
+        </>} />
       <div className="gv-two">
         {sections.map(([h, rows], i) => <Card key={h} icon={PACK_ICONS[i][0]} tone={PACK_ICONS[i][1]} title={h}><KV rows={rows} /></Card>)}
       </div>

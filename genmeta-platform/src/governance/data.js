@@ -100,6 +100,13 @@ function buildAudit() {
   return rows.reverse();
 }
 export const AUDIT = buildAudit();
+/* write a new record to the hash-chained audit log (newest first); every page reading AUDIT sees it on its next render */
+const auditListeners = new Set();
+export function writeAudit(who, role, action, category, asset, what) {
+  AUDIT.unshift({ seq: AUDIT.length + 1, ts: new Date(), who, role, action, category, asset, what });
+  auditListeners.forEach((l) => l());
+}
+export const onAudit = (cb) => { auditListeners.add(cb); return () => auditListeners.delete(cb); };
 export const fmtTs = (d) => d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
 
 export const FRAMEWORKS = [
@@ -419,7 +426,7 @@ export const POLICY_ITEMS = [
   P('obl-removal-of-publicly-named-individuals', 'obligation', 'Removal of publicly named individuals from GOV.UK and archives', 'Where legislation allows HMRC to publicly name individuals or companies (e.g. tax avoidance scheme promoters), HMRC has a duty to remove names from both the live GOV.UK site and the archives once the stipulated time period has elapsed.', '', '', 'medium', [HMRC_REC, 1]),
   P('obl-storage-limitation-for-personal-data', 'obligation', 'Storage limitation for personal data', 'Personal data processed by HMRC must not be retained for longer than is necessary for its lawful purpose.', 'UK GDPR; DPA 2018', '', 'medium', [HMRC_RET, 1], { links: [['supports', 'pol-hmrc-data-protection-and-records-policy']] }),
   P('obl-transfer-of-historic-records', 'obligation', 'Transfer of historic records to The National Archives', 'HMRC has a legal requirement to transfer records of historic interest to The National Archives within 20 years from the date the record was closed or last viewed/modified.', 'Public Records Act 1958', '', 'medium', [HMRC_REC, 1], { retention: '20 years · date the record was closed or last viewed/modified · review or destroy' }),
-  P('ret-default-hmrc-record-retention-period', 'retention', 'Default HMRC record retention period', 'The default retention period for HMRC records is 6 years after the last entry in a record, plus the current accounting year, before first review or destruction.', '', '', 'medium', [HMRC_RET, 1], { retention: '6 years · last entry in a record (plus current accounting year) · review or destroy', applies: { domains: ['Orders'] }, inherit: true }),
+  P('ret-default-hmrc-record-retention-period', 'retention', 'Default HMRC record retention period', 'The default retention period for HMRC records is 6 years after the last entry in a record, plus the current accounting year, before first review or destruction.', '', '', 'medium', [HMRC_RET, 1], { retention: '6 years · last entry in a record (plus current accounting year) · review or destroy', applies: { classifications: ['PII', 'FINANCIAL'] }, inherit: false }),
   P('ret-maximum-retention-for-historic-records', 'retention', 'Maximum retention for records of historic value', 'Records identified as having historic value may be retained for a maximum of 20 years after the last entry, plus one additional calendar year for final review and transfer or disposal.', '', '', 'medium', [HMRC_REC, 1], { retention: '20 years · last entry in the record, plus 1 calendar year for final review and transfer/disposal · review or destroy' }),
   P('ret-storage-limitation-retention-policy', 'retention', 'Storage limitation - retention policy required', 'Organisations must not keep personal information longer than needed, must justify how long they hold it, and must have a retention policy including standard retention periods set out in their privacy information.', 'Article 5 UK GDPR, principle (e)', '', 'medium', [ICO, 7]),
 ];
@@ -447,11 +454,11 @@ export const PD_MAP = [
   ['PRL.ORDER_MASTER', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT', 'MAX_RETAIL_PRICE', 'SAMPLE_SUPPLIER_NAME'], [], 'PK', 'eu-west-2 (London)', 'Orders'],
   ['STG.CUSTOMER_ORDER', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT'], ['PRL.ORDER_MASTER'], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
   ['STG.CUSTOMER_ORDER_LIVE_RPLUS', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT'], [], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
-  ['API.GET_customers', 'Rplus API (Rest API)', ['full_name', 'email', 'account_balance'], [], 'Rajesh', 'not recorded', 'Customer'],
+  ['API.GET_customers', 'Rplus API (Rest API)', ['full_name', 'email', 'account_balance', 'nino', 'ethnicity'], [], 'Rajesh', 'not recorded', 'Customer'],
   ['API.GET_customers_customerId', 'Rplus API (Rest API)', ['full_name', 'email', 'account_balance'], [], 'Rajesh', 'not recorded', 'Customer'],
   ['S3_ENR.CUSTOMER_ORDERS', 'Rplus Amazon S3', ['TOTAL_AMOUNT', 'CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE'], [], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
   ['BI.Customer 360 Dashboard', 'Rplus Reports (Power BI)', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE'], [], 'Rajesh', 'not recorded', 'Customer'],
-  ['INT.CUSTOMER', 'Rplus_DWH', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE'], ['STG.CUSTOMER_ORDER', 'STG.CUSTOMER_ORDER_LIVE_RPLUS'], 'Rajesh / Priya', 'eu-west-2 (London)', 'Customer'],
+  ['INT.CUSTOMER', 'Rplus_DWH', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE', 'NI_NUMBER', 'DISABILITY_FLAG'], ['STG.CUSTOMER_ORDER', 'STG.CUSTOMER_ORDER_LIVE_RPLUS'], 'Rajesh / Priya', 'eu-west-2 (London)', 'Customer'],
   ['INT.PART', 'Rplus_DWH', ['PART_NAME', 'RETAIL_PRICE'], ['STG.ORDER_ITEM_SUMMARY'], 'Raghav', 'eu-west-2 (London)', 'Product'],
   ['S3_CLN.CUSTOMER', 'Rplus Amazon S3', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE'], ['S3_ENR.CUSTOMER_ORDERS', 'S3_ENR.CUSTOMER_SUMMARY'], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
   ['S3_ENR.CUSTOMER_SUMMARY', 'Rplus Amazon S3', ['CUSTOMER_NAME', 'TOTAL_ORDER_AMOUNT'], [], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
@@ -460,7 +467,7 @@ export const PD_MAP = [
   ['SQL_ENR.CUSTOMER_ORDERS', 'SQL Server', ['full_name', 'amount'], [], 'Rajesh', 'not recorded', 'Customer'],
   ['SQL_ENR.CUSTOMER_SUMMARY', 'SQL Server', ['full_name', 'total_amount'], [], 'Rajesh', 'not recorded', 'Customer'],
   ['SQL_SRC.CUSTOMER', 'SQL Server', ['full_name', 'email'], ['SQL_CLN.CUSTOMER'], 'Rajesh', 'not recorded', 'Customer'],
-  ['SRC.CUSTOMER', 'Rplus_DWH', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE'], ['INT.CUSTOMER'], 'Rajesh / Priya', 'eu-west-2 (London)', 'Customer'],
+  ['SRC.CUSTOMER', 'Rplus_DWH', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE', 'NI_NUMBER'], ['INT.CUSTOMER'], 'Rajesh / Priya', 'eu-west-2 (London)', 'Customer'],
   ['SRC.PART', 'Rplus_DWH', ['PART_NAME', 'RETAIL_PRICE'], ['INT.PART'], 'Raghav', 'eu-west-2 (London)', 'Product'],
   ['STG.ORDER_ITEM_SUMMARY', 'Rplus_DWH', ['MAX_RETAIL_PRICE', 'SAMPLE_SUPPLIER_NAME'], ['PRL.ORDER_MASTER'], 'PK', 'eu-west-2 (London)', 'Orders'],
   ['STREAMING.customer-value', 'Rplus Streaming (Confluent)', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE'], [], 'Rajesh', 'not recorded', 'Customer'],
@@ -471,7 +478,10 @@ export const PD_MAP = [
   ['SRC.SUPPLIER', 'Rplus_DWH', ['SUPPLIER_NAME'], ['INT.SUPPLIER'], 'Raghav', 'eu-west-2 (London)', 'Supplier'],
 ].map(([asset, system, cols, shared, owner, region, domain]) => ({ asset, system, cols, shared, owner, region, domain, sensitivity: 'Restricted' }));
 export const MONEY = /BALANCE|AMOUNT|PRICE|amount|balance/;
-export const colKind = (c) => (MONEY.test(c) ? 'Monetary amount' : c === 'email' ? 'Email address' : 'Person name');
+export const colClass = (c) => (/NI_NUMBER|nino/i.test(c) ? 'GOVERNMENT_ID' : /DISABILITY|HEALTH|ETHNIC|RELIGION/i.test(c) ? 'SPECIAL_CATEGORY' : MONEY.test(c) ? 'FINANCIAL' : 'PII');
+export const colKind = (c) => (/NI_NUMBER|nino/i.test(c) ? 'National Insurance number (GOVERNMENT_ID)' : /DISABILITY/i.test(c) ? 'Disability / health (SPECIAL_CATEGORY, Article 9)' : /ETHNIC/i.test(c) ? 'Ethnic origin (SPECIAL_CATEGORY, Article 9)' : MONEY.test(c) ? 'Monetary amount' : c === 'email' ? 'Email address' : /NATION/.test(c) ? 'Nationality / country' : 'Person name');
+/* columns found by the classifier in harvest v13 (3 Oct), after the records of processing were drafted */
+export const NEW_COLS = ['NI_NUMBER', 'DISABILITY_FLAG', 'nino', 'ethnicity'];
 export const DPIA_TILES = [
   { l: 'Assets holding personal data', v: 25, s: '56 personal data columns' },
   { l: 'Accepted records of processing', v: 0, s: '0 draft' },
