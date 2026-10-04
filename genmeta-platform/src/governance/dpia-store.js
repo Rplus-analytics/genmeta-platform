@@ -4,6 +4,7 @@ import {
   colClass, NEW_COLS, writeAudit, onAudit, SUGGESTED_RISKS, riskLevel, LIKELIHOOD, LAWFUL_BASES, SPECIAL_CONDITIONS,
 } from './data.js';
 import { applicability, hasCriteria } from './applicability.js';
+import { linkUsedBy, getWorkflows } from './workflows.js';
 
 /* DPIA & GDPR — one in-memory store so the DPIA tabs, Governance › Overview (controls, estate dashboard)
    and the audit trail all read the same state: records of processing, assessments, the last rule run,
@@ -234,7 +235,7 @@ let st = {
   role: 'governance-lead',
   lastRun: { at: '3 Oct 2026, 11:30', by: 'scheduler' },
   packAt: null,
-  templates: [{ ...ICO_TEMPLATE, changedBy: 'ICO', changedAt: 'published guidance' }],
+  templates: [{ ...ICO_TEMPLATE, workflowId: 'wf-dpia-signoff', changedBy: 'ICO', changedAt: 'published guidance' }],
   ticked: {},
   auditN: AUDIT.length,
 };
@@ -274,6 +275,16 @@ export function copyTemplate(name) {
   st = { ...st, templates: [...st.templates, t] };
   writeAudit(who(), st.role, 'dpia.template', 'Policy actions', name, `copied “${base.name}” as the template “${name}” (v1)`);
   emit();
+}
+export function createTemplate(t, from) {
+  if (st.role !== 'governance-lead') { writeAudit(who(), st.role, 'dpia.template.refused', 'Policy actions', t.name, `tried to create the template “${t.name}” — refused: only a governance lead can create templates`); emit(); return false; }
+  const nt = { ...t, version: 'v1', changedBy: who(), changedAt: now() };
+  st = { ...st, templates: [...st.templates, nt] };
+  const wf = t.workflowId && getWorkflows().find((w) => w.id === t.workflowId);
+  if (wf) linkUsedBy(wf.id, `DPIA template › ${t.name}`);
+  writeAudit(who(), st.role, 'dpia.template', 'Policy actions', t.name, `created the template “${t.name}” v1 from ${from} — ${t.sections.length} sections, ${wf ? `sign-off workflow “${wf.name}” v${wf.version}` : `own stages ${t.stages.map(([x]) => x).join(' → ')}`}, review ${t.review} days`);
+  emit();
+  return true;
 }
 export function saveTemplate(name, next, changes) {
   if (st.role !== 'governance-lead') { writeAudit(who(), st.role, 'dpia.template.refused', 'Policy actions', name, `tried to change the template “${name}” — refused: only a governance lead can change templates`); emit(); return false; }

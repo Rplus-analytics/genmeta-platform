@@ -126,6 +126,16 @@ let workflows = [
       S('dd3', 'approval', 'Governance lead accepts residual risk', { approvers: ['governance-lead'], sla: 5, sod: true }),
       S('dd4', 'notify', 'Consult the ICO if residual risk is high', { message: 'High residual risk — ICO prior consultation required.', runIf: { field: 'Risk level', op: 'is', value: ['High'] } }),
     ] },
+  { id: 'wf-dpia-highrisk', name: 'High-risk DPIA sign-off', module: 'dpia', event: 'DPIA submitted for sign-off', status: 'active', version: 1,
+    desc: 'For DPIAs on special-category or large-scale processing: adds information assurance review and sign-off by the Senior Information Risk Owner.', updatedAt: d('2026-09-28T14:00:00'), updatedBy: 'Admin',
+    usedBy: [], outcome: { approved: 'DPIA is signed off by the SIRO; review date set from the template', rejected: 'DPIA returns to the assessor' },
+    steps: [
+      S('dh1', 'task', 'Assessor completes the assessment', { approvers: ['owner'], sla: 10, evidence: ['Every risk has a measure'] }),
+      S('dh2', 'approval', 'Information assurance review', { approvers: ['platform-ops'], sla: 5 }),
+      S('dh3', 'approval', 'DPO review and advice', { approvers: ['dpo'], sla: 10, evidence: ['DPO advice recorded'] }),
+      S('dh4', 'approval', 'SIRO accepts residual risk', { approvers: ['governance-lead'], sla: 5, sod: true }),
+      S('dh5', 'notify', 'Consult the ICO if residual risk is high', { message: 'High residual risk — ICO prior consultation required.', runIf: { field: 'Risk level', op: 'is', value: ['High'] } }),
+    ] },
   { id: 'wf-glossary-term', name: 'Glossary term approval', module: 'metadata', event: 'Glossary term proposed', status: 'active', version: 1,
     desc: 'New or changed business terms are reviewed by a steward and approved by the domain owner before they appear in the glossary.', updatedAt: d('2026-09-21T09:30:00'), updatedBy: 'Admin',
     usedBy: ['Glossary › Propose a term'], outcome: { approved: 'Term is published in the glossary', rejected: 'Term goes back to the proposer' },
@@ -243,6 +253,13 @@ export function saveWorkflow(wf, by, publish) {
   emit();
   return next;
 }
+/* record that something (e.g. a DPIA template) uses this workflow — no new version */
+export function linkUsedBy(wfId, label) {
+  workflows = workflows.map((w) => (w.id === wfId && !w.usedBy.includes(label) ? { ...w, usedBy: [...w.usedBy, label] } : w));
+  emit();
+}
+/* the stages a DPIA follows under a workflow: its task and approval steps, with the role that acts */
+export const dpiaStagesOf = (wf) => wf.steps.filter((x) => x.kind === 'task' || x.kind === 'approval').map((x) => [x.name, x.approvers[0] === 'owner' ? 'assessor' : x.approvers[0]]);
 export function newWorkflowId(name) { return `wf-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}-${Date.now().toString(36).slice(-4)}`; }
 
 export function startRequest(wfId, subject, ctx, by) {

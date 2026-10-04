@@ -12,10 +12,11 @@ import {
 } from './data.js';
 import { useFacets, ResultsHead } from './catalog.jsx';
 import RelGraph from './relgraph.jsx';
+import { useWorkflowStore } from './workflows.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, KV, downloadCsv, toast, Meter } from './kit.jsx';
 import {
   useDpia, setRole, saveRecord, runChecks, regeneratePack, startAssessment, updateAssessment, advanceAssessment, refuseAssessment,
-  copyTemplate, saveTemplate, removeTemplate, tickedFor, answerSections, parseField, TEST_USERS, currentPerson, nowText,
+  saveTemplate, removeTemplate, tickedFor, answerSections, parseField, TEST_USERS, currentPerson, nowText,
   PD_ASSETS, productsOf, modelsOf, classesOf, retentionOf, retentionText, recipientsOf, recipientsText, retentionFor, evidenceOf, beyondDeclared, specialIn,
   undeclared, ruleTotals, unusedNow, screen, INDICATOR_WEIGHT, VIEW_ROLES, ROLE_PERSON, residualOf, STEWARDED, setTicked, handlingRules,
 } from './dpia-store.js';
@@ -426,6 +427,8 @@ function whySuggested(src, rec, st) {
 }
 
 function AssessmentWorkspace({ a, st }) {
+  const navTo = useNavigate();
+  const wfAll = useWorkflowStore().workflows;
   const [sec, setSec] = useState('need');
   const [reuse, setReuse] = useState(false);
   const rec = st.records.find((r) => r.id === a.id);
@@ -466,7 +469,7 @@ function AssessmentWorkspace({ a, st }) {
         {next && <Button variant="primary" size="md" className={blockReason ? 'gv-soft-block' : ''} onClick={act}>{next[0]}</Button>}
       </>}>
       <div className="gv-steps" style={{ marginBottom: 14 }}>{stages.map((s, i) => <div key={s} className={i < stages.indexOf(a.stage) ? 'done' : s === a.stage ? 'cur' : ''}><i>{i + 1}</i>{s}</div>)}</div>
-      <KV rows={[['Record', `${rec.activity} — ${statusWord(rec.status)}`], ['Template', `${a.template} ${a.templateVersion || ''}`], ['Now with', holder(a)], ...(a.approvedAt ? [['Approved', a.approvedAt]] : []), ...(a.reviewDue ? [['Review due', a.reviewDue]] : [])]} />
+      <KV rows={[['Record', `${rec.activity} — ${statusWord(rec.status)}`], ['Template', `${a.template} ${a.templateVersion || ''}`], ...(tpl.workflowId ? [['Sign-off workflow', <a key="wf" className="tb-link" href={`${BASE}/workflows/${tpl.workflowId}`} onClick={(e) => { e.preventDefault(); navTo(`${BASE}/workflows/${tpl.workflowId}`); }}>{(wfAll.find((w) => w.id === tpl.workflowId) || {}).name || tpl.workflowId}</a>]] : []), ['Now with', holder(a)], ...(a.approvedAt ? [['Approved', a.approvedAt]] : []), ...(a.reviewDue ? [['Review due', a.reviewDue]] : [])]} />
       {blockReason && <div className="gv-callout warn" style={{ margin: '10px 0' }}><Lock size={15} /><span>{blockReason} Trying anyway is refused and logged.</span></div>}
       <Tabs items={[{ value: 'need', label: '1–4 Need & processing' }, { value: 'risks', label: `5–6 Risks & measures (${a.risks.length})` }, { value: 'sign', label: '7 Sign off' }, { value: 'people', label: 'Assignees' }, { value: 'trail', label: `Audit trail (${a.history.length})` }]} value={sec} onChange={setSec} />
       {sec === 'need' && (a.answers || []).map((s2, si) => (
@@ -558,8 +561,12 @@ const ROLE_OPTIONS = ['assessor', 'dpo', 'governance-lead', 'data-engineer'];
 const cloneTpl = (t) => ({ ...t, sections: t.sections.map(([h, d, f]) => [h, d, [...f]]), stages: t.stages.map((x) => [...x]) });
 function Templates({ st }) {
   const list = st.templates;
-  const [name, setName] = useState('');
-  const [selName, setSelName] = useState(list[0].name);
+  const nav = useNavigate();
+  const [qs] = useSearchParams();
+  const [selName, setSelName] = useState(() => (list.some((x) => x.name === qs.get('tpl')) ? qs.get('tpl') : list[0].name));
+  const fresh = qs.get('tpl');
+  const wfList = useWorkflowStore().workflows;
+  const wfOf = (x) => x.workflowId && wfList.find((w) => w.id === x.workflowId);
   const t = list.find((x) => x.name === selName) || list[0];
   const isLead = st.role === 'governance-lead';
   const editable = t.kind !== 'standard' && isLead;
@@ -584,19 +591,19 @@ function Templates({ st }) {
   const setStage = (i, v) => setDraft((o) => ({ ...o, stages: o.stages.map((s2, k) => (k === i ? v : s2)) }));
   return (
     <>
-      <Card icon={LayoutTemplate} tone="info" title="Templates" sub="The standard template follows the ICO's DPIA structure and cannot be changed. Copy it to make a departmental version — a governance lead can then change its sections, fields, workflow stages and review interval. Every save is a new version.">
-        <div className="gv-inline" style={{ marginBottom: 14, alignItems: 'flex-end' }}>
-          <Fld label="New template name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. HMRC Customer Compliance DPIA" disabled={!isLead} /></Fld>
-          <Button variant="secondary" size="md" icon={Copy} disabled={!isLead || !name.trim() || list.some((x) => x.name === name.trim())} onClick={() => { copyTemplate(name.trim()); setSelName(name.trim()); setName(''); toast(`Copied “ICO standard DPIA” as ${name.trim()} — written to the audit log`); }}>Copy “ICO standard DPIA”</Button>
+      <Card icon={LayoutTemplate} tone="info" title="Templates" count={list.length} sub="The standard template follows the ICO's DPIA structure and cannot be changed. Create a departmental template — from the ICO structure, another template or blank — and a governance lead can keep changing its sections, fields, workflow stages and review interval. Every save is a new version.">
+        <div className="gv-inline" style={{ marginBottom: 14, justifyContent: 'flex-end' }}>
+          <Button variant="primary" size="md" icon={Plus} disabled={!isLead} onClick={() => nav(`${DPIA_BASE}/templates/new`)}>New template</Button>
         </div>
         {!isLead && <div className="gv-callout warn" style={{ marginBottom: 12 }}><Lock size={15} /><span>Only a governance lead can change templates. You are viewing as {st.role}.</span></div>}
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>Template</th><th>Version</th><th className="num">Sections</th><th>Stages</th><th>Review</th><th>Last changed</th></tr></thead>
+            <thead><tr><th>Template</th><th>Version</th><th className="num">Sections</th><th>Sign-off workflow</th><th>Review</th><th>Last changed</th></tr></thead>
             <tbody>{list.map((x) => (
-              <tr key={x.name} className={`click ${x.name === t.name ? 'on' : ''}`} onClick={() => setSelName(x.name)}>
-                <td><span className="gv-strong">{x.name}</span> <span className="tag">{x.kind}</span><span className="gv-sub">{x.basis}</span></td>
-                <td>{x.version}</td><td className="num">{x.sections.length}</td><td>{x.stages.map(([s]) => s).join(' → ')}</td><td>{x.review} days</td>
+              <tr key={x.name} className={`click ${x.name === t.name ? 'on' : ''} ${x.name === fresh ? 'tb-new' : ''}`} onClick={() => setSelName(x.name)}>
+                <td><span className="gv-strong">{x.name}</span> <span className="tag">{x.kind}</span>{x.name === fresh && <span className="gv-badge ok"><i />just created</span>}<span className="gv-sub">{x.basis}</span></td>
+                <td>{x.version}</td><td className="num">{x.sections.length}</td>
+                <td>{wfOf(x) ? <button type="button" className="tb-link" onClick={(e) => { e.stopPropagation(); nav(`${BASE}/workflows/${wfOf(x).id}`); }}>{wfOf(x).name} v{wfOf(x).version}</button> : <span className="gv-muted">own stages</span>}<span className="gv-sub">{x.stages.map(([s]) => s).join(' → ')}</span></td><td>{x.review} days</td>
                 <td className="gv-muted">{x.changedBy}{x.changedAt ? `, ${x.changedAt}` : ''}</td>
               </tr>
             ))}</tbody>
@@ -605,7 +612,7 @@ function Templates({ st }) {
       </Card>
       <Card icon={FileText} tone="violet" title={`${t.name} · ${t.version}`} sub={`Last changed by ${t.changedBy || '—'}, ${t.changedAt || '—'}`}
         actions={editable && <>
-          <Button variant="secondary" size="md" onClick={() => { removeTemplate(t.name); setSelName(list[0].name); toast(`Removed the template copy “${t.name}” — written to the audit log`); }}>Remove copy</Button>
+          <Button variant="secondary" size="md" onClick={() => { removeTemplate(t.name); setSelName(list[0].name); toast(`Removed the template copy “${t.name}” — written to the audit log`); }}>Remove template</Button>
           <Button variant="primary" size="md" disabled={!dirty} onClick={() => { const v = saveTemplate(t.name, draft, changeList()); if (v) toast(`Saved ${t.name} as ${v} — written to the audit log`); }}>Save as {`v${(parseInt(t.version.replace(/\D/g, ''), 10) || 1) + 1}`}</Button>
         </>}>
         {t.kind === 'standard' && <Note>The ICO standard template is read-only. Copy it above to make a version you can change.</Note>}
@@ -613,8 +620,10 @@ function Templates({ st }) {
         <div className="gv-inline" style={{ marginBottom: 12 }}>
           <Fld label="Review every (days)"><input className="input" type="number" min={30} value={d.review} disabled={!editable} onChange={(e) => setDraft((o) => ({ ...o, review: +e.target.value }))} /></Fld>
         </div>
+        <div className="gv-section-label" style={{ marginTop: 0 }}>Sign-off workflow</div>
+        {wfOf(t) ? <p style={{ margin: '0 0 10px', fontSize: 13.5 }}><b>{wfOf(t).name}</b> v{wfOf(t).version} — {wfOf(t).steps.length} steps. <button type="button" className="tb-link" onClick={() => nav(`${BASE}/workflows/${wfOf(t).id}`)}>Open in Workflows</button></p> : <p className="gv-muted" style={{ margin: '0 0 10px', fontSize: 13.5 }}>Not linked to a workflow — uses the stages below.</p>}
         <div className="gv-section-label" style={{ marginTop: 0 }}>Stages</div>
-        {editable ? (
+        {editable && !wfOf(t) ? (
           <div className="tp-stages">
             {draft.stages.map(([s, role], i) => (
               <div key={i} className="tp-stage"><i>{i + 1}</i>
