@@ -81,9 +81,8 @@ export default function Dpia({ filters }) {
 
 /* ------------------------------------------------------------------ personal data map */
 function PersonalDataMap() {
-  const [sel, setSel] = useState(null);
+  const nav = useNavigate();
   const [f, setF] = useState({ system: 'all', domain: 'all', region: 'all' });
-  const r = sel && PD_MAP.find((x) => x.asset === sel);
   const comesFrom = (a) => PD_MAP.filter((x) => x.shared.includes(a)).map((x) => x.asset);
   const rows = PD_MAP.filter((x) => (f.system === 'all' || x.system === f.system) && (f.domain === 'all' || x.domain === f.domain) && (f.region === 'all' || x.region === f.region));
   const bySystem = [...SYSTEMS].sort().map((s) => [s, PD_MAP.filter((x) => x.system === s)]);
@@ -122,7 +121,7 @@ function PersonalDataMap() {
           <table className="tbl">
             <thead><tr><th>Asset</th><th>Personal data</th><th>Shared with</th><th>Owner / steward</th><th>Retention</th><th>Region</th></tr></thead>
             <tbody>{rows.map((x) => { const ret = retentionOf(x.asset); const used = [...productsOf(x.asset).map((p) => `product ${p}`), ...modelsOf(x.asset).map((m) => `model ${m}`)]; return (
-              <tr key={x.asset} className={`click ${sel === x.asset ? 'on' : ''}`} onClick={() => setSel(x.asset)}>
+              <tr key={x.asset} className="click" onClick={() => nav(assetPath(x.asset))}>
                 <td><Mono>{x.asset}</Mono><span className="gv-sub">{x.system} · {x.sensitivity} · {x.domain}</span></td>
                 <td><div className="gv-tags">{x.cols.map((c) => <span key={c} className={`tag mono ${colClass(c) === 'SPECIAL_CATEGORY' ? 'gv-tag-bad' : ''}`} title={colClass(c)}>{c}</span>)}</div></td>
                 <td style={{ whiteSpace: 'normal' }}>{[...x.shared, ...used].join(', ') || '—'}</td><td>{x.owner}</td>
@@ -134,27 +133,8 @@ function PersonalDataMap() {
             </tbody>
           </table>
         </div>
-        <Note>Select an asset to see where its personal data comes from and goes.</Note>
+        <Note>Select an asset to open its page — where its personal data comes from and goes.</Note>
       </Card>
-      {r && (
-        <Drawer title={r.asset} onClose={() => setSel(null)}>
-          <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 14px' }}>{r.system} · {r.sensitivity} · {classesOf(r.asset).join(', ')}</p>
-          <div className="gv-section-label" style={{ marginTop: 0 }}>Personal data</div>
-          <ul className="gv-lines">{r.cols.map((c) => <li key={c}><Mono>{c}</Mono> — {colKind(c)}</li>)}</ul>
-          <div className="gv-section-label">Where it flows</div>
-          <div className="gv-flow" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
-            <div><span>Comes from</span><b>{comesFrom(r.asset).join(', ') || '—'}</b></div>
-            <div><span>This asset</span><b>{r.asset}</b></div>
-            <div><span>Goes to</span><b>{r.shared.join(', ') || '—'}</b></div>
-          </div>
-          <div className="gv-section-label">Context</div>
-          <KV rows={[
-            ['Data products', productsOf(r.asset).join(', ') || '—'], ['Models', modelsOf(r.asset).length ? modelsOf(r.asset).map((m) => `${m} (trained on it)`).join(', ') : '—'],
-            ['Access', '0 active grant(s)'], ['Retention', retentionOf(r.asset).map((i) => `${i.title} — ${i.retention}`).join('; ') || 'no retention requirement applies'],
-            ['Held in', r.region], ['Owner / steward', `${r.owner}${STEWARDED.includes(r.asset) ? ' · steward named' : ' · no steward'}`],
-          ]} />
-        </Drawer>
-      )}
     </>
   );
 }
@@ -740,4 +720,125 @@ function ActivityFlow({ r }) {
     return { columns: cols, edges: es };
   }, [r]);
   return <RelGraph columns={columns} edges={edges} title={`Data flow — ${r.activity}`} hint="Where the personal data in this activity sits and who receives it. Hover to highlight · drag to pan." />;
+}
+
+/* ------------------------------------------------------------------ personal data map: one asset, in detail */
+export const assetPath = (a) => `${DPIA_BASE}/assets/${encodeURIComponent(a)}`;
+
+export function DpiaAssetPage() {
+  const { asset } = useParams();
+  const r = PD_MAP.find((x) => x.asset === asset);
+  if (!r) return <Navigate to={`${DPIA_BASE}?tab=map`} replace />;
+  return <AssetPage key={r.asset} r={r} />;
+}
+
+function AssetPage({ r }) {
+  const st = useDpia();
+  const nav = useNavigate();
+  const onOpen = (a) => nav(assetPath(a));
+  const [colsAll, setColsAll] = useState(false);
+  const pdx = (a) => PD_MAP.find((x) => x.asset === a);
+  const ups1 = PD_MAP.filter((x) => x.shared.includes(r.asset)).map((x) => x.asset);
+  const ups2 = [...new Set(PD_MAP.filter((x) => x.shared.some((s) => ups1.includes(s))).map((x) => x.asset))].filter((a) => !ups1.includes(a) && a !== r.asset);
+  const downs1 = r.shared;
+  const downs2 = [...new Set(downs1.flatMap((a) => pdx(a)?.shared || []))].filter((a) => !downs1.includes(a) && a !== r.asset);
+  const prods = productsOf(r.asset); const models = modelsOf(r.asset);
+  const rec = st.records.find((x) => x.assets.includes(r.asset));
+  const ret = retentionOf(r.asset);
+  const classes = classesOf(r.asset);
+  const sp = specialIn([r.asset]);
+  const rules = handlingRules(st).filter((x) => x.scope.includes(r.asset));
+  const failing = rules.filter((x) => x.fail.includes(r.asset));
+  const assetNode = (a, extra = {}) => { const x = pdx(a); return { id: a, label: a, kind: x ? x.system.split(' ')[0] : 'asset', icon: Database, sub: x ? `${x.cols.length} cols · ${classesOf(a).join(', ')}` : 'no personal data', tag: specialIn([a]).length ? 'Art. 9' : '', asset: a, ...extra }; };
+  const columns = [
+    { title: 'Upstream (2 steps)', nodes: ups2.map((a) => assetNode(a)) },
+    { title: 'Comes from', nodes: ups1.map((a) => assetNode(a)) },
+    { title: 'This asset', nodes: [assetNode(r.asset, { focus: true, flag: 'This asset' })] },
+    { title: 'Goes to', nodes: downs1.map((a) => assetNode(a)) },
+    { title: 'Then to', nodes: downs2.map((a) => assetNode(a)) },
+    { title: 'Products, models & processing', nodes: [
+      ...prods.map((p) => ({ id: `p:${p}`, label: p, kind: 'data product', icon: Package, sub: 'published' })),
+      ...models.map((m) => ({ id: `m:${m}`, label: m, kind: 'model', icon: Cpu, sub: 'trained on this data' })),
+      ...(rec ? [{ id: `r:${rec.id}`, label: rec.activity, kind: 'processing activity', icon: BookOpen, sub: statusWord(rec.status), rec: rec.id }] : []),
+    ] },
+  ];
+  const edges = [
+    ...ups2.flatMap((a) => (pdx(a)?.shared || []).filter((b) => ups1.includes(b)).map((b) => ({ s: a, t: b, rel: 'feeds' }))),
+    ...ups1.map((a) => ({ s: a, t: r.asset, rel: 'feeds' })),
+    ...downs1.map((a) => ({ s: r.asset, t: a, rel: 'feeds' })),
+    ...downs1.flatMap((a) => (pdx(a)?.shared || []).filter((b) => downs2.includes(b)).map((b) => ({ s: a, t: b, rel: 'feeds' }))),
+    ...prods.map((p) => ({ s: r.asset, t: `p:${p}`, rel: 'published in' })),
+    ...models.map((m) => ({ s: r.asset, t: `m:${m}`, rel: 'trains' })),
+    ...(rec ? [{ s: r.asset, t: `r:${rec.id}`, rel: 'recorded in' }] : []),
+  ];
+  const shownCols = colsAll ? r.cols : r.cols.slice(0, 8);
+  const facts = [
+    ['Personal data', `${r.cols.length} column(s)`, classes.join(' · '), sp.length ? 'bad' : 'info'],
+    ['Record of processing', rec ? statusWord(rec.status) : 'none', rec ? rec.activity : 'not in any record', rec?.status === 'accepted' ? 'ok' : 'warn'],
+    ['Retention', ret.length ? (ret[0].retention || '').split(' · ')[0] : 'none', ret.length ? ret[0].title : 'no rule applies', ret.length ? 'ok' : 'bad'],
+    ['Held in', r.region, r.system, r.region === 'not recorded' ? 'warn' : 'ok'],
+    ['Steward', STEWARDED.includes(r.asset) ? 'named' : 'none', `owner ${r.owner}`, STEWARDED.includes(r.asset) ? 'ok' : 'warn'],
+    ['Rules', `${rules.length - failing.length}/${rules.length} pass`, failing.length ? `${failing.length} failing` : 'all passing', failing.length ? 'bad' : 'ok'],
+  ];
+  return (
+    <div className="page asset gv pd-page fade-in">
+      <div className="asset-head">
+        <button type="button" className="icon-btn back" onClick={() => nav(`${DPIA_BASE}?tab=map`)} aria-label="Back to personal data map"><ArrowLeft size={17} /></button>
+        <div className="asset-title">
+          <div className="at-row"><h1 className="mono">{r.asset}</h1></div>
+          <div className="at-path">
+            <span><Database size={13} strokeWidth={1.75} />Personal data asset</span><span className="sep">·</span><span>DPIA &amp; GDPR › Personal data map</span>
+          </div>
+        </div>
+        <div className="head-actions">
+          {rec && <Button variant="primary" size="md" icon={BookOpen} onClick={() => nav(`${DPIA_BASE}/${rec.id}`)}>Open {rec.activity}</Button>}
+        </div>
+      </div>
+      <div className="pd-body">
+      <div className="pd-head">
+        <span className="tag">{r.system}</span><span className="tag">{r.domain}</span>
+        <StatusBadge s="bad">{r.sensitivity}</StatusBadge>
+        {classes.map((c) => <span key={c} className={`pd-cls ${CLASS_TONE[c]}`}>{c}</span>)}
+        {sp.length > 0 && <span className="gv-badge bad"><i />Article 9 data</span>}
+      </div>
+      <div className="pd-facts">
+        {facts.map(([l, v, s2, tn]) => <div key={l} className={tn}><span>{l}</span><b>{v}</b><small title={s2}>{s2}</small></div>)}
+      </div>
+
+      <div className="pd-sec-h"><h4>Where it flows</h4><small>Lineage two steps up and down, plus the products, models and processing activity that use it. Click an asset to open it.</small></div>
+      {columns.some((c) => c.nodes.length && c.title !== 'This asset')
+        ? <RelGraph minScale={0.55} columns={columns} edges={edges} onSelect={(n) => { if (n.asset && n.asset !== r.asset && pdx(n.asset)) onOpen(n.asset); else if (n.rec) nav(`${DPIA_BASE}/${n.rec}`); }} />
+        : <Empty>No lineage recorded for this asset — it neither receives from nor feeds another asset.</Empty>}
+
+      <div className="pd-two">
+        <section>
+          <div className="pd-sec-h"><h4>Personal data columns</h4><small>{r.cols.length} found by the classifier</small></div>
+          <table className="tbl pd-cols">
+            <tbody>{shownCols.map((c) => (
+              <tr key={c}><td><Mono>{c}</Mono></td><td><span className={`pd-cls ${CLASS_TONE[colClass(c)]}`}>{colClass(c)}</span></td><td className="gv-muted">{colKind(c).replace(/ \(.*\)$/, '')}</td></tr>
+            ))}</tbody>
+          </table>
+          {r.cols.length > 8 && <Button variant="link" onClick={() => setColsAll((v) => !v)}>{colsAll ? 'Show fewer' : `Show all ${r.cols.length}`}</Button>}
+        </section>
+        <section>
+          <div className="pd-sec-h"><h4>Data-handling rules</h4><small>checked for this asset now</small></div>
+          <ul className="pd-rules">
+            {rules.map((x) => { const bad = x.fail.includes(r.asset); return (
+              <li key={x.key} className={bad ? 'bad' : 'ok'}><i>{bad ? '✕' : '✓'}</i><div><b>{x.req}</b>{bad && <small>{x.finding(r.asset)}</small>}</div></li>
+            ); })}
+          </ul>
+        </section>
+      </div>
+
+      <div className="pd-sec-h"><h4>Governance</h4></div>
+      <KV rows={[
+        ['Record of processing', rec ? <span key="r">{rec.activity} — {statusWord(rec.status)} · {basisLabel(rec.basis)}</span> : 'not in any record'],
+        ['Article 9 condition', sp.length ? (rec && rec.special !== 'not_applicable' ? SPECIAL_CONDITIONS.find(([k]) => k === rec.special)[1] : <StatusBadge key="a9" s="bad">none recorded — needed for {sp.map((x) => x.col).join(', ')}</StatusBadge>) : 'not applicable'],
+        ['Retention', ret.map((i) => `${i.title} — ${i.retention}`).join('; ') || 'no retention requirement applies'],
+        ['Data products', prods.join(', ') || '—'], ['Models trained on it', models.join(', ') || '—'],
+        ['Access', '0 active grant(s)'], ['Owner / steward', `${r.owner}${STEWARDED.includes(r.asset) ? ' · steward named' : ' · no steward'}`],
+      ]} />
+      </div>
+    </div>
+  );
 }
