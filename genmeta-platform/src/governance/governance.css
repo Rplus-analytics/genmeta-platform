@@ -791,3 +791,17 @@
 .gv-tier-save p, .gv-tier-b > p { margin: 0; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
 .gv-saved { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--gv-ok); }
 @media (max-width: 900px) { .gv-stage-b, .gv-tiered-top { grid-template-columns: 1fr; } }
+
+/* Policies — Claude proposal, relationship remove, wide map */
+.gv-proposal { border: 1px solid var(--gv-violet-line); background: var(--gv-violet-bg); border-radius: var(--r-ctl); padding: 12px 14px; margin: 0 0 12px; font-size: 13px; line-height: 1.55; }
+.gv-x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 4px; vertical-align: middle; border-radius: 4px; }
+.gv-x:hover { color: var(--gv-bad, #C0362C); background: var(--ice); }
+.gv-mapwrap { overflow-x: auto; }
+.gv-mapwrap .gv-map { min-width: 900px; height: auto; }
+.gv-why { font-size: 12px; color: var(--muted); }
+.gv-banner { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; padding: 10px 12px; border-radius: var(--r-ctl); font-size: 13px; line-height: 1.5; border: 1px solid var(--gv-info-line); background: var(--gv-info-bg); color: var(--navy); }
+.gv-banner svg { flex: none; margin-top: 2px; color: var(--gv-info); }
+.gv-banner.ok { border-color: var(--gv-ok-line); background: var(--gv-ok-bg); }
+.gv-banner.ok svg { color: var(--gv-ok); }
+.gv-banner.warn { border-color: var(--gv-warn-line); background: var(--gv-warn-bg); }
+.gv-banner.warn svg { color: var(--gv-warn); }
