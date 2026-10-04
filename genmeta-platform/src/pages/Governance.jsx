@@ -5,6 +5,7 @@ import InnerLayout from '../components/InnerLayout.jsx';
 import { BASE } from '../governance/data.js';
 import { Toaster, SubNav } from '../governance/kit.jsx';
 import Stewardship from '../governance/Stewardship.jsx';
+import RegisterModel from '../governance/RegisterModel.jsx';
 import GovernanceOverview from '../governance/Overview.jsx';
 import Policies from '../governance/Policies.jsx';
 import Dpia from '../governance/Dpia.jsx';
@@ -49,6 +50,7 @@ export default function Governance() {
       <Routes>
         <Route index element={<GovernanceOverview />} />
         <Route path="models" element={<ModelCatalogue state={models} />} />
+        <Route path="models/register" element={<RegisterModel base={MODELS_BASE} onRegistered={models.refresh} />} />
         <Route path="models/:modelId" element={<ModelPage />} />
         <Route path="dpia" element={<DpiaAndPolicies />} />
         <Route path="policies" element={<Navigate to={`${BASE}/dpia?view=policies`} replace />} />

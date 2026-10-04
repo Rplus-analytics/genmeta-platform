@@ -676,3 +676,86 @@
 .gv-stw .gv-reg td:first-child { min-width: 230px; }
 .gv-stw .gv-reg td:first-child .gv-strong { word-break: normal; overflow-wrap: anywhere; }
 .gv-stw-wrap-pad, .gv .gv-scroll .tbl td:last-child { padding-right: 14px; }
+
+/* ---------- Register an external AI model (guided flow) ---------- */
+.gv-wiz { gap: 0; }
+.gv-wiz-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-bottom: 14px; }
+.gv-wiz-top h1 { margin: 2px 0 0; font-size: 20px; font-weight: 600; color: var(--navy); letter-spacing: -.01em; }
+.gv-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--royal); }
+.gv-wiz-top .btn svg:last-child { margin-left: 4px; }
+.gv-wiz-bar { height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 24px; }
+.gv-wiz-bar i { display: block; height: 100%; background: var(--royal); transition: width .25s; }
+.gv-wiz-body { display: grid; grid-template-columns: 240px minmax(0, 760px); gap: 40px; justify-content: center; align-items: start; }
+@media (max-width: 1000px) { .gv-wiz-body { grid-template-columns: 1fr; } }
+.gv-wiz-steps { list-style: none; margin: 0; padding: 8px 0 0; position: sticky; top: 90px; }
+.gv-wiz-steps li { position: relative; padding-bottom: 26px; }
+.gv-wiz-steps li:not(:last-child)::after { content: ''; position: absolute; left: 14px; top: 32px; bottom: 2px; width: 2px; background: var(--line); }
+.gv-wiz-steps li.done:not(:last-child)::after { background: var(--gv-ok); }
+.gv-wiz-steps button { display: flex; align-items: center; gap: 14px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-align: left; }
+.gv-wiz-steps button:disabled { cursor: default; }
+.gv-wiz-steps i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--white); border: 1.5px solid var(--line2); flex: none; }
+.gv-wiz-steps span { font-size: 14px; color: var(--muted); font-weight: 500; }
+.gv-wiz-steps li.cur i { border-color: var(--royal); color: var(--royal); box-shadow: 0 0 0 4px rgba(68, 125, 230, .12); }
+.gv-wiz-steps li.cur span { color: var(--navy); font-weight: 600; }
+.gv-wiz-steps li.done i { background: var(--gv-ok); border-color: var(--gv-ok); color: var(--white); }
+.gv-wiz-steps li.done span { color: var(--navy); }
+.gv-wiz-card { padding: 24px 26px; }
+.gv-wiz-form { display: flex; flex-direction: column; gap: 16px; }
+.gv-wiz-form .input, .gv-wiz-form .select { width: 100%; }
+.gv-wiz-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.gv-wiz-two .input, .gv-wiz-two .select { width: 100%; }
+.gv-wiz-hint { margin: -6px 0 0; font-size: 12.5px; color: var(--muted); background: var(--tint2); border-radius: 8px; padding: 8px 12px; }
+.gv-wiz-h { margin: 0 0 4px; font-size: 15px; color: var(--navy); }
+.gv-owners { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 38px; padding: 4px 34px 4px 8px; border: 1px solid var(--line2); border-radius: var(--r-ctl); background: var(--white); }
+.gv-owners input { flex: 1; min-width: 160px; border: 0; outline: 0; font: inherit; font-size: 13px; background: none; height: 28px; }
+.gv-owners-c { position: absolute; right: 10px; color: var(--faint); }
+.gv-ownchip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--tint); color: var(--navy); font-size: 12.5px; font-weight: 500; }
+.gv-ownchip button { border: 0; background: none; padding: 2px; display: grid; color: var(--muted); cursor: pointer; }
+.gv-picklist { display: flex; flex-direction: column; gap: 10px; max-height: 56vh; overflow-y: auto; padding-right: 4px; }
+.gv-pick { display: flex; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--white); transition: border-color .15s, box-shadow .15s; }
+.gv-pick:hover { border-color: rgba(68, 125, 230, .4); }
+.gv-pick.on { border-color: var(--royal); box-shadow: 0 0 0 3px rgba(68, 125, 230, .1); }
+.gv-pick input { margin-top: 3px; accent-color: var(--royal); }
+.gv-pick > div { flex: 1; min-width: 0; }
+.gv-pick-t { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--royal); }
+.gv-pick-t b { color: var(--royal); font-weight: 600; font-size: 14px; }
+.gv-pick-v { color: var(--gv-ok); }
+.gv-pick p { margin: 6px 0 0; font-size: 13px; color: var(--text); line-height: 1.5; }
+.gv-ethics h2 { margin: 0 0 6px; font-size: 17px; color: var(--navy); }
+.gv-ethics > p { margin: 0 0 8px; font-size: 13px; }
+.gv-ethic { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; align-items: start; padding: 16px 0; border-top: 1px solid var(--line); }
+.gv-ethic b { color: var(--navy); font-size: 14px; }
+.gv-ethic p { margin: 4px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.gv-esel { position: relative; }
+.gv-esel-b { width: 100%; display: flex; justify-content: space-between; align-items: center; height: 38px; padding: 0 12px; border: 1px solid var(--line2); border-radius: var(--r-ctl); background: var(--white); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }
+.gv-esel-b.open { border-color: var(--royal); box-shadow: 0 0 0 3px rgba(68, 125, 230, .12); }
+.gv-esel-m { position: absolute; z-index: 30; right: 0; top: calc(100% + 6px); width: 300px; list-style: none; margin: 0; padding: 6px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 35, 70, .14); }
+.gv-esel-m button { width: 100%; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; border: 0; border-radius: 7px; background: none; cursor: pointer; font: inherit; }
+.gv-esel-m button:hover, .gv-esel-m button.on { background: var(--tint2); }
+.gv-esel-m small { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.gv-etone { font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.gv-etone i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.gv-etone.ok { color: var(--gv-ok); } .gv-etone.warn { color: var(--gv-warn); } .gv-etone.bad { color: var(--gv-bad); } .gv-etone.neutral { color: var(--muted); }
+.gv-rev { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+.gv-rev-sum, .gv-rev-eth { border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.gv-rev h3 { margin: 0 0 12px; font-size: 14px; color: var(--navy); }
+.gv-rev-big { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.gv-rev-big b { display: block; color: var(--navy); font-size: 15px; }
+.gv-rev-big small { color: var(--muted); font-size: 12.5px; }
+.gv-rev-row { margin-bottom: 10px; }
+.gv-rev-row span, .gv-rev-lbl { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.gv-rev-row p { margin: 0; font-size: 13.5px; color: var(--text); }
+.gv-rev-lbl { margin: 14px 0 6px; }
+.gv-rev-meta { border-top: 1px solid var(--line); }
+.gv-rev-meta > button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 0; border: 0; background: none; font: inherit; font-size: 13px; color: var(--navy); cursor: pointer; text-align: left; }
+.gv-rev-meta > button span { flex: 1; }
+.gv-rev-meta.open > button svg:last-child { transform: rotate(180deg); }
+.gv-rev-meta dl { display: grid; grid-template-columns: 170px 1fr; gap: 6px 12px; margin: 0 0 12px; font-size: 13px; }
+.gv-rev-meta dt { color: var(--muted); }
+.gv-rev-meta dd { margin: 0; color: var(--text); }
+.gv-rev-eth > div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 13px; border-top: 1px solid var(--line); }
+.gv-rev-eth > div:first-of-type { border-top: 0; }
+.gv-rev-eth span { color: var(--muted); }
+.gv-rev-eth b { text-align: right; }
+@media (max-width: 900px) { .gv-rev, .gv-wiz-two, .gv-ethic { grid-template-columns: 1fr; } }
+.gv-rev-eth b, .gv-etone { white-space: nowrap; }
