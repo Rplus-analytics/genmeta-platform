@@ -10,6 +10,8 @@ import { Button } from '../components/ui.jsx';
 
 /* Icon + colour for every KPI tile in the section, keyed by its label (old UI used coloured icon cards). */
 const TILE_LOOK = {
+  'Classification reviews': [Tags, 'violet'], 'Ownership gaps': [UserX, 'bad'], 'Sensitive assets': [ShieldAlert, 'warn'], Sources: [Database, 'info'], 'Assets assessed': [Layers, 'teal'],
+  'Assets in the register': [Layers, 'info'], 'Steward coverage': [UserCheck, 'warn'], 'Open quality issues': [AlertTriangle, 'bad'], 'Tasks in the queue': [ListChecks, 'violet'],
   'Audit integrity': [Fingerprint, 'ok'], 'Sensitive coverage': [Lock, 'warn'], Classification: [ShieldCheck, 'info'], Constitution: [Layers, 'violet'],
   'Sources governed': [Database, 'info'], 'Compliance posture': [Scale, 'warn'],
   'Models governed': [Boxes, 'info'], 'Model versions': [GitBranch, 'violet'], 'In validation or approval': [Clock, 'warn'], 'In production': [CheckCircle2, 'ok'], 'Open breach alerts': [BellRing, 'bad'],

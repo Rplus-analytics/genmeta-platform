@@ -20,7 +20,7 @@ const srcLabel = (s) => (s ? `${s[0]} · p${s[1]}` : 'Manual');
 const domainOf = (a) => PD_MAP.find((r) => r.asset === a)?.domain
   || (/LINEITEM|ORDERS|orders|Revenue/.test(a) ? 'Orders' : /PART/.test(a) ? 'Product' : /NATION/.test(a) ? 'Reference' : /SUPPLIER|Supplier/.test(a) ? 'Supplier' : 'Customer');
 
-export default function Policies() {
+export default function Policies({ switcher }) {
   const [tab, setTab] = useState('library');
   const [items, setItems] = useState(POLICY_ITEMS);
   const [pending, setPending] = useState(EXTRACTED_PENDING);
@@ -35,6 +35,7 @@ export default function Policies() {
     <div className="page gv">
       <PageHead eyebrow="Govern" title="Policies"
         sub="Create and extract policies, standards, controls, regulatory obligations and retention requirements; see where each applies across tax regimes, processes, systems and data; track coverage, compliance, exceptions and risk." />
+      {switcher}
       <Tiles items={[
         ...POLICY_TYPES.map((t) => ({ l: POLICY_TYPE_LABEL[t], v: counts[t], s: 'in the library' })),
         { l: 'Extracted, awaiting review', v: pending.length, s: `from ${docs.length} document(s)` },

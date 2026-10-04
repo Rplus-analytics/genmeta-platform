@@ -1,9 +1,10 @@
-import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Landmark, ShieldCheck, ScrollText, KeyRound, Bot } from 'lucide-react';
+import { NavLink, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users } from 'lucide-react';
 import { GOVERNANCE_NAV } from '../nav.js';
 import InnerLayout from '../components/InnerLayout.jsx';
 import { BASE } from '../governance/data.js';
-import { Toaster } from '../governance/kit.jsx';
+import { Toaster, SubNav } from '../governance/kit.jsx';
+import Stewardship from '../governance/Stewardship.jsx';
 import GovernanceOverview from '../governance/Overview.jsx';
 import Policies from '../governance/Policies.jsx';
 import Dpia from '../governance/Dpia.jsx';
@@ -11,9 +12,22 @@ import Access from '../governance/Access.jsx';
 import { ModelCatalogue, ModelPage, ModelFiltersPanel, useModelFilters, MODELS_BASE } from '../governance/Models.jsx';
 import '../governance/governance.css';
 
-const ICONS = { Landmark, ShieldCheck, ScrollText, KeyRound, Bot };
+const ICONS = { Landmark, ShieldCheck, ScrollText, KeyRound, Bot, Users };
 
-/* Govern › Governance: inner vertical menu (Governance overview, AI model governance, Policies, DPIA, Access),
+/* DPIA and policies share one menu item; a switch under the page title moves between them. */
+function DpiaAndPolicies() {
+  const [sp, setSp] = useSearchParams();
+  const view = sp.get('view') === 'policies' ? 'policies' : 'dpia';
+  const switcher = (
+    <SubNav value={view} onChange={(v) => setSp(v === 'policies' ? { view: 'policies' } : {})} items={[
+      { value: 'dpia', label: 'DPIA & GDPR' },
+      { value: 'policies', label: 'Policies' },
+    ]} />
+  );
+  return view === 'policies' ? <Policies switcher={switcher} /> : <Dpia switcher={switcher} />;
+}
+
+/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & policies, Access & RBAC, Stewardship),
    docked to the sidebar like Admin and Data assets. Each section keeps its own tabs. */
 export default function Governance() {
   const { pathname } = useLocation();
@@ -36,8 +50,9 @@ export default function Governance() {
         <Route index element={<GovernanceOverview />} />
         <Route path="models" element={<ModelCatalogue state={models} />} />
         <Route path="models/:modelId" element={<ModelPage />} />
-        <Route path="policies" element={<Policies />} />
-        <Route path="dpia" element={<Dpia />} />
+        <Route path="dpia" element={<DpiaAndPolicies />} />
+        <Route path="policies" element={<Navigate to={`${BASE}/dpia?view=policies`} replace />} />
+        <Route path="stewardship" element={<Stewardship />} />
         <Route path="access" element={<Access />} />
         <Route path="*" element={<Navigate to={BASE} replace />} />
       </Routes>

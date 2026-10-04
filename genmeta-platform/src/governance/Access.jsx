@@ -31,7 +31,7 @@ export default function Access() {
     : [{ l: 'Roles', v: ROLES.length, s: '0 defined here' }, { l: 'Role assignments', v: assign.length, s: `${synced ? assign.length : 0} from the directory` }, { l: 'Scopes', v: scopes.length, s: `${new Set(scopes.map((s) => s.level)).size} level(s) in use` }, { l: 'Identities synchronised', v: synced ? 7 : 0, s: synced ? `last ${synced}` : 'not yet synchronised' }];
   return (
     <div className="page gv">
-      <PageHead eyebrow="Govern" title="Access"
+      <PageHead eyebrow="Govern" title="Access & RBAC"
         sub="Who may see what, and why: roles carrying a clearance, permissions held at system, dataset, table, column or report level, duties that may not be combined, and decisions made from the data's classification and the context of the request." />
       <Tabs items={TABS} value={tab} onChange={setTab} />
       <Tiles items={top} />

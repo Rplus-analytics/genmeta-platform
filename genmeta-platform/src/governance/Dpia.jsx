@@ -31,7 +31,7 @@ const proposal = (d) => {
   };
 };
 
-export default function Dpia() {
+export default function Dpia({ switcher }) {
   const [tab, setTab] = useState('map');
   const [records, setRecords] = useState(() => ROPA_DOMAINS.map(proposal));
   const [assessments, setAssessments] = useState([]);
@@ -52,6 +52,7 @@ export default function Dpia() {
     <div className="page gv">
       <PageHead eyebrow="Govern" title="DPIA & GDPR"
         sub="Where personal data is identified, processed, stored and shared; the records of processing and the basis for each; the rules that govern personal data, monitored; and the impact assessments behind them." />
+      {switcher}
       <div className="gv-path" role="list" aria-label="Path to accountability">
         {path.map(([k, t, s, done], i) => (
           <button key={k} type="button" role="listitem" className={`${done ? 'done' : ''} ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>

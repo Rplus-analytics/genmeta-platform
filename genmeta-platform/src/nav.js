@@ -27,11 +27,11 @@ export const NAV = [
 
 /* Inner menu for the Governance section (Govern › Governance). */
 export const GOVERNANCE_NAV = [
-  { to: '', label: 'Governance overview', icon: 'Landmark' },
+  { to: '', label: 'Overview', icon: 'Landmark' },
   { to: 'models', label: 'AI model governance', icon: 'Bot' },
-  { to: 'policies', label: 'Policies', icon: 'ShieldCheck' },
-  { to: 'dpia', label: 'DPIA', icon: 'ScrollText' },
-  { to: 'access', label: 'Access', icon: 'KeyRound' },
+  { to: 'dpia', label: 'DPIA & policies', icon: 'ScrollText' },
+  { to: 'access', label: 'Access & RBAC', icon: 'KeyRound' },
+  { to: 'stewardship', label: 'Stewardship', icon: 'Users' },
 ];
 
 /* Left-hand rail inside Admin. `section` starts a labelled sub-group. */
@@ -59,7 +59,7 @@ export const ADMIN_CRUMBS = {
   'sso/configure': 'SSO configure', 'sso/mapping': 'SSO group mapping',
 };
 NAV.find((n) => n.to === '/app/admin').crumbs = ADMIN_CRUMBS;
-NAV.find((n) => n.to === '/app/governance').crumbs = { models: 'AI model governance', policies: 'Policies', dpia: 'DPIA', access: 'Access' };
+NAV.find((n) => n.to === '/app/governance').crumbs = { models: 'AI model governance', dpia: 'DPIA & policies', policies: 'DPIA & policies', access: 'Access & RBAC', stewardship: 'Stewardship' };
 
 /* Is this path part of the Data assets section? */
 export const isDataAssets = (pathname) => DATA_ASSETS_NAV.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));
