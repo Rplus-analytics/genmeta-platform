@@ -7,6 +7,7 @@ import {
 import { BY_KEY } from '../catalogue/model.js';
 import { RISK_TIERS, MODEL_ALERTS, MODEL_MONITORING } from './data.js';
 import { StatusBadge, Fld } from './kit.jsx';
+import { WORKFLOW_STAGES, templateFor, useTemplates } from './tiers.js';
 import { ETHICS } from './RegisterModel.jsx';
 
 /* Pieces of the AI model page:
@@ -19,12 +20,14 @@ const stageTone = (s) => (s === 'In production' ? 'ok' : s === 'Retired' || s ==
 const latest = (m) => m.versionRows[m.versionRows.length - 1];
 
 /* ---------------------------------------------------------------- governance checklist (from the old UI's workflow) */
-export const CHECKLIST = [
-  ['Registration', ['Model card completed', 'Accountable owner named', 'Intended use and limits stated']],
-  ['Validation', ['Performance validated on held-out data', 'Bias assessed across protected groups', 'Explainability reviewed', 'Independent validator (not the developer)']],
-  ['Approval', ['DPIA screening completed', 'UK GDPR Article 22 assessment', 'Model risk sign-off']],
-  ['Periodic review', ['Drift and bias results reviewed', 'Performance still acceptable', 'Continued business need confirmed']],
-];
+/* the checklist comes from the workflow template of the model's risk tier (MLG-06), so editing a
+   template in "Risk tiers & review policy" changes every model page straight away */
+const STAGE_LABEL = { Registered: 'Registration' };
+export const checklistFor = (risk) => {
+  const t = templateFor(risk);
+  return WORKFLOW_STAGES.map((s) => [STAGE_LABEL[s] || s, t.stages[s].evidence, t.stages[s].roles]);
+};
+const REQUIRED_STAGES = ['Registration', 'Validation', 'Approval'];
 /* a check counts as done when its latest event is "Completed" (a later "Reopened" undoes it) */
 export function checkState(ver) {
   const st = {};
@@ -40,8 +43,10 @@ const validatorOf = (m) => m.versionRows.flatMap((r) => r.history).find((h) => /
 export function ModelOverview({ m, onChange, goLineage }) {
   const nav = useNavigate();
   const ver = latest(m);
+  useTemplates();
+  const CHECKLIST = checklistFor(m.risk);
   const st = checkState(ver);
-  const required = CHECKLIST.slice(0, 3).flatMap(([, xs]) => xs);
+  const required = CHECKLIST.filter(([s]) => REQUIRED_STAGES.includes(s)).flatMap(([, xs]) => xs);
   const done = required.filter((c) => st[c]?.done).length;
   const score = Math.round((done / required.length) * 100);
   const [pane, setPane] = useState('checklist');
@@ -81,11 +86,11 @@ export function ModelOverview({ m, onChange, goLineage }) {
 
           {pane === 'checklist' && (
             <div className="gv-cl">
-              {CHECKLIST.map(([stage, items]) => {
+              {CHECKLIST.map(([stage, items, roles]) => {
                 const n = items.filter((c) => st[c]?.done).length;
                 return (
                   <div key={stage} className="gv-cl-g">
-                    <div className="gv-cl-h"><b>{stage}</b><span className={n === items.length ? 'ok' : n ? 'warn' : ''}>{n} of {items.length}</span></div>
+                    <div className="gv-cl-h"><b>{stage} <small className="gv-faint" style={{ fontWeight: 400 }}>· signed off by {roles.join(', ') || '—'}</small></b><span className={n === items.length ? 'ok' : n ? 'warn' : ''}>{n} of {items.length}</span></div>
                     <ul className="checks">
                       {items.map((c) => (
                         <li key={c} className={st[c]?.done ? 'ok' : ''}>
@@ -97,7 +102,7 @@ export function ModelOverview({ m, onChange, goLineage }) {
                   </div>
                 );
               })}
-              <p className="gv-faint" style={{ margin: 0, fontSize: 12 }}>From the governance workflow of {ver.v}. Periodic review checks do not count towards the score.</p>
+              <p className="gv-faint" style={{ margin: 0, fontSize: 12 }}>Evidence comes from the {m.risk.toLowerCase()} workflow template (Risk tiers & review policy); completions come from the history of {ver.v}. In production and periodic review checks do not count towards the score.</p>
             </div>
           )}
 
@@ -167,7 +172,9 @@ export function ModelOverview({ m, onChange, goLineage }) {
 }
 
 function ModelSide({ m, ver, st, validator, onChange }) {
+  useTemplates();
   const tier = RISK_TIERS.find(([r]) => r === m.risk);
+  const approval = templateFor(m.risk).stages.Approval.evidence;
   const open = MODEL_ALERTS.filter((a) => a.model === m.id && a.state === 'open').length;
   const mon = MODEL_MONITORING[m.id];
   const src = ver.lineage.find((c) => c.stage === 'Source data');
@@ -195,7 +202,7 @@ function ModelSide({ m, ver, st, validator, onChange }) {
       <section><h4>AI model registry</h4><div className="chips">{m.foundIn.map((r) => <span key={r} className="term">{r}</span>)}</div></section>
       <section>
         <h4>Assessments</h4>
-        {['DPIA screening completed', 'UK GDPR Article 22 assessment', 'Model risk sign-off'].map((c) => (
+        {approval.map((c) => (
           <p key={c} className="termrow"><span className={`gv-badge ${st[c]?.done ? 'ok' : 'neutral'}`}><i />{c.replace(' completed', '')}</span><small>{st[c]?.done ? 'done' : 'not recorded'}</small></p>
         ))}
       </section>

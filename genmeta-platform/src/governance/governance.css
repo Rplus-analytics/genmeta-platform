@@ -759,3 +759,35 @@
 .gv-rev-eth b { text-align: right; }
 @media (max-width: 900px) { .gv-rev, .gv-wiz-two, .gv-ethic { grid-template-columns: 1fr; } }
 .gv-rev-eth b, .gv-etone { white-space: nowrap; }
+
+/* ---------- Risk tiers & review policy — workflow template editor (MLG-06) ---------- */
+.gv-tiered-top { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; align-items: end; margin-bottom: 12px; }
+.gv-tiered-top p { margin: 0; font-size: 13px; }
+.gv-tiered-top .select { width: 100%; }
+.gv-tiers { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.gv-tier { padding: 0; overflow: visible; border-left: 3px solid var(--line2); }
+.gv-tier.bad { border-left-color: var(--gv-bad); } .gv-tier.warn { border-left-color: #E08A12; } .gv-tier.ok { border-left-color: var(--gv-ok); }
+.gv-tier-h { width: 100%; display: grid; grid-template-columns: 16px auto auto 1fr; grid-template-areas: "ic band sum sum" ". desc desc saved"; column-gap: 10px; row-gap: 4px; align-items: center; padding: 14px 16px; border: 0; background: none; text-align: left; cursor: pointer; font: inherit; }
+.gv-tier-h .gv-collapse-ic { grid-area: ic; }
+.gv-tier-h .gv-riskband { grid-area: band; }
+.gv-tier-sum { grid-area: sum; font-size: 13.5px; font-weight: 600; color: var(--navy); }
+.gv-tier-desc { grid-area: desc; font-size: 12.5px; color: var(--muted); }
+.gv-tier-saved { grid-area: saved; font-size: 11.5px; text-align: right; }
+.gv-tier.open .gv-collapse-ic { transform: rotate(90deg); }
+.gv-tier.open .gv-tier-h { border-bottom: 1px solid var(--line); }
+.gv-tier-b { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.gv-tier-nums { display: grid; grid-template-columns: 200px 200px; gap: 16px; }
+.gv-tier-nums .input { width: 100%; }
+.gv-stages { display: flex; flex-direction: column; gap: 10px; }
+.gv-stage { border: 1px solid var(--line); border-radius: 10px; background: var(--white); }
+.gv-stage-h { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--tint2); border-radius: 10px 10px 0 0; }
+.gv-stage-h i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11.5px; font-weight: 600; background: var(--navy); color: var(--white); flex: none; }
+.gv-stage-h b { color: var(--navy); font-size: 13.5px; }
+.gv-stage-h .gv-faint { margin-left: auto; font-size: 12px; }
+.gv-stage-b { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; padding: 12px; }
+.gv-tier-b .gv-ta { width: 100%; line-height: 1.55; }
+.gv-tier-b .input:disabled, .gv-tier-b textarea:disabled { background: var(--mist); color: var(--text); cursor: not-allowed; opacity: 1; }
+.gv-tier-save { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+.gv-tier-save p, .gv-tier-b > p { margin: 0; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.gv-saved { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--gv-ok); }
+@media (max-width: 900px) { .gv-stage-b, .gv-tiered-top { grid-template-columns: 1fr; } }
