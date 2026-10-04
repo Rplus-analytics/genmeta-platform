@@ -170,7 +170,10 @@ function RopaForm({ rec, role, onSave }) {
   const [f, setF] = useState({ ...rec, recipients: rec.recipients || recipientsText(rec.assets), retention: rec.retention || retentionFor(rec.assets) });
   const [hist, setHist] = useState(false);
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }));
-  const canAccept = role === 'governance-lead';
+  const isLead = role === 'governance-lead';
+  const needs9 = specialIn(f.assets).length > 0 && f.special === 'not_applicable';
+  const canAccept = isLead && !needs9;
+  const whyNot = !isLead ? 'Only a governance lead can accept' : needs9 ? 'Choose an Article 9 condition first — this activity holds special-category data' : '';
   const beyond = beyondDeclared(f);
   const sp = specialIn(f.assets);
   const missing = [...new Set(beyond.map((b) => b.cls))];
@@ -178,9 +181,9 @@ function RopaForm({ rec, role, onSave }) {
   return (
     <Card icon={FileCheck2} tone="info" title="Record of processing (Article 30)" sub={rec.status === 'proposed' ? 'Drafted by Claude from the evidence — review, edit and accept.' : `Status: ${rec.status}.`}
       actions={<><Button variant="secondary" size="md" onClick={() => onSave(f, 'draft')}>Save draft</Button>
-        <Button variant="primary" size="md" icon={canAccept ? undefined : Lock} disabled={!canAccept} onClick={() => onSave(f, 'accepted')} title={canAccept ? '' : 'Only a governance lead can accept'}>{rec.status === 'accepted' ? 'Save and keep accepted' : 'Accept record'}</Button></>}>
-      {!canAccept && <div className="gv-callout info" style={{ marginBottom: 12 }}><Lock size={15} /><span>You are viewing as <b>{role}</b>. Only a <b>governance-lead</b> can accept a record of processing — switch “Viewing as (test)” at the top of the page.</span></div>}
-      {sp.length > 0 && f.special === 'not_applicable' && <div className="gv-callout bad" style={{ marginBottom: 12 }}><AlertTriangle size={15} /><span>This activity holds special-category data ({sp.map((x) => `${x.asset}.${x.col}`).join(', ')}). Choose an Article 9 condition before accepting.</span></div>}
+        <Button variant="primary" size="md" icon={canAccept ? undefined : Lock} disabled={!canAccept} onClick={() => onSave(f, 'accepted')} title={whyNot}>{rec.status === 'accepted' ? 'Save and keep accepted' : 'Accept record'}</Button></>}>
+      {!isLead && <div className="gv-callout info" style={{ marginBottom: 12 }}><Lock size={15} /><span>You are viewing as <b>{role}</b>. Only a <b>governance-lead</b> can accept a record of processing — switch “Viewing as (test)” at the top of the page.</span></div>}
+      {sp.length > 0 && f.special === 'not_applicable' && <div className="gv-callout bad" style={{ marginBottom: 12 }}><AlertTriangle size={15} /><span>This activity holds special-category data ({sp.map((x) => `${x.asset}.${x.col}`).join(', ')}). Choose an Article 9 condition — <b>Accept record</b> stays disabled until you do.</span></div>}
       {missing.length > 0 && <div className="gv-callout warn" style={{ marginBottom: 12 }}><AlertTriangle size={15} /><span>Held but not declared: {missing.join(', ')} ({beyond.map((b) => `${b.asset}.${b.col}`).join(', ')}). <Button variant="link" onClick={() => setF((o) => ({ ...o, categories: [...o.categories.split('\n').filter(Boolean), ...missing].join('\n') }))}>Add to categories</Button></span></div>}
       <div className="gv-form">
         <div className="full"><Fld label="Activity"><input className="input" value={f.activity} onChange={set('activity')} /></Fld></div>
@@ -378,7 +381,7 @@ function AssessmentWorkspace({ a, st }) {
   const noMeasure = a.risks.filter((r) => !r.measure.trim());
   const wrongRole = next && st.role !== next[2] && !(next[2] === 'assessor' && st.role === 'governance-lead');
   const blockReason = !next ? '' : wrongRole ? `Only the ${next[2]} can do this — you are viewing as ${st.role}.`
-    : a.stage === 'Completion' && (!a.risks.length || noMeasure.length) ? (a.risks.length ? `Every risk needs a measure first — ${noMeasure.length} without one.` : 'Record at least one risk first.')
+    : (a.stage === 'Completion' || a.stage === 'DPO review') && (!a.risks.length || noMeasure.length) ? (a.risks.length ? `Every risk needs a measure — ${noMeasure.map((r) => `“${r.t}”`).join(', ')}` : 'Record at least one risk first.')
       : a.stage === 'Approval' && (!a.advice.trim() || !a.acceptedBy.trim() || a.risks.some((r) => !r.approved)) ? 'To approve: add DPO advice and who accepts the residual risk, and approve every measure.' : '';
   const earlier = [...EARLIER_RISKS, ...st.assessments.filter((x) => x.id !== a.id).flatMap((x) => x.risks.map((r) => [x.name, r.t, r.l, r.s, r.measure]))]
     .filter(([, t]) => !a.risks.some((r) => r.t === t));
