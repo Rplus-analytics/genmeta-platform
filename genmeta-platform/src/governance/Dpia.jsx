@@ -489,27 +489,75 @@ function Pack({ st }) {
   const unused = unusedNow();
   const sp = specialIn(PD_ASSETS);
   const list = (a) => (a.length ? a.join(', ') : '—');
+  const L = (items, noun = 'asset') => ({ items, noun });
+  const [open, setOpen] = useState(null);
   const sections = [
     ['Identification — what personal data is held', [['assets holding personal data', PD_ASSETS.length], ['of total', 37], ['personal data columns', ALL_COLS.length], ['by category', ['PII', 'FINANCIAL', 'SPECIAL_CATEGORY', 'GOVERNMENT_ID'].map((k) => `${k}: ${countClass(k)}`).join(' · ')], ['systems', [...SYSTEMS].sort().join(', ')]]],
-    ['Processing — on what basis', [['records', records.filter((r) => r.status !== 'proposed').length], ['accepted', acc.length], ['draft', dr.length], ['lawful bases', list([...new Set(acc.map((r) => basisLabel(r.basis)))])], ['special category (Article 9)', `${sp.length} column(s) · ${acc.filter((r) => r.special !== 'not_applicable').length} record(s) name a condition`], ['assets without a record', list(without)]]],
-    ['Storage — where and for how long', [['regions', [...new Set(PD_MAP.map((r) => r.region))].join(', ')], ['retention rules applied', `${rules.length} (${list(rules)}) on ${PD_ASSETS.length - noRet.length} asset(s)`], ['without retention', list(noRet)]]],
+    ['Processing — on what basis', [['records', records.filter((r) => r.status !== 'proposed').length], ['accepted', acc.length], ['draft', dr.length], ['lawful bases', list([...new Set(acc.map((r) => basisLabel(r.basis)))])], ['special category (Article 9)', `${sp.length} column(s) · ${acc.filter((r) => r.special !== 'not_applicable').length} record(s) name a condition`], ['assets without a record', L(without)]]],
+    ['Storage — where and for how long', [['regions', [...new Set(PD_MAP.map((r) => r.region))].join(', ')], ['retention rules applied', `${rules.length} (${list(rules)}) on ${PD_ASSETS.length - noRet.length} asset(s)`], ['without retention', L(noRet)]]],
     ['Sharing — who receives it', [['data products', list([...new Set(PD_ASSETS.flatMap(productsOf))])], ['models', list([...new Set(PD_ASSETS.flatMap(modelsOf))])], ['downstream assets', [...new Set(PD_MAP.flatMap((r) => r.shared))].length], ['undeclared recipients', list([...new Set(und)])]]],
     ['Data-handling rules', [['checks', total], ['failed', failing], ['last run', `${st.lastRun.at} by ${st.lastRun.by}`], ...hr.map((r) => [r.req, `${r.fail.length} of ${r.scope.length} failing`])]],
     ['Assessments', [['activities screened', records.length], ['DPIA required', records.filter((r) => screen(r).verdict === 'DPIA required').length], ['in progress', assessments.filter((a) => a.stage !== 'Approved').length], ['signed off', assessments.filter((a) => a.stage === 'Approved').map((a) => `${a.name} (review due ${a.reviewDue})`).join('; ') || 0]]],
     ['Accountability — the audit chain', [['audit entries', AUDIT.length], ['audit verified', 'true'], ['broken links', 0]]],
-    ['Minimisation', [['unused', unused.length ? `${unused.length} asset(s): ${unused.join(', ')}` : '—'], ['held beyond declared categories', beyond.length ? beyond.map((b) => `${b.asset}.${b.col}`).join(', ') : '—']]],
+    ['Minimisation', [['unused', L(unused)], ['held beyond declared categories', L(beyond.map((b) => `${b.asset}.${b.col}`), 'column')]]],
   ];
   return (
     <>
       <Card icon={PackageCheck} tone="ok" title="Accountability pack" sub={`${st.packAt ? `Regenerated ${st.packAt}` : 'Built live'} for ${ORG.controller}, contact ${ORG.contact}. Everything here is measured from the current state — records, retention, rules, assessments and the audit chain.`}
         actions={<>
           <Button variant="secondary" size="md" icon={RefreshCw} onClick={() => { regeneratePack(); toast('Accountability pack regenerated from the current state'); }}>Regenerate</Button>
-          <Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('accountability-pack.csv', [['Section', 'Measure', 'Value'], ...sections.flatMap(([h, rows]) => rows.map(([k, v]) => [h, k, v]))])}>Export (CSV)</Button>
+          <Button variant="secondary" size="md" icon={Download} onClick={() => downloadCsv('accountability-pack.csv', [['Section', 'Measure', 'Value'], ...sections.flatMap(([h, rows]) => rows.map(([k, v]) => [h, k, v && v.items ? `${v.items.length}: ${v.items.join('; ')}` : v]))])}>Export (CSV)</Button>
         </>} />
       <div className="gv-two">
-        {sections.map(([h, rows], i) => <Card key={h} icon={PACK_ICONS[i][0]} tone={PACK_ICONS[i][1]} title={h}><KV rows={rows} /></Card>)}
+        {sections.map(([h, rows], i) => (
+          <div key={h} className="pk-wrap" role="button" tabIndex={0} onClick={() => setOpen(i)} onKeyDown={(e) => { if (e.key === 'Enter') setOpen(i); }}>
+            <Card className="pk-card" icon={PACK_ICONS[i][0]} tone={PACK_ICONS[i][1]} title={h}>
+              <div className="pk-body"><KV rows={rows.map(([k, v]) => [k, v && v.items ? <PackCount key={k} {...v} /> : <span key={k} className="pk-clamp" title={typeof v === 'string' ? v : undefined}>{v}</span>])} /></div>
+              <div className="pk-foot"><span>{rows.length} measure{rows.length === 1 ? '' : 's'}</span><b>View details →</b></div>
+            </Card>
+          </div>
+        ))}
       </div>
+      {open != null && (
+        <Drawer wide onClose={() => setOpen(null)} title={<span className="pd-title">{(() => { const I = PACK_ICONS[open][0]; return <I size={16} />; })()} {sections[open][0]}</span>}
+          footer={<Button variant="secondary" size="md" onClick={() => setOpen(null)}>Close</Button>}>
+          <div className="pk-kv"><KV rows={sections[open][1].filter(([, v]) => !(v && v.items))} /></div>
+          {sections[open][1].filter(([, v]) => v && v.items).map(([k, v]) => (
+            <section key={k} className="pk-sec"><div className="pd-sec-h"><h4>{k[0].toUpperCase() + k.slice(1)}</h4><small>click a row to open the asset</small></div><PackList {...v} /></section>
+          ))}
+        </Drawer>
+      )}
     </>
+  );
+}
+
+/* accountability pack: a long list is a count on the card, and the full list in the side panel */
+const assetOfItem = (item) => PD_MAP.find((x) => x.asset === item) || PD_MAP.find((x) => item.startsWith(`${x.asset}.`));
+function PackCount({ items, noun }) {
+  if (!items.length) return <span className="gv-muted">none</span>;
+  return <span className="gv-badge bad"><i />{items.length} {noun}{items.length === 1 ? '' : 's'}</span>;
+}
+function PackList({ items, noun }) {
+  const nav = useNavigate();
+  const [q, setQ] = useState('');
+  if (!items.length) return <span className="gv-muted">none</span>;
+  const hit = items.filter((a) => !q || `${a} ${assetOfItem(a)?.system || ''}`.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="pk-list">
+      <div className="pk-list-h"><PackCount items={items} noun={noun} />{items.length > 8 && <input className="input" placeholder={`Search ${items.length} ${noun}s`} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search list" />}</div>
+      <div className="pk-scroll">
+        <table className="tbl">
+          <thead><tr><th>{noun === 'column' ? 'Column' : 'Asset'}</th><th>System</th><th>Personal data</th></tr></thead>
+          <tbody>{hit.map((a) => { const x = assetOfItem(a); return (
+            <tr key={a} className={x ? 'click' : ''} onClick={() => x && nav(assetPath(x.asset))} title={x ? 'Open asset page' : undefined}>
+              <td><Mono>{a}</Mono></td><td>{x?.system || '—'}</td><td>{x ? classesOf(x.asset).join(', ') : '—'}</td>
+            </tr>
+          ); })}
+          {!hit.length && <tr><td colSpan={3}><Empty>Nothing matches.</Empty></td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
