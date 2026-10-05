@@ -121,14 +121,14 @@ export function Status({ s }) {
   return <Badge tone={tone}>{label}</Badge>;
 }
 
-export function PageHead({ title, sub, eyebrow, children }) {
+export function PageHead({ title, sub, eyebrow, aside, children }) {
   const { pathname } = useLocation();
   const group = eyebrow || NAV.find((n) => n.to === pathname)?.group;
   return (
     <div className="page-head">
       <div>
         {group && <span className="eyebrow">{group}</span>}
-        <h1>{title}</h1>
+        {aside ? <div className="title-row"><h1>{title}</h1>{aside}</div> : <h1>{title}</h1>}
         {sub && <p>{sub}</p>}
       </div>
       {children && <div className="head-actions">{children}</div>}

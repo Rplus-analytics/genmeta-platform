@@ -90,14 +90,14 @@ export default function AccessHub({ peopleFilters }) {
   const go = (k) => nav(`${ACCESS_BASE}/${k}`);
   return (
     <div className="page gv">
-      <PageHead eyebrow={`Govern · Access · ${half.label} · ${title}`} title={title} sub={`Covers ${covers}`}>
+      <PageHead eyebrow={`Govern · Access · ${half.label} · ${title}`} title={title} sub={`Covers ${covers}`} aside={
+        <div className="ax-halves" role="tablist" aria-label="Requirement area">
+          {HALVES.map((h) => <button key={h.key} type="button" role="tab" aria-selected={h === half} className={h === half ? 'on' : ''} onClick={() => go(h.tabs[0][0])}>{h.label}</button>)}
+        </div>}>
         <Fld label="Viewing as (test)">
           <select className="select" value={st.role} onChange={(e) => setViewRole(e.target.value)} aria-label="Viewing as">{ACCESS_VIEW.map(([r, p]) => <option key={r} value={r}>{r} · {p}</option>)}</select>
         </Fld>
       </PageHead>
-      <div className="ax-halves" role="tablist" aria-label="Requirement area">
-        {HALVES.map((h) => <button key={h.key} type="button" role="tab" aria-selected={h === half} className={h === half ? 'on' : ''} onClick={() => go(h.tabs[0][0])}>{h.label}</button>)}
-      </div>
       {half.key === 'stewardship' && <p className="ax-own6">OWN-06 (owners and stewards decide access) lives in Access control and RBAC › <button type="button" className="ax-same inline" onClick={() => go('requests')}>Requests & grants ›</button></p>}
       <HalfTiles half={half.key} st={st} ss={ss} />
       <Tabs items={half.tabs.map(([k, l, I]) => ({ value: k, label: count[k] !== undefined && count[k] !== '' ? `${l} (${count[k]})` : l, icon: I }))} value={tab} onChange={go} className="ax-tabs" />
