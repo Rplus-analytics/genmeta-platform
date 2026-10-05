@@ -1272,6 +1272,10 @@ tr.ac-off td { background: #fff6f5; }
 .ax-halves button { border: 0; background: none; font: inherit; font-size: 14px; font-weight: 500; color: var(--muted); padding: 9px 18px; border-radius: 9px; cursor: pointer; }
 .ax-halves button:hover { color: var(--navy); background: var(--mist); }
 .ax-halves button.on { background: var(--navy); color: #fff; }
+/* The two halves sit on the title line (Karan, 5 Oct 2026) so the tiles move up into the freed space. */
+.page-head .title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; }
+.page-head .title-row .ax-halves { padding: 3px; border-radius: 10px; box-shadow: none; }
+.page-head .title-row .ax-halves button { font-size: 13px; padding: 6px 14px; border-radius: 8px; }
 .ax-own6 { margin: 0; font-size: 13px; color: var(--muted); }
 .ax-same.inline { display: inline; margin: 0; font-size: 13px; }
 .gv .tabs.ax-tabs { flex-wrap: wrap; column-gap: 14px; row-gap: 0; }
