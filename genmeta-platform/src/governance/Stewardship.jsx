@@ -348,7 +348,7 @@ export function AuditTrail({ audit, title = 'Ownership and responsibility audit 
   const list = audit.filter((a) => (!f.action || a.cat === f.action) && (!f.on || a.on.toLowerCase().includes(f.on.toLowerCase())) && (!f.who || a.who === f.who));
   const set = (k) => (e) => { setF((o) => ({ ...o, [k]: e.target.value })); setN(200); };
   return (
-    <Card icon={ScrollText} tone="teal" title={title} sub={`${list.length.toLocaleString('en-GB')} of ${audit.length.toLocaleString('en-GB')} entries · every action here is also written to the hash-chained audit log on Governance › Controls & compliance`}>
+    <Card icon={ScrollText} tone="teal" title={title} sub={`${list.length.toLocaleString('en-GB')} of ${audit.length.toLocaleString('en-GB')} entries · every action here is also written to the hash-chained audit log on Governance › Overview › Audit & reporting`}>
       <div className="gv-inline" style={{ marginBottom: 12 }}>
         <Fld label="Action"><select className="select" value={f.action} onChange={set('action')}>{AUDIT_FILTERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
         <Fld label="Asset or scope"><input className="input" list="st-on" value={f.on} onChange={set('on')} placeholder="e.g. INT.CUSTOMER or dataset SRC" /><datalist id="st-on">{onList.map((o) => <option key={o} value={o} />)}</datalist></Fld>

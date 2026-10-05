@@ -18,7 +18,6 @@ import AskGenMeta from '../pages/AskGenMeta.jsx';
 import Governance from '../pages/Governance.jsx';
 import Classification from '../pages/Classification.jsx';
 import DataProducts from '../pages/DataProducts.jsx';
-import Stewardship from '../pages/Stewardship.jsx';
 import Admin from '../pages/Admin.jsx';
 
 const ICONS = { LayoutDashboard, Building2, Database, Layers, Network, MessagesSquare, Landmark, Tag, Package, Users, ShieldCheck, FileCode2, BookA };
@@ -145,7 +144,7 @@ export default function AppShell() {
             <Route path="governance/*" element={<Governance />} />
             <Route path="classification" element={<Classification />} />
             <Route path="products/*" element={<DataProducts />} />
-            <Route path="stewardship" element={<Stewardship />} />
+            <Route path="stewardship" element={<Navigate to="/app/governance/access/ownership" replace />} />
               <Route path="admin/*" element={<Admin />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Routes>

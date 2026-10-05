@@ -49,7 +49,7 @@ export const RULES = { any: 'Any one approver', all: 'Every approver', sequentia
 /* who can act: test users with a GenMeta role */
 export const ACTORS = [
   ['Admin', 'governance-lead'], ['Priya Shah', 'governance-lead'], ['Dana Whitfield', 'dpo'], ['Meera Shah', 'platform-ops'],
-  ['Rajesh', 'data-engineer'], ['PK', 'product-owner'], ['Customer Analytics Lead', 'product-owner'],
+  ['Rajesh', 'data-engineer'], ['Pradeep Kumar', 'product-owner'], ['Customer Analytics Lead', 'product-owner'],
 ];
 export const ROLE_LABEL = { 'governance-lead': 'Governance lead', dpo: 'Data protection officer', 'platform-ops': 'Platform / Ops engineer', 'data-engineer': 'Data engineer', 'product-owner': 'Data product owner', analyst: 'Analyst', auditor: 'Auditor', owner: 'Owner of the item' };
 export const APPROVER_ROLES = ['governance-lead', 'dpo', 'platform-ops', 'data-engineer', 'product-owner', 'auditor', 'owner'];

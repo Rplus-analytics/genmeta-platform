@@ -14,7 +14,7 @@ import {
   applyReview, syncDirectory, reconcile, statementFor, DIRECTORY_MEMBERS, CLEAR_RANK,
 } from './access-store.js';
 
-const TABS = ['Requests & grants', 'Access reviews', 'Roles & people', 'Permissions', 'Separation of duties', 'Access rules', 'Directory', 'Platforms']
+const TABS = ['Decisions › Requests / What › Grants', 'Access reviews', 'Who › Roles', 'Permissions', 'Separation of duties', 'Access rules', 'Directory', 'Platforms']
   .map((label, i) => ({ value: ['requests', 'reviews', 'roles', 'scopes', 'sod', 'rules', 'directory', 'platforms'][i], label, icon: [Inbox, CalendarCheck, Users, Layers, Split, Gavel, Fingerprint, RefreshCw][i] }));
 export const AssetSelect = ({ value, onChange, label = 'Asset' }) => <select className="select" aria-label={label} value={value} onChange={onChange}><option value="">Choose…</option>{ASSET_NAMES.map((a) => <option key={a}>{a}</option>)}</select>;
 export const EFFECT_TONE = { allow: 'allow', mask: 'warn', deny: 'deny' };
@@ -59,7 +59,7 @@ export default function Access() {
   const active = st.grants.filter((g) => g.status === 'active');
   const directoryN = st.assign.filter((a) => a.source === 'directory').length;
   const top = tab === 'reviews'
-    ? [{ l: 'Reviews open', v: st.review.applied ? 0 : 1, s: 'quarterly · Restricted data' }, { l: 'Grants to review', v: active.filter((g) => g.sens === 'Restricted').length + Object.keys(st.review.dec).filter((id) => st.grants.find((g) => g.id === id)?.status === 'revoked').length, s: 'the same grants as Requests & grants' }, { l: 'Recommended to revoke', v: active.filter((g) => g.sens === 'Restricted' && recommend(g)[0] === 'Revoke').length, s: 'not used in 30 days' }]
+    ? [{ l: 'Reviews open', v: st.review.applied ? 0 : 1, s: 'quarterly · Restricted data' }, { l: 'Grants to review', v: active.filter((g) => g.sens === 'Restricted').length + Object.keys(st.review.dec).filter((id) => st.grants.find((g) => g.id === id)?.status === 'revoked').length, s: 'the same grants as What › Grants' }, { l: 'Recommended to revoke', v: active.filter((g) => g.sens === 'Restricted' && recommend(g)[0] === 'Revoke').length, s: 'not used in 30 days' }]
     : tab === 'requests'
       ? [{ l: 'Requests pending', v: st.requests.filter((r) => r.status === 'pending').length, s: 'routed to owners and stewards' }, { l: 'Active grants', v: active.length, s: 'each with an expiry — the same grants Access reviews checks' }, { l: 'Access policies', v: st.policies.length, s: 'one per sensitivity level' }]
       : [{ l: 'Roles', v: st.roles.length, s: `${st.roles.filter((r) => !r.builtIn).length} defined here` }, { l: 'Role assignments', v: st.assign.length, s: `${directoryN} from the directory · ${st.assign.length - directoryN} manual` }, { l: 'Scopes', v: st.scopes.length, s: `${new Set(st.scopes.map((s) => s.level)).size} level(s) in use` }, { l: 'Identities synchronised', v: st.sync ? new Set(st.sync.results.map((r) => r.person)).size : 0, s: st.sync ? `last ${st.sync.at}` : 'not yet synchronised' }];
@@ -323,7 +323,7 @@ export function Sod({ st }) {
       {held.length ? (
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Person</th><th>Holds</th><th>Breaks</th><th>Why it matters</th></tr></thead>
-          <tbody>{held.map((h) => <tr key={h.person + h.rule.a + h.rule.b}><td className="gv-strong">{h.person}</td><td><Mono>{h.detail}</Mono></td><td><Mono>{h.rule.a} ↔ {h.rule.b}</Mono>{!h.rule.on && <span className="gv-sub">rule is off</span>}</td><td className="gv-muted">{h.rule.why} Remove one of the roles in Roles & people.</td></tr>)}</tbody>
+          <tbody>{held.map((h) => <tr key={h.person + h.rule.a + h.rule.b}><td className="gv-strong">{h.person}</td><td><Mono>{h.detail}</Mono></td><td><Mono>{h.rule.a} ↔ {h.rule.b}</Mono>{!h.rule.on && <span className="gv-sub">rule is off</span>}</td><td className="gv-muted">{h.rule.why} Remove one of the roles in Who › Roles.</td></tr>)}</tbody>
         </table></div>
       ) : <p style={{ fontSize: 13, margin: 0 }}>No one holds a conflicting combination ({new Set(st.assign.map((a) => a.person)).size} people checked).</p>}
     </Card>
@@ -361,14 +361,14 @@ export function Rules({ st }) {
 
 /* ------------------------------------------------------------------ directory & identity */
 const OUT_TONE = { applied: 'ok', unchanged: 'info', skipped: 'warn', refused: 'fail' };
-export function Directory({ st }) {
+export function Directory({ st, syncOnly = false }) {
   const a1 = useAct();
   const map = Object.fromEntries(DIRECTORY);
   const res = st.sync?.results || [];
   const n = (o) => res.filter((x) => x.outcome === o).length;
   return (
     <>
-      <Card icon={Fingerprint} tone="warn" title="AWS IAM Identity Center" sub="Test directory — groups and members below. The group carries the role, the role carries the clearance."
+      {!syncOnly && <Card icon={Fingerprint} tone="warn" title="AWS IAM Identity Center" sub="Test directory — groups and members below. The group carries the role, the role carries the clearance."
         actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={() => a1.run(syncDirectory(), 'Directory synchronised — written to the audit log')}>Synchronise now</Button>}>
         <RoleNote st={st} need={['governance-lead', 'platform-ops']} what="synchronising the directory" />
         <a1.Refusal />
@@ -376,13 +376,14 @@ export function Directory({ st }) {
           <thead><tr><th>Directory group</th><th>Role in GenMeta</th><th>Members</th></tr></thead>
           <tbody>{DIRECTORY_MEMBERS.map(([g, people]) => <tr key={g}><td><Mono>{g}</Mono></td><td>{map[g] ? <span className="tag mono">{map[g]}</span> : <StatusBadge s="warn">no mapping</StatusBadge>}</td><td>{people.join(', ')}</td></tr>)}</tbody>
         </table></div>
-        <Note>Microsoft Entra ID / Active Directory: the same group → role → clearance mapping over SCIM or OIDC group claims. Manual assignments made in Roles & people stay and keep their “manual” label.</Note>
-      </Card>
+        <Note>Microsoft Entra ID / Active Directory: the same group → role → clearance mapping over SCIM or OIDC group claims. Manual assignments made in Who › Roles stay and keep their “manual” label.</Note>
+      </Card>}
       {st.sync && (
-        <Card icon={ListChecks} tone="info" title="Last synchronisation" count={res.length} sub={`${st.sync.at} by ${st.sync.by} · ${n('applied')} applied · ${n('unchanged')} unchanged · ${n('skipped')} skipped: no group · ${n('refused')} refused: separation of duties`}>
+        <Card icon={ListChecks} tone="info" title="Last synchronisation" count={(st.sync.total || res.length).toLocaleString('en-GB')} sub={`${st.sync.at} by ${st.sync.by} · ${(st.sync.total || res.length).toLocaleString('en-GB')} identities · ${n('applied')} applied · ${(n('unchanged') + (st.sync.others || 0)).toLocaleString('en-GB')} unchanged · ${n('skipped')} skipped: no group · ${n('refused')} refused: separation of duties`}>
           <div className="table-wrap"><table className="tbl">
             <thead><tr><th>Person</th><th>Group</th><th>Role</th><th>Result</th><th>Why</th></tr></thead>
-            <tbody>{res.map((x) => <tr key={x.person + x.group}><td className="gv-strong">{x.person}</td><td><Mono>{x.group}</Mono></td><td>{x.role !== '—' ? <span className="tag mono">{x.role}</span> : '—'}</td><td><StatusBadge s={OUT_TONE[x.outcome]}>{x.outcome === 'skipped' ? 'skipped: no group' : x.outcome === 'refused' ? 'refused: separation of duties' : x.outcome}</StatusBadge></td><td className="gv-muted">{x.why}</td></tr>)}</tbody>
+            <tbody>{res.map((x) => <tr key={x.person + x.group}><td className="gv-strong">{x.person}</td><td><Mono>{x.group}</Mono></td><td>{x.role !== '—' ? <span className="tag mono">{x.role}</span> : '—'}</td><td><StatusBadge s={OUT_TONE[x.outcome]}>{x.outcome === 'skipped' ? 'skipped: no group' : x.outcome === 'refused' ? 'refused: separation of duties' : x.outcome}</StatusBadge></td><td className="gv-muted">{x.why}</td></tr>)}
+            {st.sync.others > 0 && <tr><td className="gv-strong">{st.sync.others.toLocaleString('en-GB')} other people</td><td className="gv-muted">their groups</td><td>—</td><td><StatusBadge s="info">unchanged</StatusBadge></td><td className="gv-muted">already hold the roles their groups carry — counted, not listed</td></tr>}</tbody>
           </table></div>
           <Note>Applied people now count towards each role under Access › Roles, labelled “directory”.</Note>
         </Card>
@@ -427,7 +428,7 @@ export function Platforms({ st }) {
   );
 }
 
-/* ------------------------------------------------------------------ access reviews (the same grants as Requests & grants) */
+/* ------------------------------------------------------------------ access reviews (the same grants as What › Grants) */
 export function Reviews({ st }) {
   const [f, setF] = useState('all');
   const a1 = useAct();
@@ -439,14 +440,14 @@ export function Reviews({ st }) {
   const DEC_TONE = { Approve: 'ok', Deny: 'fail', "Don't know": 'warn' };
   return (
     <>
-      <Card icon={CalendarCheck} tone="violet" title="Quarterly review — Restricted data, Q4 2026" sub={`Started 1 Oct 2026 · ends 31 Oct 2026 · reviewers: each asset's owner · ${items.length} grant(s) — the same active grants listed under Requests & grants`}
+      <Card icon={CalendarCheck} tone="violet" title="Quarterly review — Restricted data, Q4 2026" sub={`Started 1 Oct 2026 · ends 31 Oct 2026 · reviewers: each asset's owner · ${items.length} grant(s) — the same active grants listed under What › Grants`}
         actions={<>
           <Button variant="secondary" size="md" onClick={acceptAll} disabled={!!applied}>Accept recommendations</Button>
           <Button variant="primary" size="md" disabled={!done || !!applied} onClick={() => { const before = st.grants.filter((g) => g.status === 'active').length; if (a1.run(applyReview())) toast(`Applied: ${Object.values(dec).filter((d) => d === 'Deny').length} grant(s) revoked — active grants ${before} → ${before - Object.values(dec).filter((d) => d === 'Deny').length}`); }}>Apply results</Button>
         </>}>
         <a1.Refusal />
         <div className="gv-bars" style={{ marginBottom: 6 }}><div><span>{done} of {items.length} reviewed</span><Meter pct={items.length ? done / items.length : 0} tone="info" /><b>{items.length ? Math.round((done / items.length) * 100) : 0}%</b></div></div>
-        {applied && <Note>Results applied on {applied}. Revoked grants show as revoked under Requests & grants too; Rplus_DWH grants are removed in the platform, the others get the REVOKE statement.</Note>}
+        {applied && <Note>Results applied on {applied}. Revoked grants show as revoked under What › Grants too; Rplus_DWH grants are removed in the platform, the others get the REVOKE statement.</Note>}
       </Card>
       <Card icon={ListChecks} tone="info" title="Grants to review" count={rows.length} actions={<Segmented size="sm" value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'pending', label: 'Not reviewed' }, { value: 'done', label: 'Reviewed' }]} />}>
         <div className="table-wrap"><table className="tbl">

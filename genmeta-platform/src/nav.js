@@ -19,7 +19,6 @@ export const NAV = [
   { to: '/app/ask', label: 'Ask GenMeta', group: 'Discover', icon: 'MessagesSquare' },
   { to: '/app/governance', label: 'Governance', group: 'Govern', icon: 'Landmark' },
   { to: '/app/classification', label: 'Classification', group: 'Govern', icon: 'Tag' },
-  { to: '/app/stewardship', label: 'Stewardship', group: 'Govern', icon: 'Users', badge: 73 },
   { to: '/app/code-analyzer', label: 'Code analyzer', group: 'Govern', icon: 'FileCode2' },
   { to: '/app/sources', label: 'Data sources', group: 'Govern', icon: 'Database' },
   { to: '/app/admin', label: 'Admin', group: 'Admin', icon: 'ShieldCheck' },
