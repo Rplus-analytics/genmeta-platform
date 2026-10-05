@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import {
   ROLES, SOD, DIRECTORY, PLATFORMS, ACCESS_POLICIES, REVIEW_ITEMS, ASSET_NAMES, PD_MAP, SYSTEMS, systemOf, sensitivityOf, ownerOf, colClass, writeAudit,
 } from './data.js';
+import { stewardRights, ownersOf } from './stewardship-store.js';
 
 /* Governance › Access & RBAC — one in-memory store so every tab (requests, reviews, roles, scopes, separation of duties,
    rules, directory, platforms) reads the same people, grants and decisions, and every action lands in the audit log.
@@ -87,6 +88,10 @@ export const roleOf = (key) => st.roles.find((r) => r.key === key);
 const log = (action, asset, what) => writeAudit(me(), st.role, action, 'Ownership and access', asset, what);
 const refuse = (action, asset, why0) => { const why = why0.charAt(0).toUpperCase() + why0.slice(1); log(`${action}.refused`, asset, `refused — ${why}`); emit(); return { ok: false, why }; };
 const can = (perm) => roleOf(st.role)?.may.includes(perm);
+/* OWN-06: a governance lead always may; otherwise the asset's owner or steward, if the governance model gives their role the responsibility */
+const mayOnAsset = (asset, what) => st.role === 'governance-lead' || stewardRights(me(), asset)[what];
+const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in the Stewardship register (owner or steward with that responsibility).`;
+export const approversFor = (asset) => { const o = ownersOf(asset); return o.length ? `${o.join(', ')} or a governance lead` : 'a governance lead (no owner or steward with that responsibility)'; };
 
 export function setViewRole(role) { st = { ...st, role }; emit(); }
 
@@ -223,9 +228,9 @@ export function decide({ asset, column, role, person, loc = 'uk', purpose = '' }
   S('rule-special-category', specialHit.length ? (rank < 3 ? `${specialHit.map((c) => `${asset}.${c}`).join(', ')} is special-category data — clearance ${cl} is below L3: ${column ? 'denied' : 'those column(s) denied'}` : `special-category column(s) ${specialHit.join(', ')} — clearance ${cl} meets L3`) : 'no special-category column — not applied', specialHit.length && rank < 3 ? (column ? 'deny' : 'mask') : 'allow');
   S('rule-offshore', sens === 'Restricted' ? (loc === 'uk' ? 'request from the United Kingdom — not applied' : 'Restricted data requested from outside the UK — denied') : 'not Restricted — not applied', sens === 'Restricted' && loc !== 'uk' ? 'deny' : 'allow');
   const pii = (column ? [column] : cols).filter((c) => ['PII', 'FINANCIAL', 'GOVERNMENT_ID'].includes(colClass(c)));
-  S('rule-pii-mask', pii.length ? (rank < 2 ? `personal and financial column(s) masked — clearance ${cl} is below L2` : `clearance ${cl} — not applied`) : 'no personal or financial column — not applied', pii.length && rank < 2 ? 'mask' : 'allow');
-  const purposeOver = r.may.includes('read_sensitive');
-  S('rule-purpose', sens === 'Restricted' ? (purpose.trim() ? `purpose stated: “${purpose.trim()}”` : purposeOver ? `no purpose given — not applied: ${r.key} holds read_sensitive` : 'Restricted data needs a stated purpose — none given') : 'not Restricted — not applied', sens === 'Restricted' && !purpose.trim() && !purposeOver ? 'mask' : 'allow');
+  S('rule-pii-mask', pii.length ? (rank < 2 ? (granted ? `clearance ${cl} is below L2 — not applied: ${person} holds a grant on this asset` : `personal and financial column(s) masked — clearance ${cl} is below L2`) : `clearance ${cl} — not applied`) : 'no personal or financial column — not applied', pii.length && rank < 2 && !granted ? 'mask' : 'allow');
+  const purposeOver = r.may.includes('read_sensitive') || (granted && granted.why && granted.why !== '—');
+  S('rule-purpose', sens === 'Restricted' ? (purpose.trim() ? `purpose stated: “${purpose.trim()}”` : purposeOver ? `no purpose given — not applied: ${granted && granted.why && granted.why !== '—' ? `the grant's purpose stands (“${granted.why}”)` : `${r.key} holds read_sensitive`}` : 'Restricted data needs a stated purpose — none given') : 'not Restricted — not applied', sens === 'Restricted' && !purpose.trim() && !purposeOver ? 'mask' : 'allow');
   const effect = steps.some((x) => x[2] === 'deny') ? 'deny' : steps.some((x) => x[2] === 'mask') ? 'mask' : 'allow';
   /* per column */
   const colRows = (column ? [column] : cols).map((c) => {
@@ -234,9 +239,9 @@ export function decide({ asset, column, role, person, loc = 'uk', purpose = '' }
     if (cls === 'SPECIAL_CATEGORY' && rank < 3) return { col: c, cls, effect: 'deny', why: `special category — needs L3, ${person} has ${cl}` };
     if (sens === 'Restricted' && loc !== 'uk') return { col: c, cls, effect: 'deny', why: 'outside the UK' };
     if (cw && cw.level === 'column') return { col: c, cls, effect: scopeEffect(cw.actions), why: `column scope: ${cw.actions.join(', ')}` };
-    if (['PII', 'FINANCIAL', 'GOVERNMENT_ID'].includes(cls) && rank < 2) return { col: c, cls, effect: 'mask', why: `${cls} masked below L2` };
+    if (['PII', 'FINANCIAL', 'GOVERNMENT_ID'].includes(cls) && rank < 2 && !granted) return { col: c, cls, effect: 'mask', why: `${cls} masked below L2 — no grant` };
     if (needsGrant && !granted && !r.may.includes('read_sensitive')) return { col: c, cls, effect: 'mask', why: 'no grant on Restricted data' };
-    if (sens === 'Restricted' && !purpose.trim() && !r.may.includes('read_sensitive')) return { col: c, cls, effect: 'mask', why: 'no purpose stated' };
+    if (sens === 'Restricted' && !purpose.trim() && !purposeOver) return { col: c, cls, effect: 'mask', why: 'no purpose stated' };
     return { col: c, cls, effect: 'allow', why: granted ? 'grant held' : 'clearance and scope allow it' };
   });
   return { effect, steps, cols: colRows, asker: { person, role: r, cl }, known: true, sens, granted: !!granted };
@@ -274,7 +279,7 @@ export function requestAccess({ asset, days, why }) {
   if (+days > pol.days) return refuse('access.request', asset, `${days} days is above the ${pol.s} maximum of ${pol.days} days.`);
   if (pol.just && !why.trim()) return refuse('access.request', asset, `${pol.s} data needs a business justification.`);
   if (pol.ap === 'No approval (automatic)') { const r0 = { id: `q${Date.now()}`, asset, by: p, role, clearance: roleOf(role).clearance, at: now(), days: +days, why, status: 'pending', approvers: 'automatic' }; st = { ...st, requests: [r0, ...st.requests] }; return approveRequest(r0.id, true); }
-  const r = { id: `q${Date.now()}`, asset, by: p, role, clearance: roleOf(role).clearance, at: now(), days: +days, why, status: 'pending', policy: `${pol.s} · max ${pol.days} days`, approvers: pol.ap === 'Asset owner' ? `owner (${ownerOf(asset) || 'owner'})` : `owner or steward (${ownerOf(asset) || 'owner'})` };
+  const r = { id: `q${Date.now()}`, asset, by: p, role, clearance: roleOf(role).clearance, at: now(), days: +days, why, status: 'pending', policy: `${pol.s} · max ${pol.days} days`, approvers: approversFor(asset) };
   st = { ...st, requests: [r, ...st.requests] };
   log('access.request', asset, `${p} (${role}) asked for ${days} days on ${asset}${why ? ` — “${why}”` : ''}; sent to ${r.approvers}`);
   emit();
@@ -284,7 +289,7 @@ export function approveRequest(id, automatic = false) {
   const r = st.requests.find((x) => x.id === id);
   if (!automatic) {
     if (r.by === me()) return refuse('access.approve', r.asset, `${me()} asked for this access — the person who asks cannot be the person who approves it.`);
-    if (!can('approve_access')) return refuse('access.approve', r.asset, `${st.role} cannot approve access — approving needs approve_access (governance lead or data product owner).`);
+    if (!mayOnAsset(r.asset, 'approve')) return refuse('access.approve', r.asset, notOwner(r.asset, 'Approve or decline access requests'));
   }
   const prov = provisionFor(r.asset, r.by, r.days);
   const g = { id: `g${Date.now()}`, person: r.by, role: r.role, asset: r.asset, sens: sensitivityOf(r.asset), granted: fmtD(today()), lastUsed: 'never', why: r.why || '—', by: automatic ? 'automatic' : me(), expires: prov.due, status: 'active', source: 'request', provision: prov };
@@ -296,15 +301,16 @@ export function approveRequest(id, automatic = false) {
 }
 export function rejectRequest(id) {
   const r = st.requests.find((x) => x.id === id);
-  if (!can('approve_access')) return refuse('access.reject', r.asset, `${st.role} cannot decide access requests — that needs approve_access.`);
+  if (r.by === me()) return refuse('access.reject', r.asset, `${me()} asked for this access — withdraw it instead of deciding it.`);
+  if (!mayOnAsset(r.asset, 'approve')) return refuse('access.reject', r.asset, notOwner(r.asset, 'Approve or decline access requests'));
   st = { ...st, requests: st.requests.map((x) => (x.id === id ? { ...x, status: 'rejected', decidedBy: `${me()} (${st.role})`, decidedAt: now() } : x)) };
   log('access.reject', r.asset, `rejected ${r.by}'s request on ${r.asset}`);
   emit();
   return { ok: true };
 }
 export function grantDirect({ asset, person, days }) {
-  if (!can('grant_access')) return refuse('access.grant', asset || '—', `${st.role} cannot grant access directly — that needs grant_access (governance lead).`);
   if (!isKnownAsset(asset)) return refuse('access.grant', asset || '—', `“${asset}” is not in the catalogue`);
+  if (!mayOnAsset(asset, 'grant')) return refuse('access.grant', asset, notOwner(asset, 'Grant and revoke access directly'));
   const pol = policyFor(asset);
   if (st.grants.some((g) => g.asset === asset && g.person === person && g.status === 'active')) return refuse('access.grant', asset, `${person} already has access to ${asset}.`);
   if (+days > pol.days) return refuse('access.grant', asset, `${days} days is above the ${pol.s} maximum of ${pol.days} days.`);
@@ -316,7 +322,7 @@ export function grantDirect({ asset, person, days }) {
 }
 export function revokeGrant(id, why = 'revoked') {
   const g = st.grants.find((x) => x.id === id);
-  if (!can('grant_access') && why === 'revoked') return refuse('access.revoke', g.asset, `${st.role} cannot revoke grants — that needs grant_access (governance lead).`);
+  if (why === 'revoked' && !mayOnAsset(g.asset, 'grant')) return refuse('access.revoke', g.asset, notOwner(g.asset, 'Grant and revoke access directly'));
   const prov = g.provision || provisionFor(g.asset, g.person, 1);
   st = { ...st, grants: st.grants.map((x) => (x.id === id ? { ...x, status: 'revoked' } : x)) };
   log('access.revoke', g.asset, `${why === 'revoked' ? 'revoked' : why} ${g.person}'s grant on ${g.asset} · ${prov.revoke}`);
