@@ -69,7 +69,7 @@ export default function Access() {
 function Decision({ res, title }) {
   return (
     <div className="gv-result">
-      <header><StatusBadge s={EFFECT_TONE[res.effect]}>{EFFECT_WORD[res.effect]}</StatusBadge><b>{title}</b>
+      <header><StatusBadge s={EFFECT_TONE[res.effect]}>{res.effect === 'allow' && res.granted ? 'Allowed, full (grant held)' : EFFECT_WORD[res.effect]}</StatusBadge><b>{title}</b>
         <span className="gv-faint">asked by {res.asker.person} · {res.asker.role.name} · clearance {res.asker.cl}{res.known ? ` · ${res.sens}${res.granted ? ' · has a grant' : ''}` : ' · not in the catalogue'}</span></header>
       <ol className="gv-trace">{res.steps.map(([k, t, e], i) => <li key={k}><i>{i + 1}</i><div><b>{k}</b><small>{t}</small></div><StatusBadge s={EFFECT_TONE[e]}>{e}</StatusBadge></li>)}</ol>
       {res.cols.length > 0 && (<>
