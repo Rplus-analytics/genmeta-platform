@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { NavLink, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Users, Fingerprint, BadgeCheck, UserCheck, ClipboardList, ShieldCheck, ListChecks, ScrollText, Layers, KeyRound, Inbox, CalendarCheck, ClipboardCheck,
-  ShieldQuestion, Split, Gavel, RefreshCw, Server, History, Search, Download, X, AlertTriangle,
+  ShieldQuestion, Split, Gavel, RefreshCw, Server, History, Search, Download, X, AlertTriangle, Settings2,
 } from 'lucide-react';
-import { PageHead, Button } from '../components/ui.jsx';
+import { PageHead, Button, Tabs } from '../components/ui.jsx';
 import { BASE, ACCESS_RULES, AUDIT, fmtTs, ownerOf } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, toast } from './kit.jsx';
 import {
@@ -51,26 +51,33 @@ const LEADS = {
   audit: 'Every access and ownership action, newest first. The same entries are in the hash-chained Governance audit log.',
 };
 
-/* ------------------------------------------------------------------ the sub-menu under “Access” in the Governance menu */
-export function AccessMenu() {
-  const st = useAccess(); const ss = useStewardship();
-  const count = {
+/* ------------------------------------------------------------------ navigation: sections above, tabs within (as Workflows and DPIA) */
+const GROUP_ICON = { Who: Users, Ownership: UserCheck, What: ScrollText, Decisions: Inbox, Settings: Settings2 };
+function useCounts(st, ss) {
+  return {
     people: PEOPLE_DIR.length.toLocaleString('en-GB'), groups: GROUP_LIST.length, roles: st.roles.length, ownership: ss.register.length,
     grants: st.grants.filter((g) => g.status === 'active').length, requests: st.requests.filter((r) => r.status === 'pending').length || '',
     approvals: (ss.requests.filter((r) => r.status === 'pending').length + ss.issues.filter((i) => i.status === 'open').length) || '',
     queue: ss.queue.filter((q) => q.status === 'In review' || q.status === 'Open').length || '', sod: combinationsHeld(st).length || '',
   };
+}
+const ATTN = { Who: ['sod'], Ownership: ['queue'], What: [], Decisions: ['requests', 'approvals'], Settings: ['sod'] };
+
+function AccessNav({ group, section, st, ss }) {
+  const nav = useNavigate();
+  const count = useCounts(st, ss);
+  const go = (k) => nav(`${ACCESS_BASE}/${k}`);
+  const list = ACCESS_SECTIONS.find(([g]) => g === group)[1];
   return (
-    <div className="ax-menu">
-      {ACCESS_SECTIONS.map(([g, list]) => (
-        <div key={g}>
-          <div className="ax-menu-g">{g}</div>
-          {list.map(([k, l, I]) => (
-            <NavLink key={k} to={`${ACCESS_BASE}/${k}`} className={({ isActive }) => `ax-link ${isActive ? 'on' : ''}`}><I size={14} /><span>{l}</span>{count[k] !== undefined && count[k] !== '' && <em>{count[k]}</em>}</NavLink>
-          ))}
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="wf-modnav wf-sections" role="tablist" aria-label="Access section">
+        {ACCESS_SECTIONS.map(([g, l]) => { const I = GROUP_ICON[g]; const attn = ATTN[g].reduce((n, k) => n + (+count[k] || 0), 0); return (
+          <button type="button" role="tab" key={g} aria-selected={g === group} className={g === group ? 'on' : ''} onClick={() => go(l[0][0])}><I size={14} />{g} <em>{l.length}</em>{attn > 0 && g !== 'Settings' && <i className="wf-dot" title={`${attn} need attention`}>{attn}</i>}</button>
+        ); })}
+      </div>
+      <SectionTiles group={group} st={st} ss={ss} />
+      <Tabs items={list.map(([k, l, I]) => ({ value: k, label: count[k] !== undefined && count[k] !== '' ? `${l} (${count[k]})` : l, icon: I }))} value={section} onChange={go} />
+    </>
   );
 }
 
@@ -89,7 +96,7 @@ export default function AccessHub() {
           <select className="select" value={st.role} onChange={(e) => setViewRole(e.target.value)} aria-label="Viewing as">{ACCESS_VIEW.map(([r, p]) => <option key={r} value={r}>{r} · {p}</option>)}</select>
         </Fld>
       </PageHead>
-      <SectionTiles group={group} st={st} ss={ss} />
+      <AccessNav group={group} section={section} st={st} ss={ss} />
       {section === 'people' && <People st={st} ss={ss} />}
       {section === 'groups' && <Groups st={st} />}
       {section === 'roles' && <RolesSection st={st} />}

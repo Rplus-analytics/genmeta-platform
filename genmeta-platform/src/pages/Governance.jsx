@@ -10,7 +10,7 @@ import Policies, { PolicyItemPage, usePolicyFilters, POLICIES_BASE } from '../go
 import TemplateBuilder from '../governance/TemplateBuilder.jsx';
 import Dpia, { DpiaActivityPage, DpiaAssetPage, useDpiaFilters, DPIA_BASE } from '../governance/Dpia.jsx';
 import { FacetPanel } from '../governance/catalog.jsx';
-import AccessHub, { AccessMenu, ACCESS_BASE } from '../governance/AccessHub.jsx';
+import AccessHub, { ACCESS_BASE } from '../governance/AccessHub.jsx';
 import Workflows from '../governance/Workflows.jsx';
 import { ModelCatalogue, ModelPage, ModelFiltersPanel, useModelFilters, MODELS_BASE } from '../governance/Models.jsx';
 import '../governance/governance.css';
@@ -35,7 +35,6 @@ export default function Governance() {
   const [sp] = useSearchParams();
   const onPolicyList = (pathname === POLICIES_BASE || pathname === `${POLICIES_BASE}/`) && !sp.get('tab');
   const onDpiaList = (pathname === DPIA_BASE || pathname === `${DPIA_BASE}/`) && !sp.get('tab') && sp.get('view') !== 'policies';
-  const onAccess = pathname.startsWith(ACCESS_BASE);
   const links = GOVERNANCE_NAV.map((n) => {
     const I = ICONS[n.icon];
     const link = (
@@ -44,7 +43,7 @@ export default function Governance() {
         <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
       </NavLink>
     );
-    return n.to === 'access' && onAccess ? [link, <AccessMenu key="access-menu" />] : link;
+    return link;
   });
   /* on the AI model list the catalogue-style filters sit under the links, as in Data assets */
   const menu = <>{links}{onModelList && <ModelFiltersPanel state={models} />}{onPolicyList && <FacetPanel state={pol} sourceLabel="Regulation" />}{onDpiaList && <FacetPanel state={dp} sourceLabel="Where and why" />}</>;
