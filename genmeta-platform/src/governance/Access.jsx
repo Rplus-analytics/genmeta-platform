@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   Send, KeyRound, ShieldQuestion, RefreshCw, Plus, Check, X, HelpCircle, Inbox, ShieldCheck, Eye, Users, UserPlus, Layers, Split, Gavel, Fingerprint,
-  CalendarCheck, ListChecks, Lock, AlertTriangle, BadgePlus, Terminal,
+  CalendarCheck, ListChecks, Lock, AlertTriangle, BadgePlus, Terminal, Search,
 } from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import { Switch } from '../pages/admin/kit.jsx';
@@ -268,11 +268,73 @@ export function RolesMatrix({ st, hideTable = false }) {
   );
 }
 
+
+/* Searchable catalogue picker for a scope's target (Karan, 5 Oct 2026): one search over every harvested system,
+   dataset, table, column and report. Matches at the chosen level come first; a match at another level can be
+   picked too and switches the level. Keyboard: ↑ ↓ to move, Enter to pick, Esc to close. */
+const LEVEL_PLURAL = { system: 'Systems', dataset: 'Datasets', table: 'Tables', column: 'Columns', report: 'Reports' };
+const targetText = (t) => `${t.id} ${t.system || ''} ${t.cls || ''}`.toLowerCase();
+export function TargetPicker({ level, value, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [hi, setHi] = useState(0);
+  const box = useRef(null); const inp = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    setQ(''); setHi(0); setTimeout(() => inp.current?.focus(), 0);
+    const off = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', off);
+    return () => document.removeEventListener('mousedown', off);
+  }, [open]);
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const match = (t) => words.every((w) => targetText(t).includes(w));
+  const here = TARGETS[level].filter(match);
+  const other = words.length ? LEVELS.filter((l) => l !== level).map((l) => [l, TARGETS[l].filter(match)]).filter(([, xs]) => xs.length) : [];
+  const flat = [...here.map((t) => [level, t]), ...other.flatMap(([l, xs]) => xs.slice(0, 5).map((t) => [l, t]))];
+  const pick = ([l, t]) => { onPick(l, t.id); setOpen(false); };
+  const cur = value ? TARGETS[level].find((t) => t.id === value) : null;
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, flat.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (flat[hi]) pick(flat[hi]); }
+    else if (e.key === 'Escape') setOpen(false);
+  };
+  useEffect(() => { box.current?.querySelector('.ac-tp-row.hi')?.scrollIntoView({ block: 'nearest' }); }, [hi]);
+  let n = -1;
+  const row = (l, t) => { n += 1; const i = n; return (
+    <li key={`${l}:${t.id}`}><button type="button" className={`ac-tp-row${i === hi ? ' hi' : ''}${l === level && t.id === value ? ' on' : ''}`} onMouseEnter={() => setHi(i)} onClick={() => pick([l, t])}>
+      <span className="mono">{t.id}</span>
+      <small>{l !== 'system' ? t.system : 'system'}{t.cls ? ` · ${t.cls}` : ''}{l !== level ? <span className="tag">{l}</span> : null}</small>
+    </button></li>); };
+  return (
+    <div className="ac-tp" ref={box}>
+      <button type="button" className="select ac-tp-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {cur ? <span><span className="mono">{cur.id}</span>{level !== 'system' && <small> — {cur.system}</small>}</span> : <span className="ac-tp-ph">Choose a {level}…</span>}
+      </button>
+      {open && (
+        <div className="ac-tp-pop" role="listbox">
+          <div className="ac-tp-search"><Search size={15} /><input ref={inp} className="input" value={q} placeholder="Search systems, datasets, tables, columns, reports" aria-label="Search the catalogue" onChange={(e) => { setQ(e.target.value); setHi(0); }} onKeyDown={onKey} /></div>
+          <div className="ac-tp-list">
+            <div className="ac-tp-group">{LEVEL_PLURAL[level]} <span>{here.length} of {TARGETS[level].length}</span></div>
+            <ul>{here.map((t) => row(level, t))}</ul>
+            {!here.length && <p className="ac-tp-none">No {level} matches “{q.trim()}”.</p>}
+            {other.map(([l, xs]) => (
+              <Fragment key={l}>
+                <div className="ac-tp-group">{LEVEL_PLURAL[l]} <span>{xs.length > 5 ? `5 of ${xs.length}` : xs.length} · picking one switches the level</span></div>
+                <ul>{xs.slice(0, 5).map((t) => row(l, t))}</ul>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ permissions by level */
 export function Scopes({ st }) {
   const [f, setF] = useState({ role: 'analyst', level: 'table', target: '', actions: ['read_metadata'] });
   const a1 = useAct(); const a2 = useAct();
-  const opts = TARGETS[f.level];
   return (
     <>
       <RoleNote st={st} need={['governance-lead']} what="setting or removing scopes" />
@@ -292,7 +354,7 @@ export function Scopes({ st }) {
         <div className="gv-inline">
           <Fld label="Access role"><select className="select" value={f.role} onChange={(e) => setF((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Fld>
           <Fld label="Level"><select className="select" value={f.level} onChange={(e) => setF((o) => ({ ...o, level: e.target.value, target: '' }))}>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select></Fld>
-          <Fld label={`Target ${f.level}`}><select className="select mono" value={f.target} onChange={(e) => setF((o) => ({ ...o, target: e.target.value }))}><option value="">Choose a {f.level}…</option>{opts.map((t) => <option key={t.id} value={t.id}>{t.id}{f.level !== 'system' ? ` — ${t.system}` : ''}{t.cls ? ` · ${t.cls}` : ''}</option>)}</select></Fld>
+          <Fld label={`Target ${f.level}`}><TargetPicker level={f.level} value={f.target} onPick={(level, target) => setF((o) => ({ ...o, level, target }))} /></Fld>
         </div>
         <Fld label="Actions"><ChipPick options={PERMISSIONS} value={f.actions} onChange={(v) => setF((o) => ({ ...o, actions: v }))} /></Fld>
         <Button variant="primary" size="md" disabled={!f.target || !f.actions.length} onClick={() => { if (a1.run(saveScope(f), 'Scope saved — written to the audit log')) setF((o) => ({ ...o, target: '', actions: ['read_metadata'] })); }}>Save scope</Button>
