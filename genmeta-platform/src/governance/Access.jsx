@@ -1,355 +1,431 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Send, KeyRound, ShieldQuestion, RefreshCw, Plus, Check, X, HelpCircle, Inbox, ShieldCheck, Eye, Users, UserPlus, Layers, Split, Gavel, Fingerprint,
-  CalendarCheck, ListChecks,
+  CalendarCheck, ListChecks, Lock, AlertTriangle, BadgePlus, Terminal,
 } from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import { Switch } from '../pages/admin/kit.jsx';
+import { recommend, ASSET_NAMES, PERMISSIONS, APPROVERS, DIRECTORY, PLATFORMS, ownerOf, ACCESS_RULES, colClass, systemOf } from './data.js';
+import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, ChipPick, toast, Meter } from './kit.jsx';
 import {
-  REVIEW_ITEMS, recommend, ASSET_NAMES, PERMISSIONS, ROLES, APPROVERS, ACCESS_POLICIES, SOD, ACCESS_RULES, DIRECTORY, PLATFORMS, PD_MAP, sensitivityOf, ownerOf,
-} from './data.js';
-import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, ChipPick, toast , Meter } from './kit.jsx';
+  useAccess, setViewRole, ACCESS_VIEW, me, roleOf, assignRole, unassign, defineRole, toggleSod, combinationsHeld, saveScope, removeScope, TARGETS, LEVELS,
+  evaluate, columnsOf, requestAccess, approveRequest, rejectRequest, grantDirect, revokeGrant, policyFor, setPolicies, setReviewDecision, clearReviewDecision,
+  applyReview, syncDirectory, reconcile, statementFor, DIRECTORY_MEMBERS, CLEAR_RANK,
+} from './access-store.js';
 
 const TABS = ['Requests & grants', 'Access reviews', 'Roles & people', 'Permissions', 'Separation of duties', 'Access rules', 'Directory', 'Platforms']
   .map((label, i) => ({ value: ['requests', 'reviews', 'roles', 'scopes', 'sod', 'rules', 'directory', 'platforms'][i], label, icon: [Inbox, CalendarCheck, Users, Layers, Split, Gavel, Fingerprint, RefreshCw][i] }));
-const ME = 'Admin';
-const AssetSelect = ({ value, onChange }) => <select className="select" value={value} onChange={onChange}><option value="">Choose…</option>{ASSET_NAMES.map((a) => <option key={a}>{a}</option>)}</select>;
-const clearanceOf = (roleKey) => ROLES.find((r) => r.key === roleKey)?.clearance || 'L1';
+const AssetSelect = ({ value, onChange, label = 'Asset' }) => <select className="select" aria-label={label} value={value} onChange={onChange}><option value="">Choose…</option>{ASSET_NAMES.map((a) => <option key={a}>{a}</option>)}</select>;
+const EFFECT_TONE = { allow: 'allow', mask: 'warn', deny: 'deny' };
+const EFFECT_WORD = { allow: 'Allowed', mask: 'Allowed, masked', deny: 'Denied' };
+
+/* run an action; a refusal shows inline (and as a toast) with its reason */
+function useAct() {
+  const [msg, setMsg] = useState(null);
+  const run = (res, okText) => { if (!res.ok) { setMsg(res.why); toast(`Refused — ${res.why}`); return false; } setMsg(null); if (okText) toast(okText); return true; };
+  const Refusal = () => (msg ? <div className="gv-callout bad ac-refuse"><Lock size={15} /><span><b>Refused.</b> {msg} <span className="gv-faint">Written to the audit log.</span></span><button type="button" className="ib" aria-label="Dismiss" onClick={() => setMsg(null)}><X size={13} /></button></div> : null);
+  return { run, Refusal };
+}
+function RoleNote({ st, need, what }) {
+  const r = roleOf(st.role);
+  const ok = need.some((n) => n === st.role || r?.may.includes(n));
+  if (ok) return null;
+  return <div className="gv-callout warn" style={{ marginBottom: 12 }}><Lock size={15} /><span>Viewing as {st.role} ({me()}): {what} is refused for this role — switch “Viewing as (test)” to try it.</span></div>;
+}
 
 export default function Access() {
+  const st = useAccess();
   const [tab, setTab] = useState('requests');
-  const [requests, setRequests] = useState([]);
-  const [grants, setGrants] = useState([]);
-  const [assign, setAssign] = useState([]);
-  const [scopes, setScopes] = useState([]);
-  const [sod, setSod] = useState(SOD.map((s) => ({ ...s, on: true })));
-  const [synced, setSynced] = useState(null);
+  const active = st.grants.filter((g) => g.status === 'active');
+  const directoryN = st.assign.filter((a) => a.source === 'directory').length;
   const top = tab === 'reviews'
-    ? [{ l: 'Reviews open', v: 1, s: 'quarterly · Restricted data' }, { l: 'Grants to review', v: REVIEW_ITEMS.length, s: 'reviewed by each asset\'s owner' }, { l: 'Recommended to revoke', v: REVIEW_ITEMS.filter((r) => recommend(r)[0] === 'Revoke').length, s: 'not used in 30 days' }]
+    ? [{ l: 'Reviews open', v: st.review.applied ? 0 : 1, s: 'quarterly · Restricted data' }, { l: 'Grants to review', v: active.filter((g) => g.sens === 'Restricted').length + Object.keys(st.review.dec).filter((id) => st.grants.find((g) => g.id === id)?.status === 'revoked').length, s: 'the same grants as Requests & grants' }, { l: 'Recommended to revoke', v: active.filter((g) => g.sens === 'Restricted' && recommend(g)[0] === 'Revoke').length, s: 'not used in 30 days' }]
     : tab === 'requests'
-    ? [{ l: 'Requests pending', v: requests.filter((r) => r.status === 'pending').length, s: 'routed to owners and stewards' }, { l: 'Active grants', v: grants.filter((g) => g.status === 'active').length, s: 'each with an expiry' }, { l: 'Access policies', v: ACCESS_POLICIES.length, s: 'one per sensitivity level' }]
-    : [{ l: 'Roles', v: ROLES.length, s: '0 defined here' }, { l: 'Role assignments', v: assign.length, s: `${synced ? assign.length : 0} from the directory` }, { l: 'Scopes', v: scopes.length, s: `${new Set(scopes.map((s) => s.level)).size} level(s) in use` }, { l: 'Identities synchronised', v: synced ? 7 : 0, s: synced ? `last ${synced}` : 'not yet synchronised' }];
+      ? [{ l: 'Requests pending', v: st.requests.filter((r) => r.status === 'pending').length, s: 'routed to owners and stewards' }, { l: 'Active grants', v: active.length, s: 'each with an expiry — the same grants Access reviews checks' }, { l: 'Access policies', v: st.policies.length, s: 'one per sensitivity level' }]
+      : [{ l: 'Roles', v: st.roles.length, s: `${st.roles.filter((r) => !r.builtIn).length} defined here` }, { l: 'Role assignments', v: st.assign.length, s: `${directoryN} from the directory · ${st.assign.length - directoryN} manual` }, { l: 'Scopes', v: st.scopes.length, s: `${new Set(st.scopes.map((s) => s.level)).size} level(s) in use` }, { l: 'Identities synchronised', v: st.sync ? new Set(st.sync.results.map((r) => r.person)).size : 0, s: st.sync ? `last ${st.sync.at}` : 'not yet synchronised' }];
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="Access & RBAC"
-        sub="Who may see what, and why: roles carrying a clearance, permissions held at system, dataset, table, column or report level, duties that may not be combined, and decisions made from the data's classification and the context of the request." />
+        sub="Who may see what, and why: roles carrying a clearance, permissions held at system, dataset, table, column or report level, duties that may not be combined, and decisions made from the data's classification and the context of the request.">
+        <Fld label="Viewing as (test)">
+          <select className="select" value={st.role} onChange={(e) => setViewRole(e.target.value)} aria-label="Viewing as">{ACCESS_VIEW.map(([r, p]) => <option key={r} value={r}>{r} · {p}</option>)}</select>
+        </Fld>
+      </PageHead>
       <Tabs items={TABS} value={tab} onChange={setTab} />
       <Tiles items={top} />
-      {tab === 'requests' && <Requests requests={requests} setRequests={setRequests} grants={grants} setGrants={setGrants} />}
-      {tab === 'reviews' && <Reviews />}
-      {tab === 'roles' && <Roles assign={assign} setAssign={setAssign} sod={sod} />}
-      {tab === 'scopes' && <Scopes scopes={scopes} setScopes={setScopes} />}
-      {tab === 'sod' && <Sod sod={sod} setSod={setSod} assign={assign} />}
-      {tab === 'rules' && <Rules />}
-      {tab === 'directory' && <Directory synced={synced} onSync={() => { setSynced(new Date().toLocaleString('en-GB')); toast('Directory not configured in this environment — mapping checked, nothing imported'); }} />}
-      {tab === 'platforms' && <Platforms />}
+      {tab === 'requests' && <Requests st={st} />}
+      {tab === 'reviews' && <Reviews st={st} />}
+      {tab === 'roles' && <Roles st={st} />}
+      {tab === 'scopes' && <Scopes st={st} />}
+      {tab === 'sod' && <Sod st={st} />}
+      {tab === 'rules' && <Rules st={st} />}
+      {tab === 'directory' && <Directory st={st} />}
+      {tab === 'platforms' && <Platforms st={st} />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ the result of a decision */
+function Decision({ res, title }) {
+  return (
+    <div className="gv-result">
+      <header><StatusBadge s={EFFECT_TONE[res.effect]}>{EFFECT_WORD[res.effect]}</StatusBadge><b>{title}</b>
+        <span className="gv-faint">asked by {res.asker.person} · {res.asker.role.name} · clearance {res.asker.cl}{res.known ? ` · ${res.sens}${res.granted ? ' · has a grant' : ''}` : ' · not in the catalogue'}</span></header>
+      <ol className="gv-trace">{res.steps.map(([k, t, e], i) => <li key={k}><i>{i + 1}</i><div><b>{k}</b><small>{t}</small></div><StatusBadge s={EFFECT_TONE[e]}>{e}</StatusBadge></li>)}</ol>
+      {res.cols.length > 0 && (<>
+        <div className="gv-section-label">Column by column</div>
+        <div className="table-wrap"><table className="tbl">
+          <thead><tr><th>Column</th><th>Class</th><th>Result</th><th>Why</th></tr></thead>
+          <tbody>{res.cols.map((c) => <tr key={c.col}><td><Mono>{c.col}</Mono></td><td><span className="tag mono">{c.cls}</span></td><td><StatusBadge s={EFFECT_TONE[c.effect]}>{c.effect}</StatusBadge></td><td className="gv-muted">{c.why}</td></tr>)}</tbody>
+        </table></div>
+      </>)}
+      <Note>Every source is evaluated and any deny wins; the most specific scope decides; a mask hides the affected columns. Written to the audit log.</Note>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ requests & grants */
-function Requests({ requests, setRequests, grants, setGrants }) {
+function Requests({ st }) {
   const [rq, setRq] = useState({ asset: '', days: 30, why: '' });
   const [gr, setGr] = useState({ asset: '', person: '', days: 30 });
-  const [pol, setPol] = useState(ACCESS_POLICIES);
-  const [chk, setChk] = useState({ asset: '', person: '', role: 'analyst' });
+  const [pol, setPol] = useState(st.policies);
+  const [chk, setChk] = useState({ asset: '', column: '', person: 'Priya Shah', role: 'analyst', loc: 'uk', purpose: '' });
   const [result, setResult] = useState(null);
-  const policyFor = (a) => pol.find((p) => p.s === sensitivityOf(a));
-  const send = () => {
-    const p = policyFor(rq.asset);
-    if (p.just && !rq.why.trim()) { toast('A business justification is required for this sensitivity'); return; }
-    const days = Math.min(+rq.days, p.days);
-    if (p.ap === 'No approval (automatic)') { setGrants((g) => [...g, { asset: rq.asset, person: ME, by: 'automatic', expires: `${days} days`, status: 'active' }]); toast('Granted automatically'); }
-    else { setRequests((r) => [...r, { asset: rq.asset, by: ME, why: rq.why, policy: `${p.s} · max ${p.days} days`, approvers: p.ap === 'Asset owner' ? ownerOf(rq.asset) || 'owner' : `${ownerOf(rq.asset) || 'owner'} or steward`, days, status: 'pending' }]); toast('Request sent to the owner'); }
-    setRq({ asset: '', days: 30, why: '' });
-  };
-  const decide = (i, status) => {
-    const r = requests[i];
-    if (r.by === ME && status === 'approved') { toast('Refused: the person who asks for access cannot be the person who approves it'); return; }
-    setRequests((all) => all.map((x, k) => (k === i ? { ...x, status } : x)));
-    if (status === 'approved') setGrants((g) => [...g, { asset: r.asset, person: r.by, by: r.approvers, expires: `${r.days} days`, status: 'active' }]);
-  };
-  /* Atlan-style evaluation: every source is checked in order and any deny wins. */
-  const check = () => {
-    const sens = sensitivityOf(chk.asset);
-    const pii = PD_MAP.find((x) => x.asset === chk.asset);
-    const role = ROLES.find((r) => r.key === chk.role);
-    const cl = role.clearance;
-    const who = chk.person || ME;
-    const granted = grants.some((g) => g.asset === chk.asset && g.person === who && g.status === 'active');
-    const p = policyFor(chk.asset);
-    const steps = [
-      ['Role and clearance', `${role.name} · clearance ${cl} · may ${role.may.includes('read_sensitive') ? 'read sensitive detail' : 'read metadata'}`, 'allow'],
-      ['Access policy', `${p.s}: approved by ${p.ap.toLowerCase()}, up to ${p.days} days${p.mask ? ', sensitive detail masked without a grant' : ''}`, sens === 'Restricted' && !granted && p.mask && !role.may.includes('read_sensitive') ? 'mask' : 'allow'],
-      ['Grants', granted ? `${who} holds an active grant` : `${who} holds no grant on this asset`, granted ? 'allow' : sens === 'Public' || sens === 'Internal' ? 'allow' : 'mask'],
-      ['rule-pii-mask', pii ? (cl < 'L2' ? 'Personal and financial columns, clearance below L2' : 'clearance L2 or above — not applied') : 'no personal data — not applied', pii && cl < 'L2' ? 'mask' : 'allow'],
-      ['rule-purpose', sens === 'Restricted' ? 'Restricted data needs a stated purpose (none given in this check)' : 'not Restricted — not applied', sens === 'Restricted' ? 'mask' : 'allow'],
-      ['rule-offshore', 'request from the United Kingdom — not applied', 'allow'],
-    ];
-    const effect = steps.some((x) => x[2] === 'deny') ? 'deny' : steps.some((x) => x[2] === 'mask') ? 'mask' : 'allow';
-    setResult({ effect, sens, cl, granted, steps });
-  };
+  const [openReq, setOpenReq] = useState(null);
+  const a1 = useAct(); const a2 = useAct(); const a3 = useAct(); const a4 = useAct();
+  const people = [...new Set([...st.assign.map((a) => a.person), ...st.grants.map((g) => g.person)])].sort();
+  const p = rq.asset && policyFor(rq.asset);
   return (
     <>
       <div className="gv-two">
-        <Card icon={Send} tone="info" title="Request access" sub="Routed to the asset's owner or steward under the policy for its sensitivity.">
+        <Card icon={Send} tone="info" title="Request access" sub={`You are asking as ${me()} (${st.role}, clearance ${roleOf(st.role).clearance}). Routed to the asset's owner or steward under the policy for its sensitivity.`}>
+          <a1.Refusal />
           <Fld label="Asset"><AssetSelect value={rq.asset} onChange={(e) => setRq((o) => ({ ...o, asset: e.target.value }))} /></Fld>
           <div className="gv-inline">
-            <Fld label="Days"><input className="input" type="number" min={1} value={rq.days} onChange={(e) => setRq((o) => ({ ...o, days: e.target.value }))} /></Fld>
+            <Fld label="Days"><input className="input" type="number" min={1} value={rq.days} onChange={(e) => setRq((o) => ({ ...o, days: e.target.value }))} style={p && +rq.days > p.days ? { borderColor: 'var(--gv-bad)' } : undefined} /></Fld>
             <Fld label="Business justification"><input className="input" placeholder="What you need it for" value={rq.why} onChange={(e) => setRq((o) => ({ ...o, why: e.target.value }))} /></Fld>
           </div>
-          <div style={{ marginTop: 12 }}><Button variant="primary" size="md" icon={Send} disabled={!rq.asset} onClick={send}>Send request</Button></div>
-          {rq.asset && <Note>{sensitivityOf(rq.asset)} · approved by {policyFor(rq.asset).ap.toLowerCase()} · up to {policyFor(rq.asset).days} days</Note>}
+          <div style={{ marginTop: 12 }}><Button variant="primary" size="md" icon={Send} disabled={!rq.asset} onClick={() => { if (a1.run(requestAccess(rq), 'Request sent — written to the audit log')) setRq({ asset: '', days: 30, why: '' }); }}>Send request</Button></div>
+          {p && <Note>{p.s} · approved by {p.ap.toLowerCase()} · up to {p.days} days{p.just ? ' · justification required' : ''}</Note>}
         </Card>
-        <Card icon={KeyRound} tone="ok" title="Grant directly" sub="Owners and stewards of the asset.">
+        <Card icon={KeyRound} tone="ok" title="Grant directly" sub="Governance leads (grant_access). Provisioned with the statement for the platform.">
+          <a2.Refusal />
           <Fld label="Asset"><AssetSelect value={gr.asset} onChange={(e) => setGr((o) => ({ ...o, asset: e.target.value }))} /></Fld>
           <div className="gv-inline">
-            <Fld label="Person"><input className="input" value={gr.person} onChange={(e) => setGr((o) => ({ ...o, person: e.target.value }))} /></Fld>
+            <Fld label="Person"><select className="select" value={gr.person} onChange={(e) => setGr((o) => ({ ...o, person: e.target.value }))}><option value="">Choose…</option>{people.map((x) => <option key={x}>{x}</option>)}</select></Fld>
             <Fld label="Days"><input className="input" type="number" min={1} value={gr.days} onChange={(e) => setGr((o) => ({ ...o, days: e.target.value }))} /></Fld>
           </div>
-          <div style={{ marginTop: 12 }}><Button variant="secondary" size="md" icon={KeyRound} disabled={!gr.asset || !gr.person} onClick={() => { setGrants((g) => [...g, { asset: gr.asset, person: gr.person, by: ME, expires: `${Math.min(+gr.days, policyFor(gr.asset).days)} days`, status: 'active' }]); setGr({ asset: '', person: '', days: 30 }); toast('Access granted'); }}>Grant</Button></div>
+          <div style={{ marginTop: 12 }}><Button variant="secondary" size="md" icon={KeyRound} disabled={!gr.asset || !gr.person} onClick={() => { if (a2.run(grantDirect(gr), 'Access granted — written to the audit log')) setGr({ asset: '', person: '', days: 30 }); }}>Grant</Button></div>
         </Card>
       </div>
-      <Card icon={Inbox} tone="warn" title="Requests" count={requests.length}>
+      <Card icon={Inbox} tone="warn" title="Requests" count={st.requests.length}>
+        <a3.Refusal />
         <div className="table-wrap"><table className="tbl">
-          <thead><tr><th>Asset</th><th>Requested by</th><th>Justification</th><th>Policy</th><th>Approvers</th><th>Status</th><th /></tr></thead>
+          <thead><tr><th>Asset</th><th>Requested by</th><th>When</th><th>Days</th><th>Justification</th><th>Approvers</th><th>Status</th><th /></tr></thead>
           <tbody>
-            {requests.map((r, i) => <tr key={i}><td><Mono>{r.asset}</Mono></td><td>{r.by}</td><td>{r.why || '—'}</td><td>{r.policy}</td><td>{r.approvers}</td><td><StatusBadge s={r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'refused' : 'pending'}>{r.status}</StatusBadge></td>
-              <td style={{ whiteSpace: 'nowrap' }}>{r.status === 'pending' && <><Button variant="secondary" size="sm" onClick={() => decide(i, 'approved')}>Approve</Button> <Button variant="subtle" size="sm" onClick={() => decide(i, 'rejected')}>Reject</Button></>}</td></tr>)}
-            {!requests.length && <tr><td colSpan={7}><Empty>No requests.</Empty></td></tr>}
+            {st.requests.map((r) => (<Fragment key={r.id}>
+              <tr className={r.provision ? 'click' : ''} onClick={() => r.provision && setOpenReq(openReq === r.id ? null : r.id)}>
+                <td><Mono>{r.asset}</Mono></td><td>{r.by}<span className="gv-sub">{r.role} · {r.clearance}</span></td><td className="gv-muted" style={{ whiteSpace: 'nowrap' }}>{r.at}</td><td>{r.days}</td><td>{r.why || '—'}</td><td>{r.approvers}</td>
+                <td><StatusBadge s={r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'refused' : 'pending'}>{r.status}</StatusBadge>{r.decidedBy && <span className="gv-sub">{r.decidedBy} · {r.decidedAt}</span>}</td>
+                <td style={{ whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>{r.status === 'pending' && <><Button variant="secondary" size="sm" onClick={() => a3.run(approveRequest(r.id), 'Approved and provisioned — written to the audit log')}>Approve</Button> <Button variant="subtle" size="sm" onClick={() => a3.run(rejectRequest(r.id), 'Request rejected')}>Reject</Button></>}{r.provision && <Button variant="link" onClick={() => setOpenReq(openReq === r.id ? null : r.id)}>{openReq === r.id ? 'Hide' : 'Provision'}</Button>}</td>
+              </tr>
+              {openReq === r.id && r.provision && <tr className="ac-prov-row"><td colSpan={8}><Provision p={r.provision} /></td></tr>}
+            </Fragment>))}
+            {!st.requests.length && <tr><td colSpan={8}><Empty>No requests yet — send one above (switch “Viewing as” to approve it as someone else).</Empty></td></tr>}
           </tbody>
         </table></div>
       </Card>
-      <Card icon={KeyRound} tone="ok" title="Grants" count={grants.length}>
+      <Card icon={KeyRound} tone="ok" title="Grants" count={st.grants.filter((g) => g.status === 'active').length} sub="The same grants Access reviews works on — revoking here or there changes both.">
+        <a4.Refusal />
         <div className="table-wrap"><table className="tbl">
-          <thead><tr><th>Asset</th><th>Person</th><th>Granted by</th><th>Expires</th><th>Status</th><th /></tr></thead>
+          <thead><tr><th>Asset</th><th>Person</th><th>Granted</th><th>Granted by</th><th>Expires</th><th>Last used</th><th>Status</th><th /></tr></thead>
           <tbody>
-            {grants.map((g, i) => <tr key={i}><td><Mono>{g.asset}</Mono></td><td>{g.person}</td><td>{g.by}</td><td>in {g.expires}</td><td><StatusBadge s={g.status === 'active' ? 'active' : 'refused'}>{g.status}</StatusBadge></td>
-              <td>{g.status === 'active' && <Button variant="subtle" size="sm" onClick={() => { setGrants((all) => all.map((x, k) => (k === i ? { ...x, status: 'revoked' } : x))); toast('Grant revoked'); }}>Revoke</Button>}</td></tr>)}
-            {!grants.length && <tr><td colSpan={6}><Empty>No grants.</Empty></td></tr>}
+            {st.grants.map((g) => <tr key={g.id}><td><Mono>{g.asset}</Mono><span className="gv-sub">{g.sens}</span></td><td>{g.person}<span className="gv-sub">{g.role}</span></td><td>{g.granted}</td><td>{g.by}</td><td>{g.expires}</td><td>{g.lastUsed}</td><td><StatusBadge s={g.status === 'active' ? 'active' : 'refused'}>{g.status}</StatusBadge></td>
+              <td>{g.status === 'active' && <Button variant="subtle" size="sm" onClick={() => a4.run(revokeGrant(g.id), 'Grant revoked — written to the audit log')}>Revoke</Button>}</td></tr>)}
           </tbody>
         </table></div>
       </Card>
-      <Card icon={ShieldCheck} tone="violet" title="Access policies" sub="Enforced on every request and view." actions={<Button variant="secondary" size="md" onClick={() => toast('Access policies saved')}>Save policies</Button>}>
+      <Card icon={ShieldCheck} tone="violet" title="Access policies" sub="Enforced on every request and view." actions={<Button variant="secondary" size="md" onClick={() => a4.run(setPolicies(pol), 'Access policies saved — written to the audit log')}>Save policies</Button>}>
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Sensitivity</th><th>Who approves</th><th>Max days</th><th>Justification</th><th>Mask sensitive detail without a grant</th></tr></thead>
-          <tbody>{pol.map((p, i) => {
-            const set = (k, v) => setPol((all) => all.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+          <tbody>{pol.map((x, i) => {
+            const set = (k, v) => setPol((all) => all.map((y, j) => (j === i ? { ...y, [k]: v } : y)));
             return (
-              <tr key={p.s}><td className="gv-strong">{p.s}</td>
-                <td><select className="select" value={p.ap} onChange={(e) => set('ap', e.target.value)}>{APPROVERS.map((a) => <option key={a}>{a}</option>)}</select></td>
-                <td><input className="input" type="number" style={{ width: 90 }} value={p.days} onChange={(e) => set('days', +e.target.value)} /></td>
-                <td><label className="gv-check"><input type="checkbox" checked={p.just} onChange={(e) => set('just', e.target.checked)} />required</label></td>
-                <td><label className="gv-check"><input type="checkbox" checked={p.mask} onChange={(e) => set('mask', e.target.checked)} />mask</label></td></tr>
+              <tr key={x.s}><td className="gv-strong">{x.s}</td>
+                <td><select className="select" value={x.ap} onChange={(e) => set('ap', e.target.value)}>{APPROVERS.map((a) => <option key={a}>{a}</option>)}</select></td>
+                <td><input className="input" type="number" style={{ width: 90 }} value={x.days} onChange={(e) => set('days', +e.target.value)} /></td>
+                <td><label className="gv-check"><input type="checkbox" checked={x.just} onChange={(e) => set('just', e.target.checked)} />required</label></td>
+                <td><label className="gv-check"><input type="checkbox" checked={x.mask} onChange={(e) => set('mask', e.target.checked)} />mask</label></td></tr>
             );
           })}</tbody>
         </table></div>
       </Card>
-      <Card icon={ShieldQuestion} tone="teal" title="Check access — see an asset as someone else would">
+      <Card icon={ShieldQuestion} tone="teal" title="Check access — see an asset as someone else would" sub="Uses the same decision point: scopes (most specific wins), grants, and every access rule including special-category data.">
         <div className="gv-inline">
-          <Fld label="Asset"><AssetSelect value={chk.asset} onChange={(e) => setChk((o) => ({ ...o, asset: e.target.value }))} /></Fld>
-          <Fld label="Person"><input className="input" value={chk.person} onChange={(e) => setChk((o) => ({ ...o, person: e.target.value }))} /></Fld>
-          <Fld label="App role"><select className="select" value={chk.role} onChange={(e) => setChk((o) => ({ ...o, role: e.target.value }))}>{['analyst', 'data-engineer', 'product-owner', 'platform-ops', 'governance-lead'].map((r) => <option key={r}>{r}</option>)}</select></Fld>
-          <Button variant="secondary" size="md" icon={ShieldQuestion} disabled={!chk.asset} onClick={check}>Check</Button>
+          <Fld label="Asset"><AssetSelect value={chk.asset} onChange={(e) => setChk((o) => ({ ...o, asset: e.target.value, column: '' }))} /></Fld>
+          <Fld label="Column"><select className="select" value={chk.column} onChange={(e) => setChk((o) => ({ ...o, column: e.target.value }))} disabled={!columnsOf(chk.asset).length}><option value="">All columns</option>{columnsOf(chk.asset).map((c) => <option key={c}>{c}</option>)}</select></Fld>
+          <Fld label="Person"><select className="select" value={chk.person} onChange={(e) => setChk((o) => ({ ...o, person: e.target.value }))}>{people.map((x) => <option key={x}>{x}</option>)}</select></Fld>
+          <Fld label="App role"><select className="select" value={chk.role} onChange={(e) => setChk((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.key}</option>)}</select></Fld>
+          <Fld label="Location"><select className="select" value={chk.loc} onChange={(e) => setChk((o) => ({ ...o, loc: e.target.value }))}><option value="uk">United Kingdom</option><option value="non-uk">Outside the UK</option></select></Fld>
+          <Fld label="Purpose"><input className="input" placeholder="optional" value={chk.purpose} onChange={(e) => setChk((o) => ({ ...o, purpose: e.target.value }))} /></Fld>
+          <Button variant="secondary" size="md" icon={ShieldQuestion} disabled={!chk.asset} onClick={() => setResult(evaluate(chk, 'check'))}>Check</Button>
         </div>
-        {result && (
-          <div className="gv-result">
-            <header><StatusBadge s={result.effect === 'allow' ? 'allow' : 'warn'}>{result.effect === 'allow' ? 'Allowed' : 'Allowed, masked'}</StatusBadge><b>{chk.asset}</b><span className="gv-faint">{result.sens} · clearance {result.cl} · {result.granted ? 'has a grant' : 'no grant'}</span></header>
-            <ol className="gv-trace">{result.steps.map(([k, t, e], i) => <li key={k}><i>{i + 1}</i><div><b>{k}</b><small>{t}</small></div><StatusBadge s={e === 'allow' ? 'allow' : e === 'deny' ? 'deny' : 'warn'}>{e}</StatusBadge></li>)}</ol>
-            <Note>Every source is evaluated and any deny wins; a mask from any step hides the sensitive columns.</Note>
-          </div>
-        )}
+        {result && <Decision res={result} title={`${result.known !== false ? chk.asset : chk.asset}${chk.column ? `.${chk.column}` : ''}`} />}
       </Card>
     </>
+  );
+}
+function Provision({ p }) {
+  return (
+    <div className="ac-prov">
+      <div><b><Terminal size={13} /> Provision on {p.platform}</b> <span className="gv-faint">{p.auto ? 'applied — the platform publishes its grants' : 'statement handed to the platform team — this platform does not publish its grants'}</span></div>
+      <code>{p.grant}</code>
+      <div className="gv-faint" style={{ margin: '6px 0 2px' }}>Due to expire <b>{p.due}</b> — revoke with:</div>
+      <code>{p.revoke}</code>
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------ roles & people */
 const sees = (r, s) => {
+  const rank = CLEAR_RANK[r.clearance] || 1;
   if (s === 'Public' || s === 'Internal') return ['Full', 'ok'];
-  if (s === 'Confidential') return r.clearance >= 'L2' ? ['Full', 'ok'] : ['Masked', 'warn'];
+  if (s === 'Confidential') return rank >= 2 ? ['Full', 'ok'] : ['Masked', 'warn'];
   if (r.may.includes('read_sensitive')) return ['Full', 'ok'];
-  return r.clearance >= 'L2' ? ['Request', 'warn'] : ['Masked · request', 'fail'];
+  return rank >= 2 ? ['Request', 'warn'] : ['Masked · request', 'fail'];
 };
-function Roles({ assign, setAssign, sod }) {
-  const [f, setF] = useState({ person: '', role: ROLES[0].key });
-  const add = () => {
-    const held = assign.filter((a) => a.person.toLowerCase() === f.person.trim().toLowerCase()).map((a) => a.role);
-    const clash = sod.find((s) => s.on && s.kind === 'role' && ((s.a === f.role && held.includes(s.b)) || (s.b === f.role && held.includes(s.a))));
-    if (clash) { toast(`Refused: ${clash.why}`); return; }
-    setAssign((a) => [...a, { person: f.person.trim(), role: f.role }]); setF((o) => ({ ...o, person: '' })); toast('Role assigned');
-  };
+function Roles({ st }) {
+  const [f, setF] = useState({ person: '', role: 'analyst' });
+  const [nr, setNr] = useState({ name: '', clearance: 'L2', may: ['read_metadata'] });
+  const a1 = useAct(); const a2 = useAct(); const a3 = useAct();
+  const people = [...new Set(st.assign.map((a) => a.person))].sort();
   return (
     <>
+      <RoleNote st={st} need={['governance-lead']} what="defining roles and assigning or removing them" />
       <Card icon={Eye} tone="violet" title="Who can see what" sub="Each role's clearance decides what it sees at every sensitivity level before any grant. Like a persona: one row, one view of the estate.">
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Role</th><th>Clearance</th>{['Public', 'Internal', 'Confidential', 'Restricted'].map((s) => <th key={s}>{s}</th>)}</tr></thead>
-          <tbody>{ROLES.map((r) => (
-            <tr key={r.key}><td className="gv-strong">{r.name}</td><td><span className="tag">{r.clearance}</span></td>
+          <tbody>{st.roles.map((r) => (
+            <tr key={r.key}><td className="gv-strong">{r.name}{!r.builtIn && <span className="tag" style={{ marginLeft: 6 }}>defined here</span>}</td><td><span className="tag">{r.clearance}</span></td>
               {['Public', 'Internal', 'Confidential', 'Restricted'].map((s) => { const [v, tone] = sees(r, s); return <td key={s}><StatusBadge s={tone}>{v}</StatusBadge></td>; })}</tr>
           ))}</tbody>
         </table></div>
-        <Note>Full: columns and profiles shown. Masked: PII and FINANCIAL columns hidden. Request: visible in the catalogue, detail needs a grant from the owner.</Note>
+        <Note>Full: columns and profiles shown. Masked: PII and FINANCIAL columns hidden. Request: visible in the catalogue, detail needs a grant from the owner. Special-category columns always need L3.</Note>
       </Card>
-      <Card icon={Users} tone="info" title="Roles">
+      <Card icon={Users} tone="info" title="Roles" count={st.roles.length}>
+        <a3.Refusal />
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Role</th><th>Clearance</th><th>May do</th><th>Held by</th></tr></thead>
-          <tbody>{ROLES.map((r) => { const who = assign.filter((a) => a.role === r.key).map((a) => a.person); return (
-            <tr key={r.key}><td><span className="gv-strong">{r.name}</span><span className="gv-sub mono">{r.key}</span></td><td><span className="tag">{r.clearance}</span></td>
-              <td><div className="gv-tags">{r.may.map((m) => <span key={m} className="tag mono">{m}</span>)}</div></td><td>{who.join(', ') || <span className="gv-faint">nobody yet</span>}</td></tr>
+          <tbody>{st.roles.map((r) => { const who = st.assign.filter((a) => a.role === r.key); return (
+            <tr key={r.key}><td><span className="gv-strong">{r.name}</span><span className="gv-sub mono">{r.key}{!r.builtIn ? ` · defined by ${r.by}, ${r.at}` : ''}</span></td><td><span className="tag">{r.clearance}</span></td>
+              <td><div className="gv-tags">{r.may.map((m) => <span key={m} className="tag mono">{m}</span>)}</div></td>
+              <td>{who.length ? <div className="ac-held">{who.map((a) => <span key={a.person} className={`ac-person ${a.source}`} title={`${a.source} · since ${a.at}`}>{a.person}<em>{a.source}</em><button type="button" aria-label={`Remove ${r.key} from ${a.person}`} onClick={() => a3.run(unassign(a.person, r.key), `Removed ${r.key} from ${a.person}`)}><X size={11} /></button></span>)}</div> : <span className="gv-faint">nobody yet</span>}</td></tr>
           ); })}</tbody>
         </table></div>
       </Card>
-      <Card icon={UserPlus} tone="ok" title="Assign a role">
-        <div className="gv-inline">
-          <Fld label="Person"><input className="input" placeholder="e.g. Priya Shah" value={f.person} onChange={(e) => setF((o) => ({ ...o, person: e.target.value }))} /></Fld>
-          <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF((o) => ({ ...o, role: e.target.value }))}>{ROLES.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Fld>
-          <Button variant="primary" size="md" icon={Plus} disabled={!f.person.trim()} onClick={add}>Assign role</Button>
-        </div>
-        <Note>An assignment that would break separation of duties is refused here, not logged and allowed.</Note>
-      </Card>
+      <div className="gv-two">
+        <Card icon={UserPlus} tone="ok" title="Assign a role" sub="Checked against separation of duties when it would happen — a clash is refused with the reason.">
+          <a1.Refusal />
+          <div className="gv-inline">
+            <Fld label="Person"><input className="input" list="ac-people" placeholder="e.g. Sarah Jones" value={f.person} onChange={(e) => setF((o) => ({ ...o, person: e.target.value }))} /><datalist id="ac-people">{people.map((x) => <option key={x} value={x} />)}</datalist></Fld>
+            <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Fld>
+            <Button variant="primary" size="md" icon={Plus} disabled={!f.person.trim()} onClick={() => { if (a1.run(assignRole(f.person, f.role), `Assigned ${f.role} to ${f.person.trim()} — written to the audit log`)) setF((o) => ({ ...o, person: '' })); }}>Assign role</Button>
+          </div>
+          <Note>Try: assign auditor to Admin (already governance-lead) — refused. Held by shows whether each assignment came from the directory or was made here (manual).</Note>
+        </Card>
+        <Card icon={BadgePlus} tone="violet" title="Define a role" sub="Governance leads only. The role carries a clearance and a set of permissions.">
+          <a2.Refusal />
+          <div className="gv-inline">
+            <Fld label="Name"><input className="input" placeholder="e.g. Privacy analyst" value={nr.name} onChange={(e) => setNr((o) => ({ ...o, name: e.target.value }))} /></Fld>
+            <Fld label="Clearance"><select className="select" value={nr.clearance} onChange={(e) => setNr((o) => ({ ...o, clearance: e.target.value }))}>{['L1', 'L2', 'L3'].map((c) => <option key={c}>{c}</option>)}</select></Fld>
+          </div>
+          <Fld label="Permissions"><ChipPick options={PERMISSIONS} value={nr.may} onChange={(v) => setNr((o) => ({ ...o, may: v }))} /></Fld>
+          <Button variant="primary" size="md" icon={BadgePlus} disabled={!nr.name.trim()} onClick={() => { if (a2.run(defineRole(nr), `Defined the role “${nr.name.trim()}” — written to the audit log`)) setNr({ name: '', clearance: 'L2', may: ['read_metadata'] }); }}>Define role</Button>
+        </Card>
+      </div>
     </>
   );
 }
 
 /* ------------------------------------------------------------------ permissions by level */
-function Scopes({ scopes, setScopes }) {
-  const [f, setF] = useState({ role: ROLES[0].key, level: 'table', target: '', actions: [] });
+function Scopes({ st }) {
+  const [f, setF] = useState({ role: 'analyst', level: 'table', target: '', actions: ['read_metadata'] });
+  const a1 = useAct(); const a2 = useAct();
+  const opts = TARGETS[f.level];
   return (
     <>
-      <Card icon={Layers} tone="teal" title="Permissions by level">
+      <RoleNote st={st} need={['governance-lead']} what="setting or removing scopes" />
+      <Card icon={Layers} tone="teal" title="Permissions by level" count={st.scopes.length} sub="A scope narrows or widens what a role may do on part of the estate. When several match, the most specific wins: column, then table or report, then dataset, then system.">
+        <a2.Refusal />
         <div className="table-wrap"><table className="tbl">
-          <thead><tr><th>Role</th><th>Level</th><th>Target</th><th>Actions</th><th>Set by</th><th /></tr></thead>
+          <thead><tr><th>Role</th><th>Level</th><th>Target</th><th>System</th><th>Actions</th><th>Set by</th><th /></tr></thead>
           <tbody>
-            {scopes.map((s, i) => <tr key={i}><td>{ROLES.find((r) => r.key === s.role).name}</td><td><span className="tag">{s.level}</span></td><td><Mono>{s.target}</Mono></td><td><div className="gv-tags">{s.actions.map((a) => <span key={a} className="tag mono">{a}</span>)}</div></td><td>{ME}</td>
-              <td><Button variant="subtle" size="sm" onClick={() => setScopes((all) => all.filter((_, k) => k !== i))}>Remove</Button></td></tr>)}
-            {!scopes.length && <tr><td colSpan={6}><Empty>No scope set yet — roles carry only their own permissions.</Empty></td></tr>}
+            {st.scopes.map((s, i) => <tr key={i}><td>{roleOf(s.role)?.name || s.role}</td><td><span className="tag">{s.level}</span></td><td><Mono>{s.target}</Mono></td><td className="gv-muted">{statementFor(s).sys}</td><td><div className="gv-tags">{s.actions.map((a) => <span key={a} className="tag mono">{a}</span>)}</div></td><td>{s.by}<span className="gv-sub">{s.at}</span></td>
+              <td><Button variant="subtle" size="sm" onClick={() => a2.run(removeScope(i), 'Scope removed — written to the audit log')}>Remove</Button></td></tr>)}
+            {!st.scopes.length && <tr><td colSpan={7}><Empty>No scope set yet — roles carry only their own permissions.</Empty></td></tr>}
           </tbody>
         </table></div>
       </Card>
-      <Card icon={Plus} tone="ok" title="Set a scope">
+      <Card icon={Plus} tone="ok" title="Set a scope" sub="Pick the target from the catalogue — systems, datasets, tables, columns or reports that GenMeta has harvested.">
+        <a1.Refusal />
         <div className="gv-inline">
-          <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF((o) => ({ ...o, role: e.target.value }))}>{ROLES.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Fld>
-          <Fld label="Level"><select className="select" value={f.level} onChange={(e) => setF((o) => ({ ...o, level: e.target.value }))}>{['system', 'dataset', 'table', 'column', 'report'].map((l) => <option key={l}>{l}</option>)}</select></Fld>
-          <Fld label="Target"><input className="input mono" placeholder="Rplus_DWH · SRC · SRC.CUSTOMER · SRC.CUSTOMER.EMAIL" value={f.target} onChange={(e) => setF((o) => ({ ...o, target: e.target.value }))} /></Fld>
+          <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Fld>
+          <Fld label="Level"><select className="select" value={f.level} onChange={(e) => setF((o) => ({ ...o, level: e.target.value, target: '' }))}>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select></Fld>
+          <Fld label={`Target ${f.level}`}><select className="select mono" value={f.target} onChange={(e) => setF((o) => ({ ...o, target: e.target.value }))}><option value="">Choose a {f.level}…</option>{opts.map((t) => <option key={t.id} value={t.id}>{t.id}{f.level !== 'system' ? ` — ${t.system}` : ''}{t.cls ? ` · ${t.cls}` : ''}</option>)}</select></Fld>
         </div>
         <Fld label="Actions"><ChipPick options={PERMISSIONS} value={f.actions} onChange={(v) => setF((o) => ({ ...o, actions: v }))} /></Fld>
-        <Button variant="primary" size="md" disabled={!f.target.trim() || !f.actions.length} onClick={() => { setScopes((s) => [...s, f]); setF((o) => ({ ...o, target: '', actions: [] })); toast('Scope saved'); }}>Save scope</Button>
-        <Note>The most specific scope wins: column, then table or report, then dataset, then system.</Note>
+        <Button variant="primary" size="md" disabled={!f.target || !f.actions.length} onClick={() => { if (a1.run(saveScope(f), 'Scope saved — written to the audit log')) setF((o) => ({ ...o, target: '', actions: ['read_metadata'] })); }}>Save scope</Button>
+        <Note>The decision point and Check access show the deciding scope as its own step. A scope with read_metadata only shows the target masked; read_profile or read_sensitive shows it.</Note>
       </Card>
     </>
   );
 }
 
 /* ------------------------------------------------------------------ separation of duties */
-function Sod({ sod, setSod, assign }) {
-  const people = [...new Set(assign.map((a) => a.person))];
+function Sod({ st }) {
+  const a1 = useAct();
+  const held = combinationsHeld(st);
+  const offBuiltIn = st.sod.filter((s) => s.builtIn && !s.on);
   return (
-    <Card icon={Split} tone="warn" title="Separation of duties" sub="Duties that may not be held by one person. Conflicts are refused when they would happen, not reported afterwards.">
+    <Card icon={Split} tone="warn" title="Separation of duties" sub="Duties that may not be held by one person. Conflicts are refused when they would happen, with the reason — not reported afterwards.">
+      <RoleNote st={st} need={['governance-lead']} what="switching rules on or off" />
+      <a1.Refusal />
+      {offBuiltIn.length > 0 && <div className="gv-callout bad" style={{ marginBottom: 12 }}><AlertTriangle size={15} /><span><b>Built-in rule switched off:</b> {offBuiltIn.map((s) => `${s.a} ↔ ${s.b}`).join(', ')}. Assignments that break {offBuiltIn.length === 1 ? 'it' : 'them'} are now allowed — most auditors expect {offBuiltIn.length === 1 ? 'this rule' : 'these rules'} on. The change is in the audit log.</span></div>}
       <div className="table-wrap"><table className="tbl">
         <thead><tr><th>Conflict</th><th>Kind</th><th>Why</th><th>Enforced</th><th>State</th></tr></thead>
-        <tbody>{sod.map((s, i) => (
-          <tr key={s.a + s.b}><td><Mono>{s.a} ↔ {s.b}</Mono>{s.builtIn && <span className="gv-sub">built in</span>}</td><td>{s.kind}</td><td>{s.why}</td><td className="gv-muted">{s.when}</td>
-            <td><Switch on={s.on} label={`${s.a} and ${s.b}`} onChange={(v) => { if (s.builtIn) { toast('Built-in duties cannot be switched off'); return; } setSod((all) => all.map((x, k) => (k === i ? { ...x, on: v } : x))); }} /></td></tr>
+        <tbody>{st.sod.map((s, i) => (
+          <tr key={s.a + s.b} className={!s.on && s.builtIn ? 'ac-off' : ''}><td><Mono>{s.a} ↔ {s.b}</Mono>{s.builtIn && <span className="gv-sub">built in{!s.on ? ' · switched off' : ''}</span>}</td><td>{s.kind}</td><td>{s.why}</td><td className="gv-muted">{s.when}</td>
+            <td><Switch on={s.on} label={`${s.a} and ${s.b}`} onChange={(v) => a1.run(toggleSod(i, v), v ? `Switched on ${s.a} ↔ ${s.b}` : `Switched off ${s.a} ↔ ${s.b}${s.builtIn ? ' — built-in rule, warning shown' : ''}`)} /></td></tr>
         ))}</tbody>
       </table></div>
       <div className="gv-section-label">Combinations held today</div>
-      <p style={{ fontSize: 13, margin: 0 }}>No one holds a conflicting combination ({people.length} people checked).</p>
+      {held.length ? (
+        <div className="table-wrap"><table className="tbl">
+          <thead><tr><th>Person</th><th>Holds</th><th>Breaks</th><th>Why it matters</th></tr></thead>
+          <tbody>{held.map((h) => <tr key={h.person + h.rule.a + h.rule.b}><td className="gv-strong">{h.person}</td><td><Mono>{h.detail}</Mono></td><td><Mono>{h.rule.a} ↔ {h.rule.b}</Mono>{!h.rule.on && <span className="gv-sub">rule is off</span>}</td><td className="gv-muted">{h.rule.why} Remove one of the roles in Roles & people.</td></tr>)}</tbody>
+        </table></div>
+      ) : <p style={{ fontSize: 13, margin: 0 }}>No one holds a conflicting combination ({new Set(st.assign.map((a) => a.person)).size} people checked).</p>}
     </Card>
   );
 }
 
 /* ------------------------------------------------------------------ access rules */
-function Rules() {
-  const [f, setF] = useState({ asset: 'SRC.CUSTOMER', column: '', loc: 'uk', purpose: '' });
+function Rules({ st }) {
+  const [f, setF] = useState({ asset: 'INT.CUSTOMER', column: '', loc: 'uk', purpose: '' });
   const [res, setRes] = useState(null);
-  const evaluate = () => {
-    const sens = sensitivityOf(f.asset);
-    const pii = PD_MAP.find((x) => x.asset === f.asset);
-    const hits = [];
-    if (sens === 'Restricted' && f.loc !== 'uk') hits.push(ACCESS_RULES[1]);
-    if (pii && (!f.column || pii.cols.map((c) => c.toLowerCase()).includes(f.column.toLowerCase()))) hits.push(ACCESS_RULES[2]);
-    if (sens === 'Restricted' && !f.purpose.trim()) hits.push(ACCESS_RULES[3]);
-    const effect = hits.some((h) => h.effect === 'deny') ? 'deny' : hits.length ? 'mask' : 'allow';
-    setRes({ effect, hits, sens });
-  };
+  const cols = columnsOf(f.asset);
+  const r = roleOf(st.role);
   return (
     <>
       <Card icon={Gavel} tone="bad" title="Access rules" sub="Evaluated on every view, in order; any deny wins.">
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th className="num">#</th><th>Rule</th><th>Applies when</th><th>Effect</th></tr></thead>
-          <tbody>{ACCESS_RULES.map((r) => <tr key={r.id}><td className="num">{r.n}</td><td><span className="gv-strong">{r.name}</span><span className="gv-sub mono">{r.id}</span></td><td><Mono>{r.when}</Mono></td><td><StatusBadge s={r.effect === 'deny' ? 'deny' : 'warn'}>{r.effect}</StatusBadge></td></tr>)}</tbody>
+          <tbody>{ACCESS_RULES.map((x) => <tr key={x.id}><td className="num">{x.n}</td><td><span className="gv-strong">{x.name}</span><span className="gv-sub mono">{x.id}</span></td><td><Mono>{x.when}</Mono></td><td><StatusBadge s={x.effect === 'deny' ? 'deny' : 'warn'}>{x.effect}</StatusBadge></td></tr>)}</tbody>
         </table></div>
       </Card>
-      <Card icon={ShieldQuestion} tone="teal" title="Ask the decision point">
+      <Card icon={ShieldQuestion} tone="teal" title="Ask the decision point" sub={`Asking as ${me()} — ${r.name}, clearance ${r.clearance}. Change “Viewing as (test)” to ask as someone else.`}>
         <div className="gv-inline">
-          <Fld label="Asset"><input className="input mono" placeholder="SRC.CUSTOMER" value={f.asset} onChange={(e) => setF((o) => ({ ...o, asset: e.target.value }))} /></Fld>
-          <Fld label="Column"><input className="input mono" placeholder="EMAIL (optional)" value={f.column} onChange={(e) => setF((o) => ({ ...o, column: e.target.value }))} /></Fld>
+          <Fld label="Asset"><input className="input mono" list="ac-assets" placeholder="INT.CUSTOMER" value={f.asset} onChange={(e) => setF((o) => ({ ...o, asset: e.target.value, column: '' }))} /><datalist id="ac-assets">{ASSET_NAMES.map((a) => <option key={a} value={a} />)}</datalist></Fld>
+          <Fld label="Column"><select className="select" value={f.column} onChange={(e) => setF((o) => ({ ...o, column: e.target.value }))} disabled={!cols.length}><option value="">All columns</option>{cols.map((c) => <option key={c} value={c}>{c} · {colClass(c)}</option>)}</select></Fld>
           <Fld label="Location"><select className="select" value={f.loc} onChange={(e) => setF((o) => ({ ...o, loc: e.target.value }))}><option value="uk">United Kingdom</option><option value="non-uk">Outside the UK</option></select></Fld>
           <Fld label="Purpose"><input className="input" placeholder="why you are asking" value={f.purpose} onChange={(e) => setF((o) => ({ ...o, purpose: e.target.value }))} /></Fld>
-          <Button variant="primary" size="md" disabled={!f.asset.trim()} onClick={evaluate}>Evaluate</Button>
+          <Button variant="primary" size="md" disabled={!f.asset.trim()} onClick={() => setRes(evaluate({ ...f, asset: f.asset.trim(), role: st.role, person: me() }))}>Evaluate</Button>
         </div>
-        {res && (
-          <div className="gv-result">
-            <header><StatusBadge s={res.effect}>{res.effect}</StatusBadge><b>{f.asset}{f.column && `.${f.column}`}</b><span className="gv-faint">{res.sens} · {f.loc === 'uk' ? 'United Kingdom' : 'outside the UK'} · audited</span></header>
-            {res.hits.length ? <ul className="gv-lines">{res.hits.map((h) => <li key={h.id}>{h.name} <span className="gv-faint mono">{h.id}</span> → <b>{h.effect}</b></li>)}</ul> : <p style={{ margin: 0 }}>No rule applies — shown in full.</p>}
-          </div>
-        )}
+        {res && <Decision res={res} title={`${f.asset}${f.column ? `.${f.column}` : ''}`} />}
+        {!res && <Note>Try INT.CUSTOMER with column DISABILITY_FLAG as an analyst (L1) — denied by the special-category rule; as the DPO (L3) it is allowed. An asset that is not in the catalogue is refused.</Note>}
       </Card>
     </>
   );
 }
 
 /* ------------------------------------------------------------------ directory & identity */
-function Directory({ synced, onSync }) {
+const OUT_TONE = { applied: 'ok', unchanged: 'info', skipped: 'warn', refused: 'fail' };
+function Directory({ st }) {
+  const a1 = useAct();
+  const map = Object.fromEntries(DIRECTORY);
+  const res = st.sync?.results || [];
+  const n = (o) => res.filter((x) => x.outcome === o).length;
   return (
-    <Card icon={Fingerprint} tone="warn" title="AWS IAM Identity Center" sub="not configured in this environment" actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={onSync}>Synchronise now</Button>}>
-      <div className="table-wrap"><table className="tbl">
-        <thead><tr><th>Directory group</th><th>Role in GenMeta</th></tr></thead>
-        <tbody>{DIRECTORY.map(([g, r]) => <tr key={g}><td><Mono>{g}</Mono></td><td><span className="tag mono">{r}</span></td></tr>)}</tbody>
-      </table></div>
-      <Note>Microsoft Entra ID / Active Directory: the same group → role → clearance mapping over SCIM or OIDC group claims.</Note>
-      <Note>Adding a person to a directory group is the only administrative step: the group carries the role, the role carries the clearance, and a combination that breaks separation of duties is refused rather than imported.{synced && ` Last synchronised ${synced}.`}</Note>
-    </Card>
+    <>
+      <Card icon={Fingerprint} tone="warn" title="AWS IAM Identity Center" sub="Test directory — groups and members below. The group carries the role, the role carries the clearance."
+        actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={() => a1.run(syncDirectory(), 'Directory synchronised — written to the audit log')}>Synchronise now</Button>}>
+        <RoleNote st={st} need={['governance-lead', 'platform-ops']} what="synchronising the directory" />
+        <a1.Refusal />
+        <div className="table-wrap"><table className="tbl">
+          <thead><tr><th>Directory group</th><th>Role in GenMeta</th><th>Members</th></tr></thead>
+          <tbody>{DIRECTORY_MEMBERS.map(([g, people]) => <tr key={g}><td><Mono>{g}</Mono></td><td>{map[g] ? <span className="tag mono">{map[g]}</span> : <StatusBadge s="warn">no mapping</StatusBadge>}</td><td>{people.join(', ')}</td></tr>)}</tbody>
+        </table></div>
+        <Note>Microsoft Entra ID / Active Directory: the same group → role → clearance mapping over SCIM or OIDC group claims. Manual assignments made in Roles & people stay and keep their “manual” label.</Note>
+      </Card>
+      {st.sync && (
+        <Card icon={ListChecks} tone="info" title="Last synchronisation" count={res.length} sub={`${st.sync.at} by ${st.sync.by} · ${n('applied')} applied · ${n('unchanged')} unchanged · ${n('skipped')} skipped: no group · ${n('refused')} refused: separation of duties`}>
+          <div className="table-wrap"><table className="tbl">
+            <thead><tr><th>Person</th><th>Group</th><th>Role</th><th>Result</th><th>Why</th></tr></thead>
+            <tbody>{res.map((x) => <tr key={x.person + x.group}><td className="gv-strong">{x.person}</td><td><Mono>{x.group}</Mono></td><td>{x.role !== '—' ? <span className="tag mono">{x.role}</span> : '—'}</td><td><StatusBadge s={OUT_TONE[x.outcome]}>{x.outcome === 'skipped' ? 'skipped: no group' : x.outcome === 'refused' ? 'refused: separation of duties' : x.outcome}</StatusBadge></td><td className="gv-muted">{x.why}</td></tr>)}</tbody>
+          </table></div>
+          <Note>Applied people now appear under “Held by” in Roles & people, labelled “directory”.</Note>
+        </Card>
+      )}
+    </>
   );
 }
 
 /* ------------------------------------------------------------------ platform consistency */
-function Platforms() {
-  const [last, setLast] = useState('03/10/2026, 11:30:58');
+function Platforms({ st }) {
+  const a1 = useAct();
+  const rc = st.recon;
+  const rows = rc?.rows || [];
+  const m = rows.filter((r) => r.state === 'missing').length; const nc = rows.filter((r) => r.state === 'not checkable').length;
   return (
-    <Card icon={RefreshCw} tone="teal" title="Platform consistency" sub={`Last reconciled ${last} · 0 scope(s) checked, 0 missing in the platform, 0 not checkable · platform roles follow GENMETA_<ROLE>`}
-      actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={() => { setLast(new Date().toLocaleString('en-GB')); toast('Reconciled 0 scope(s) across 6 platform(s)'); }}>Reconcile now</Button>}>
-      <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 12px' }}>Automatic correction: none — GenMeta reports drift and the statement to correct it.</p>
-      <div className="table-wrap"><table className="tbl">
-        <thead><tr><th>Platform</th><th className="num">Assets</th><th>Grants readable</th><th className="num">Scopes checked</th><th className="num">Not checkable</th><th className="num">Missing in platform</th><th>What to run</th></tr></thead>
-        <tbody>{PLATFORMS.map(([p, n, ok, why]) => <tr key={p}><td className="gv-strong">{p}</td><td className="num">{n}</td><td><StatusBadge s={ok ? 'yes' : 'warn'}>{ok ? 'yes' : 'no'}</StatusBadge><span className="gv-sub">{why}</span></td><td className="num">0</td><td className="num">0</td><td className="num">0</td><td className="gv-faint">—</td></tr>)}</tbody>
-      </table></div>
-      <Note>Where a platform cannot report its grants, it says so and why — the register is never presented as confirmed when it has not been checked.</Note>
-    </Card>
+    <>
+      <Card icon={RefreshCw} tone="teal" title="Platform consistency" sub={rc ? `Last reconciled ${rc.at} by ${rc.by} · ${rows.length} scope(s) checked, ${m} missing in the platform, ${nc} not checkable · platform roles follow GENMETA_<ROLE>` : 'Not reconciled yet in this session · platform roles follow GENMETA_<ROLE>'}
+        actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={() => a1.run(reconcile(), 'Reconciled — written to the audit log')}>Reconcile now</Button>}>
+        <RoleNote st={st} need={['governance-lead', 'platform-ops']} what="reconciling platforms" />
+        <a1.Refusal />
+        <p className="gv-muted" style={{ fontSize: 13, margin: '0 0 12px' }}>Automatic correction: none — GenMeta checks each saved scope on its platform, reports drift and gives the statement to correct it.</p>
+        <div className="table-wrap"><table className="tbl">
+          <thead><tr><th>Platform</th><th className="num">Assets</th><th>Grants readable</th><th className="num">Scopes checked</th><th className="num">Not checkable</th><th className="num">Missing in platform</th><th>What to run</th></tr></thead>
+          <tbody>{PLATFORMS.map(([p, n, ok, why]) => { const x = rc?.per[p]; return (
+            <tr key={p}><td className="gv-strong">{p}</td><td className="num">{n}</td><td><StatusBadge s={ok ? 'yes' : 'warn'}>{ok ? 'yes' : 'no'}</StatusBadge><span className="gv-sub">{why}</span></td>
+              <td className="num">{x ? x.checked : '—'}</td><td className="num">{x ? x.nc : '—'}</td><td className="num">{x ? (x.missing ? <b className="ac-bad">{x.missing}</b> : 0) : '—'}</td>
+              <td>{x && x.sql.length ? <code className="ac-sql">{x.sql.join('\n')}</code> : <span className="gv-faint">{x ? 'nothing' : '—'}</span>}</td></tr>
+          ); })}</tbody>
+        </table></div>
+        <Note>Where a platform cannot report its grants, it says so and why — the register is never presented as confirmed when it has not been checked.</Note>
+      </Card>
+      {rc && (
+        <Card icon={Terminal} tone="info" title="Scope by scope" count={rows.length}>
+          <div className="table-wrap"><table className="tbl">
+            <thead><tr><th>Scope</th><th>Platform</th><th>In the platform</th><th>Statement</th></tr></thead>
+            <tbody>{rows.map((r, i) => <tr key={i}><td><span className="tag">{r.scope.level}</span> <Mono>{r.scope.target}</Mono><span className="gv-sub">{r.scope.role} · {r.scope.actions.join(', ')}</span></td><td>{r.sys}</td>
+              <td><StatusBadge s={r.state === 'present' ? 'ok' : r.state === 'missing' ? 'fail' : 'warn'}>{r.state}</StatusBadge></td><td><code className="ac-sql">{r.sql}</code></td></tr>)}</tbody>
+          </table></div>
+        </Card>
+      )}
+    </>
   );
 }
 
-/* ------------------------------------------------------------------ access reviews
-   v2: Microsoft Entra access reviews — a recurring campaign, the owner decides keep or revoke for each
-   grant, with a recommendation from last use; results are applied in one step. */
-function Reviews() {
-  const [dec, setDec] = useState({});
-  const [applied, setApplied] = useState(false);
+/* ------------------------------------------------------------------ access reviews (the same grants as Requests & grants) */
+function Reviews({ st }) {
   const [f, setF] = useState('all');
-  const done = Object.keys(dec).length;
-  const rows = REVIEW_ITEMS.filter((r) => f === 'all' || (f === 'pending' ? !dec[r.id] : dec[r.id]));
-  const acceptAll = () => setDec(Object.fromEntries(REVIEW_ITEMS.map((r) => [r.id, recommend(r)[0] === 'Keep' ? 'Approve' : 'Deny'])));
+  const a1 = useAct();
+  const dec = st.review.dec; const applied = st.review.applied;
+  const items = st.grants.filter((g) => g.sens === 'Restricted' && (g.status === 'active' || dec[g.id]));
+  const done = items.filter((g) => dec[g.id]).length;
+  const rows = items.filter((r) => f === 'all' || (f === 'pending' ? !dec[r.id] : dec[r.id]));
+  const acceptAll = () => items.forEach((r) => setReviewDecision(r.id, recommend(r)[0] === 'Keep' ? 'Approve' : 'Deny'));
   const DEC_TONE = { Approve: 'ok', Deny: 'fail', "Don't know": 'warn' };
   return (
     <>
-      <Card icon={CalendarCheck} tone="violet" title="Quarterly review — Restricted data, Q4 2026" sub="Started 1 Oct 2026 · ends 31 Oct 2026 · reviewers: each asset's owner · repeats every 3 months · if a reviewer does not respond: keep access and flag it"
+      <Card icon={CalendarCheck} tone="violet" title="Quarterly review — Restricted data, Q4 2026" sub={`Started 1 Oct 2026 · ends 31 Oct 2026 · reviewers: each asset's owner · ${items.length} grant(s) — the same active grants listed under Requests & grants`}
         actions={<>
-          <Button variant="secondary" size="md" onClick={acceptAll} disabled={applied}>Accept recommendations</Button>
-          <Button variant="primary" size="md" disabled={!done || applied} onClick={() => { setApplied(true); toast(`Applied: ${Object.values(dec).filter((d) => d === 'Deny').length} grant(s) revoked, written to the audit trail`); }}>Apply results</Button>
+          <Button variant="secondary" size="md" onClick={acceptAll} disabled={!!applied}>Accept recommendations</Button>
+          <Button variant="primary" size="md" disabled={!done || !!applied} onClick={() => { const before = st.grants.filter((g) => g.status === 'active').length; if (a1.run(applyReview())) toast(`Applied: ${Object.values(dec).filter((d) => d === 'Deny').length} grant(s) revoked — active grants ${before} → ${before - Object.values(dec).filter((d) => d === 'Deny').length}`); }}>Apply results</Button>
         </>}>
-        <div className="gv-bars" style={{ marginBottom: 6 }}><div><span>{done} of {REVIEW_ITEMS.length} reviewed</span><Meter pct={done / REVIEW_ITEMS.length} tone="info" /><b>{Math.round((done / REVIEW_ITEMS.length) * 100)}%</b></div></div>
-        {applied && <Note>Results applied on {new Date().toLocaleDateString('en-GB')}. Revoked grants are removed from the platforms that publish their grants (Rplus_DWH); the others get the statement to run.</Note>}
+        <a1.Refusal />
+        <div className="gv-bars" style={{ marginBottom: 6 }}><div><span>{done} of {items.length} reviewed</span><Meter pct={items.length ? done / items.length : 0} tone="info" /><b>{items.length ? Math.round((done / items.length) * 100) : 0}%</b></div></div>
+        {applied && <Note>Results applied on {applied}. Revoked grants show as revoked under Requests & grants too; Rplus_DWH grants are removed in the platform, the others get the REVOKE statement.</Note>}
       </Card>
       <Card icon={ListChecks} tone="info" title="Grants to review" count={rows.length} actions={<Segmented size="sm" value={f} onChange={setF} options={[{ value: 'all', label: 'All' }, { value: 'pending', label: 'Not reviewed' }, { value: 'done', label: 'Reviewed' }]} />}>
         <div className="table-wrap"><table className="tbl">
@@ -357,18 +433,19 @@ function Reviews() {
           <tbody>{rows.map((r) => { const [rec, why] = recommend(r); return (
             <tr key={r.id}>
               <td><span className="gv-strong">{r.person}</span><span className="gv-sub">{r.role} · {r.why}</span></td>
-              <td><Mono>{r.asset}</Mono><span className="gv-sub">{r.sens} · owner {ownerOf(r.asset) || '—'}</span></td>
+              <td><Mono>{r.asset}</Mono><span className="gv-sub">{r.sens} · owner {ownerOf(r.asset) || '—'} · {systemOf(r.asset)}</span></td>
               <td>{r.granted}</td><td>{r.lastUsed}</td>
               <td><StatusBadge s={rec === 'Keep' ? 'ok' : 'fail'}>{rec}</StatusBadge><span className="gv-sub">{why}</span></td>
-              <td style={{ whiteSpace: 'nowrap' }}>{dec[r.id] ? <><StatusBadge s={DEC_TONE[dec[r.id]]}>{dec[r.id]}</StatusBadge> {!applied && <Button variant="link" onClick={() => setDec((d) => { const n = { ...d }; delete n[r.id]; return n; })}>Change</Button>}</> : (
+              <td style={{ whiteSpace: 'nowrap' }}>{dec[r.id] ? <><StatusBadge s={DEC_TONE[dec[r.id]]}>{dec[r.id]}</StatusBadge> {!applied && <Button variant="link" onClick={() => clearReviewDecision(r.id)}>Change</Button>}</> : (
                 <span className="gv-actions">
-                  <Button variant="secondary" size="sm" icon={Check} onClick={() => setDec((d) => ({ ...d, [r.id]: 'Approve' }))}>Approve</Button>
-                  <Button variant="secondary" size="sm" icon={X} onClick={() => setDec((d) => ({ ...d, [r.id]: 'Deny' }))}>Deny</Button>
-                  <Button variant="subtle" size="sm" icon={HelpCircle} onClick={() => setDec((d) => ({ ...d, [r.id]: "Don't know" }))}>Don't know</Button>
+                  <Button variant="secondary" size="sm" icon={Check} onClick={() => setReviewDecision(r.id, 'Approve')}>Approve</Button>
+                  <Button variant="secondary" size="sm" icon={X} onClick={() => setReviewDecision(r.id, 'Deny')}>Deny</Button>
+                  <Button variant="subtle" size="sm" icon={HelpCircle} onClick={() => setReviewDecision(r.id, "Don't know")}>Don't know</Button>
                 </span>
               )}</td>
             </tr>
-          ); })}</tbody>
+          ); })}
+          {!rows.length && <tr><td colSpan={6}><Empty>No grants to review.</Empty></td></tr>}</tbody>
         </table></div>
       </Card>
     </>

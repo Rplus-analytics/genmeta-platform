@@ -106,6 +106,8 @@ export function writeAudit(who, role, action, category, asset, what) {
   AUDIT.unshift({ seq: AUDIT.length + 1, ts: new Date(), who, role, action, category, asset, what });
   auditListeners.forEach((l) => l());
 }
+/* refused or denied actions — counted under Violations and refusals */
+export const isViolation = (r) => /refused|denied/.test(r.action);
 export const onAudit = (cb) => { auditListeners.add(cb); return () => auditListeners.delete(cb); };
 export const fmtTs = (d) => d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
 

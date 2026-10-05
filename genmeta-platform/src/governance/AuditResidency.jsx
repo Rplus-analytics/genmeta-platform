@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Download, ShieldCheck, Search, Plus, BarChart3, ScanSearch, Link2, FileDown, Users, Server, Eye, ShieldAlert, Radar, Scale, ScrollText, Globe2, MapPin,
   ArrowLeftRight, EyeOff, FileSignature, CheckCircle2, AlertTriangle, AlertOctagon,
 } from 'lucide-react';
 import { Tabs, Button, Segmented } from '../components/ui.jsx';
 import {
-  AUDIT, AUDIT_CATEGORIES, fmtTs, FRAMEWORKS, INTEGRITY_POINTS, ASSET_NAMES,
+  AUDIT, AUDIT_CATEGORIES, fmtTs, isViolation, onAudit, FRAMEWORKS, INTEGRITY_POINTS, ASSET_NAMES,
   RESIDENCY_TILES, RESIDENCY_PROFILES, LOCATIONS, MOVEMENT, OBLIGATIONS, CANNOT_CONTROL,
 } from './data.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, downloadCsv, downloadText, toast, Meter, SubNav } from './kit.jsx';
@@ -15,8 +15,21 @@ const top = (m, n = 5) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0,
 const PEOPLE = ['scheduler', 'residency-monitor'];
 const SERVICES = ['ownership', 'metadata-harvester'];
 
+/* re-render when anything is written to the audit log */
+const useAuditN = () => useSyncExternalStore(onAudit, () => AUDIT.length);
+const violations = () => AUDIT.filter(isViolation);
+function ViolationRows({ limit = 20 }) {
+  const v = violations();
+  return (
+    <div className="table-wrap"><table className="tbl"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th></tr></thead>
+      <tbody>{v.slice(0, limit).map((r) => <tr key={r.seq}><td style={{ whiteSpace: 'nowrap' }}>{fmtTs(r.ts)}</td><td>{r.who}{r.role && <span className="gv-sub">{r.role}</span>}</td><td><Mono>{r.action}</Mono><span className="gv-sub">{r.asset}</span></td><td className="gv-muted">{r.what}</td></tr>)}
+        {!v.length && <tr><td colSpan={4}><Empty>None.</Empty></td></tr>}</tbody></table></div>
+  );
+}
+
 /* ------------------------------------------------------------------ Audit & reporting */
 export function AuditTab() {
+  useAuditN();
   const [sub, setSub] = useState('search');
   return (
     <>
@@ -24,7 +37,7 @@ export function AuditTab() {
         { l: 'Audit records', v: AUDIT.length, s: `${AUDIT.length} carry the user identity` },
         { l: 'Chain integrity', v: 'Verified', s: '0 broken link(s)' },
         { l: 'Data access (14 days)', v: 0, s: '2 people active' },
-        { l: 'Violations and refusals', v: 0, s: '0 anomalies flagged' },
+        { l: 'Violations and refusals', v: violations().length, s: `${violations().filter((r) => r.action.startsWith('access.')).length} from Access & RBAC · 0 anomalies flagged` },
       ]} />
       <SubNav value={sub} onChange={setSub} items={[
         { value: 'search', label: 'Search the trail', icon: Search, count: AUDIT.length }, { value: 'dash', label: 'Dashboards', icon: BarChart3 },
@@ -43,6 +56,7 @@ export function AuditTab() {
 const csvRows = (rows) => [['#', 'When', 'Who', 'Role', 'Action', 'Category', 'Asset', 'What happened'], ...rows.map((r) => [r.seq, fmtTs(r.ts), r.who, r.role, r.action, r.category, r.asset, r.what])];
 
 function SearchTrail() {
+  const n = useAuditN();
   const [f, setF] = useState({ person: '', cat: 'Everything', action: '', asset: '', text: '', from: '', to: '', viol: false });
   const [limit, setLimit] = useState(50);
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
@@ -52,7 +66,7 @@ function SearchTrail() {
     && (!f.action || r.action.startsWith(f.action))
     && (!f.asset || r.asset.toLowerCase().includes(f.asset.toLowerCase()))
     && (!f.text || r.what.toLowerCase().includes(f.text.toLowerCase()))
-    && !f.viol), [f]);
+    && (!f.viol || isViolation(r))), [f, n]);
   const byCat = top(count(rows, 'category'), 9);
   const who = count(rows, 'who');
   const assets = top(count(rows.filter((r) => !['estate', 'personal data'].includes(r.asset)), 'asset'), 5);
@@ -116,8 +130,8 @@ function AuditDashboards() {
         <Card icon={Server} tone="teal" title="Platform services"><ul className="gv-lines">{SERVICES.map((p) => <li key={p}>{p} — {who[p]} action(s)</li>)}</ul></Card>
         <Card icon={Eye} tone="info" title="Most opened assets"><Empty>No asset opened in this period.</Empty></Card>
       </div>
-      <Card icon={ShieldAlert} tone="bad" title="Policy violations and refusals" sub="0 in the period — refused actions, failed checks and breached guardrails.">
-        <div className="table-wrap"><table className="tbl"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th></tr></thead><tbody><tr><td colSpan={4}><Empty>None.</Empty></td></tr></tbody></table></div>
+      <Card icon={ShieldAlert} tone="bad" title="Policy violations and refusals" sub={`${violations().length} in the period — refused actions, failed checks and breached guardrails.`}>
+        <ViolationRows />
       </Card>
       <Card icon={Radar} tone="warn" title="Anomalies" sub="Activity spikes against a person's own usual rate, access outside working hours, repeated refusals, and the data anomalies found by quality monitoring.">
         <div className="table-wrap"><table className="tbl"><thead><tr><th>Kind</th><th>Who</th><th>When</th><th>What was noticed</th></tr></thead><tbody><tr><td colSpan={4}><Empty>Nothing unusual.</Empty></td></tr></tbody></table></div>
@@ -204,7 +218,7 @@ function Reports() {
         <Card icon={Link2} tone="ok" title="Integrity" sub={`verified ${AUDIT.length} record(s), 0 broken link(s), ${AUDIT.length} with user identity.`}>
           <p style={{ fontSize: 13, margin: 0 }}>Tamper check: altering record 65 in a copy was detected.</p>
         </Card>
-        <Card icon={ShieldAlert} tone="bad" title="Violations" sub="0 in the period."><Empty>None.</Empty></Card>
+        <Card icon={ShieldAlert} tone="bad" title="Violations" sub={`${violations().length} in the period.`}><ViolationRows limit={8} /></Card>
         <Card icon={Radar} tone="warn" title="Anomalies"><Empty>None.</Empty></Card>
       </div>
       <Card icon={Scale} tone="violet" title="Controls">
