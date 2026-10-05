@@ -24,7 +24,7 @@ function DpiaRoute({ filters }) {
   return <Dpia filters={filters} />;
 }
 
-/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & GDPR, Policies, Access & Stewardship, Workflows),
+/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & GDPR, Policies, Access, Workflows),
    docked to the sidebar like Admin and Data assets. Each section keeps its own tabs. */
 export default function Governance() {
   const { pathname } = useLocation();

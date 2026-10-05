@@ -106,7 +106,7 @@ const refuse = (action, asset, why0) => { const why = why0.charAt(0).toUpperCase
 const can = (perm) => roleOf(st.role)?.may.includes(perm);
 /* OWN-06: a governance lead always may; otherwise the asset's owner or steward, if the governance model gives their role the responsibility */
 const mayOnAsset = (asset, what) => st.role === 'governance-lead' || stewardRights(me(), asset)[what];
-const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in 3.10 › Ownership register (owner or steward with that responsibility).`;
+const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in Data stewardship and ownership › Ownership register (owner or steward with that responsibility).`;
 export const approversFor = (asset) => { const o = ownersOf(asset); return o.length ? `${o.join(', ')} or a governance lead` : 'a governance lead (no owner or steward with that responsibility)'; };
 
 export function setViewRole(role) { st = { ...st, role }; emit(); }

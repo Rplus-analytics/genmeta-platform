@@ -31,7 +31,7 @@ export const GOVERNANCE_NAV = [
   { to: 'models', label: 'AI model governance', icon: 'Bot' },
   { to: 'dpia', label: 'DPIA & GDPR', icon: 'ShieldCheck' },
   { to: 'policies', label: 'Policies', icon: 'ScrollText' },
-  { to: 'access', label: 'Access & Stewardship', icon: 'KeyRound' },
+  { to: 'access', label: 'Access', icon: 'KeyRound' },
   { to: 'workflows', label: 'Workflows', icon: 'Workflow' },
 ];
 
@@ -60,7 +60,7 @@ export const ADMIN_CRUMBS = {
   'sso/configure': 'SSO configure', 'sso/mapping': 'SSO group mapping',
 };
 NAV.find((n) => n.to === '/app/admin').crumbs = ADMIN_CRUMBS;
-NAV.find((n) => n.to === '/app/governance').crumbs = { models: 'AI model governance', dpia: 'DPIA & GDPR', policies: 'Policies', access: 'Access & Stewardship', stewardship: 'Access & Stewardship', workflows: 'Workflows' };
+NAV.find((n) => n.to === '/app/governance').crumbs = { models: 'AI model governance', dpia: 'DPIA & GDPR', policies: 'Policies', access: 'Access', stewardship: 'Access', workflows: 'Workflows' };
 
 /* Is this path part of the Data assets section? */
 export const isDataAssets = (pathname) => DATA_ASSETS_NAV.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));

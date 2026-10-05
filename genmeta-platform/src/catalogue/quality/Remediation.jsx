@@ -39,7 +39,7 @@ export default function Remediation({ a }) {
 
       <div className="card pad-lg ml-card">
         <h3 className="sec-h">Remediation record</h3>
-        <p className="ml-note">Every automatic or manual fix, kept for audit, alongside the steward it was routed to. Tasks created here appear in Access & Stewardship › Ownership register.</p>
+        <p className="ml-note">Every automatic or manual fix, kept for audit, alongside the steward it was routed to. Tasks created here appear in Access › Ownership register.</p>
         {record.length ? (
           <div className="e2e-hop-wrap">
             <table className="tbl dq-remed">

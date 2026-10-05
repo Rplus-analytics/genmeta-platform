@@ -101,7 +101,7 @@ let workflows = [
     ] },
   { id: 'wf-access', name: 'Sensitive data access request', module: 'access', event: 'Access requested', status: 'active', version: 2,
     desc: 'Access to an asset is approved by its owner, and by a governance lead when the asset is Restricted.', updatedAt: d('2026-09-12T09:00:00'), updatedBy: 'Priya Shah',
-    usedBy: ['Access & Stewardship › Requests & grants'],
+    usedBy: ['Access › Requests & grants'],
     outcome: { approved: 'Grant is created and expires after 90 days', rejected: 'Requester is told why' },
     steps: [
       S('a1', 'approval', 'Asset owner approves', { approvers: ['owner'], sla: 2 }),

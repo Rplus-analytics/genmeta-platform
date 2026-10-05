@@ -17,11 +17,11 @@ import {
 } from './Access.jsx';
 import { useFacets } from './catalog.jsx';
 import { Register, StewardRoles, Gaps, Approvals, AuditTrail, ReviewQueue } from './Stewardship.jsx';
-/* Govern › Governance › Access & Stewardship — one screen, two halves that match the requirements tracker:
-   3.16 Access control and RBAC, and 3.10 Data stewardship and ownership. "Viewing as (test)" is shared by both. */
+/* Govern › Governance › Access — one screen, two halves that match the requirements tracker:
+   Access control and RBAC, and Data stewardship and ownership. "Viewing as (test)" is shared by both. */
 export const ACCESS_BASE = `${BASE}/access`;
 export const HALVES = [
-  { key: 'access', label: '3.16 Access control and RBAC', short: 'Access control and RBAC', tabs: [
+  { key: 'access', label: 'Access control and RBAC', short: 'Access control and RBAC', tabs: [
     ['people', 'Roles & people', Users, 'RBAC-01'],
     ['permissions', 'Permissions by level', Layers, 'RBAC-02'],
     ['sod', 'Separation of duties', Split, 'RBAC-03'],
@@ -32,7 +32,7 @@ export const HALVES = [
     ['directory', 'Directory & identity', Fingerprint, 'RBAC-07'],
     ['platforms', 'Platform consistency', Server, 'RBAC-08'],
   ] },
-  { key: 'stewardship', label: '3.10 Data stewardship and ownership', short: 'Data stewardship and ownership', tabs: [
+  { key: 'stewardship', label: 'Data stewardship and ownership', short: 'Data stewardship and ownership', tabs: [
     ['responsibilities', 'Roles & responsibilities', ClipboardList, 'OWN-01, OWN-02, OWN-04'],
     ['ownership', 'Ownership register', UserCheck, 'OWN-01, OWN-04'],
     ['coverage', 'Coverage gaps', ShieldCheck, 'OWN-03'],
@@ -90,7 +90,7 @@ export default function AccessHub({ peopleFilters }) {
   const go = (k) => nav(`${ACCESS_BASE}/${k}`);
   return (
     <div className="page gv">
-      <PageHead eyebrow={`Govern · Access & Stewardship · ${half.label} · ${title}`} title={title} sub={`Covers ${covers}`}>
+      <PageHead eyebrow={`Govern · Access · ${half.label} · ${title}`} title={title} sub={`Covers ${covers}`}>
         <Fld label="Viewing as (test)">
           <select className="select" value={st.role} onChange={(e) => setViewRole(e.target.value)} aria-label="Viewing as">{ACCESS_VIEW.map(([r, p]) => <option key={r} value={r}>{r} · {p}</option>)}</select>
         </Fld>
@@ -98,7 +98,7 @@ export default function AccessHub({ peopleFilters }) {
       <div className="ax-halves" role="tablist" aria-label="Requirement area">
         {HALVES.map((h) => <button key={h.key} type="button" role="tab" aria-selected={h === half} className={h === half ? 'on' : ''} onClick={() => go(h.tabs[0][0])}>{h.label}</button>)}
       </div>
-      {half.key === 'stewardship' && <p className="ax-own6">OWN-06 (owners and stewards decide access) lives in 3.16 › <button type="button" className="ax-same inline" onClick={() => go('requests')}>Requests & grants ›</button></p>}
+      {half.key === 'stewardship' && <p className="ax-own6">OWN-06 (owners and stewards decide access) lives in Access control and RBAC › <button type="button" className="ax-same inline" onClick={() => go('requests')}>Requests & grants ›</button></p>}
       <HalfTiles half={half.key} st={st} ss={ss} />
       <Tabs items={half.tabs.map(([k, l, I]) => ({ value: k, label: count[k] !== undefined && count[k] !== '' ? `${l} (${count[k]})` : l, icon: I }))} value={tab} onChange={go} className="ax-tabs" />
       {tab === 'people' && <SubNav value={section} onChange={go} items={VIEWS.map(([v, l]) => ({ value: v, label: l, count: v === 'people' ? PEOPLE_DIR.length.toLocaleString('en-GB') : v === 'groups' ? GROUP_LIST.length : st.roles.length }))} />}
@@ -248,7 +248,7 @@ function PersonDrawer({ p, st, ss, onClose }) {
           return <div key={r} className="ax-path"><span className="tag mono">{man ? 'manual assignment' : g || 'directory'}</span><i>→</i><span className="tag">{roleOf(r)?.name || r}</span><i>→</i><span className="tag">clearance {roleOf(r)?.clearance}</span><small>{a ? `${a.source} · since ${a.at}` : man ? 'given by hand — reviewed as an exception' : 'synced from AWS IAM Identity Center'}</small></div>;
         })}
         {!roles.length && <p className="gv-muted">No role — {p.groups.join(', ')} carries no GenMeta mapping.</p>}
-        {owns.slice(0, 3).map((o) => <div key={o.asset + o.role} className="ax-path"><span className="tag">{o.role}</span><i>on</i><Mono>{o.asset}</Mono><i>→</i><span className="tag">{[o.rights.approve && 'approve requests', o.rights.grant && 'grant and revoke'].filter(Boolean).join(', ') || 'no access rights'}</span><small>3.10 › Ownership register</small></div>)}
+        {owns.slice(0, 3).map((o) => <div key={o.asset + o.role} className="ax-path"><span className="tag">{o.role}</span><i>on</i><Mono>{o.asset}</Mono><i>→</i><span className="tag">{[o.rights.approve && 'approve requests', o.rights.grant && 'grant and revoke'].filter(Boolean).join(', ') || 'no access rights'}</span><small>Ownership register</small></div>)}
         <Note>The person-centric view Collibra and Entra give: everything one person can do and where each right comes from — so a large estate is navigated by finding one person, not by scrolling a role table.</Note>
       </>)}
       {tab === 'roles' && (
@@ -356,7 +356,7 @@ function Policies({ st, ss }) {
   const rows = [
     ...st.scopes.map((s) => ({ same: ['Permissions by level', 'permissions'], kind: 'Persona', name: `${roleOf(s.role)?.name || s.role} — ${s.level} ${s.target}`, who: groupsFor(s.role).length ? groupsFor(s.role) : [s.role], n: peopleFor(s.role), what: `${s.level}: ${s.target} (${statementFor(s).sys})`, effect: s.actions.includes('read_profile') || s.actions.includes('read_sensitive') ? 'Allow' : 'Mask', detail: s.actions.join(', '), to: 'permissions' })),
     ...ACCESS_RULES.map((r) => ({ same: ['Access rules', 'rules'], kind: 'Purpose', name: r.name, who: ['Everyone'], n: PEOPLE_DIR.length, what: r.when, effect: r.effect === 'deny' ? 'Deny' : 'Mask', detail: r.id, to: 'rules' })),
-    ...ss.roles.filter((r) => r.resp[1] === '1' || r.resp[2] === '1').map((r) => ({ kind: 'Stakeholder', name: `${r.name} — on the assets they hold`, who: [`${r.name}s in the register`], n: new Set(ss.register.map((x) => x.roles[r.key]?.who).filter(Boolean)).size, what: `${ss.register.filter((x) => x.roles[r.key]).length} assets in 3.10 › Ownership register`, effect: 'Allow', detail: [r.resp[1] === '1' && 'approve or decline requests', r.resp[2] === '1' && 'grant and revoke'].filter(Boolean).join(' · '), to: 'responsibilities' })),
+    ...ss.roles.filter((r) => r.resp[1] === '1' || r.resp[2] === '1').map((r) => ({ kind: 'Stakeholder', name: `${r.name} — on the assets they hold`, who: [`${r.name}s in the register`], n: new Set(ss.register.map((x) => x.roles[r.key]?.who).filter(Boolean)).size, what: `${ss.register.filter((x) => x.roles[r.key]).length} assets in the Ownership register`, effect: 'Allow', detail: [r.resp[1] === '1' && 'approve or decline requests', r.resp[2] === '1' && 'grant and revoke'].filter(Boolean).join(' · '), to: 'responsibilities' })),
     ...st.policies.map((p) => ({ kind: 'Sensitivity', name: `${p.s} data`, who: ['Everyone'], n: PEOPLE_DIR.length, what: `assets classified ${p.s}`, effect: p.mask ? 'Mask' : 'Allow', detail: `approved by ${p.ap.toLowerCase()} · up to ${p.days} days${p.just ? ' · justification' : ''}${p.mask ? ' · masked without a grant' : ''}`, to: 'policies-edit' })),
   ];
   const shown = rows.filter((r) => kind === 'all' || r.kind === kind);
