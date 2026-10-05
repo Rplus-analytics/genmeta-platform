@@ -5,12 +5,13 @@ import {
 } from 'lucide-react';
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import { BY_KEY } from '../catalogue/model.js';
-import { HOW, datasetOf, DEFAULT_BY, PEOPLE, RESPONSIBILITIES, AUDIT_FILTERS, LABEL_REASON, columnsOfAsset, BUILT_IN } from './stewardship-data.js';
+import { HOW, datasetOf, DEFAULT_BY, RESPONSIBILITIES, AUDIT_FILTERS, LABEL_REASON, columnsOfAsset, BUILT_IN } from './stewardship-data.js';
 import {
   useStewardship, assign as doAssign, decideChange, bulkAssign, changeModel, raiseIssue, resolveIssue, describe, decideTask, coverage, stewardRights,
 } from './stewardship-store.js';
 import { useAccess, setViewRole, ACCESS_VIEW, me } from './access-store.js';
 import { BASE } from './data.js';
+import { PersonPicker } from './Access.jsx';
 import { Card, Tiles, StatusBadge, Empty, Note, Fld, Drawer, KV, Meter, meterTone, downloadCsv, toast } from './kit.jsx';
 
 /* Govern › Governance › Stewardship — everything from the old UI's Stewardship page:
@@ -61,7 +62,7 @@ export default function Stewardship({ switcher }) {
         ]} />
       )}
       {tab === 'register' && <Register ss={ss} />}
-      {tab === 'roles' && <Roles roles={roles} changes={changes} />}
+      {tab === 'roles' && <StewardRoles roles={roles} changes={changes} />}
       {tab === 'gaps' && <Gaps ss={ss} />}
       {tab === 'approvals' && <Approvals ss={ss} />}
       {tab === 'audit' && <AuditTrail audit={ss.trail} />}
@@ -75,7 +76,7 @@ function RoleCell({ c }) {
   if (!c) return <span className="gv-badge bad"><i />gap</span>;
   return <span className="gv-who"><b>{c.who}</b><em className={`gv-how h-${c.how}`}>{HOW[c.how]}</em></span>;
 }
-function Register({ ss }) {
+export function Register({ ss }) {
   const { register, roles, changes } = ss;
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(null);
@@ -117,7 +118,7 @@ function Register({ ss }) {
   );
 }
 
-function AssetPanel({ r, ss }) {
+export function AssetPanel({ r, ss }) {
   const { roles } = ss;
   const extra = ss.extra[r.asset] || [];
   const ds = datasetOf(r.asset);
@@ -160,8 +161,7 @@ function AssetPanel({ r, ss }) {
             <option value="asset">This asset</option><option value="column">A column</option><option value="dataset">Dataset {ds}</option><option value="system">System {r.system}</option></select></Fld>
           {f.scope === 'column' && <Fld label="Column"><select className="select" value={f.column} onChange={(e) => setF({ ...f, column: e.target.value })}><option value="">Choose…</option>{cols.map((c) => <option key={c}>{c}</option>)}</select></Fld>}
           <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{roles.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}</select></Fld>
-          <Fld label="Person"><input className="input" list="gv-people" value={f.person} onChange={(e) => setF({ ...f, person: e.target.value })} placeholder="Name or group" /></Fld>
-          <datalist id="gv-people">{PEOPLE.map((p) => <option key={p} value={p} />)}</datalist>
+          <Fld label="Person"><PersonPicker groups value={f.person} onChange={(v) => setF({ ...f, person: v })} placeholder="Name or group" /></Fld>
           <Fld label="Reason"><input className="input" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Why (recorded in the audit trail)" /></Fld>
         </div>
         <Button variant="primary" size="md" disabled={!f.person.trim() || (f.scope === 'column' && !f.column)}
@@ -182,7 +182,7 @@ function AssetPanel({ r, ss }) {
 }
 
 /* ---------------------------------------------------------------- Roles & responsibilities */
-function Roles({ roles, changes }) {
+export function StewardRoles({ roles, changes }) {
   const [nf, setNf] = useState({ name: '', desc: '' });
   const a1 = useAct();
   const toggle = (key, i) => {
@@ -191,7 +191,7 @@ function Roles({ roles, changes }) {
   };
   return (
     <>
-      <Card icon={Users} tone="violet" title="Roles and their responsibilities" sub={`Governance model ${changes[0][0]} · tick a box to give a role that responsibility. “Approve or decline access requests” and “Grant and revoke access directly” are what let an owner or steward act in Access & RBAC.`}>
+      <Card icon={Users} tone="violet" title="Roles and their responsibilities" sub={`Governance model ${changes[0][0]} · tick a box to give a role that responsibility. “Approve or decline access requests” and “Grant and revoke access directly” are what let an owner or steward act on access.`}>
         <a1.Refusal />
         <div className="table-wrap">
           <table className="tbl gv-rolemx">
@@ -224,7 +224,7 @@ function Roles({ roles, changes }) {
 }
 
 /* ---------------------------------------------------------------- Coverage gaps (counted from the same rows as the gap list) */
-function Gaps({ ss }) {
+export function Gaps({ ss }) {
   const { register, roles } = ss;
   const [type, setType] = useState('all');
   const [missing, setMissing] = useState('any');
@@ -265,16 +265,15 @@ function Gaps({ ss }) {
         {canBulk && (
           <div className="gv-bulk">
             <span><b>{picked.length}</b> selected</span>
-            <input className="input" list="gv-people2" value={person} onChange={(e) => setPerson(e.target.value)} placeholder={`Person to make ${missing}`} />
-            <datalist id="gv-people2">{PEOPLE.map((p) => <option key={p} value={p} />)}</datalist>
+            <PersonPicker groups value={person} onChange={setPerson} placeholder={`Person to make ${missing}`} />
             <Button variant="primary" size="sm" disabled={!picked.length || !person.trim()} onClick={() => { if (a1.run(bulkAssign(picked, missing, person.trim()), `${person.trim()} assigned as ${missing} on ${picked.length} asset(s) — written to the audit log`)) { setPicked([]); setPerson(''); } }}>Assign {missing} to selected</Button>
           </div>
         )}
         <div className="table-wrap gv-scroll">
           <table className="tbl">
             <thead><tr><th className="gv-cb">{canBulk && <input type="checkbox" checked={picked.length > 0 && picked.length === shown.length} onChange={(e) => setPicked(e.target.checked ? shown.map((g) => g.asset) : [])} aria-label="Select all" />}</th><th>Gap</th><th>Type</th><th>Missing</th><th>System</th></tr></thead>
-            <tbody>{shown.map((g) => (
-              <tr key={g.id}>
+            <tbody>{shown.map((g, gi) => (
+              <tr key={`${g.id}-${gi}`}>
                 <td className="gv-cb">{canBulk && <input type="checkbox" checked={picked.includes(g.asset)} onChange={(e) => setPicked((p) => (e.target.checked ? [...p, g.asset] : p.filter((x) => x !== g.asset)))} />}</td>
                 <td className="mono gv-wrap">{g.id}</td><td className="gv-muted">{g.type}</td>
                 <td><div className="gv-inline" style={{ gap: 4 }}>{g.miss.map((m) => <span key={m} className="gv-badge bad"><i />{m}</span>)}</div></td>
@@ -290,7 +289,7 @@ function Gaps({ ss }) {
 }
 
 /* ---------------------------------------------------------------- Approvals & quality issues */
-function Approvals({ ss }) {
+export function Approvals({ ss }) {
   const { issues, requests } = ss;
   const [f, setF] = useState('all');
   const [open, setOpen] = useState(null);
@@ -341,7 +340,7 @@ function Approvals({ ss }) {
 }
 
 /* ---------------------------------------------------------------- Audit trail */
-function AuditTrail({ audit }) {
+export function AuditTrail({ audit, title = 'Ownership and responsibility audit trail' }) {
   const [f, setF] = useState({ action: '', on: '', who: '' });
   const [n, setN] = useState(200);
   const whoList = [...new Set(audit.map((a) => a.who))].sort();
@@ -349,7 +348,7 @@ function AuditTrail({ audit }) {
   const list = audit.filter((a) => (!f.action || a.cat === f.action) && (!f.on || a.on.toLowerCase().includes(f.on.toLowerCase())) && (!f.who || a.who === f.who));
   const set = (k) => (e) => { setF((o) => ({ ...o, [k]: e.target.value })); setN(200); };
   return (
-    <Card icon={ScrollText} tone="teal" title="Ownership and responsibility audit trail" sub={`${list.length.toLocaleString('en-GB')} of ${audit.length.toLocaleString('en-GB')} entries · every action here is also written to the hash-chained audit log on Governance › Controls & compliance`}>
+    <Card icon={ScrollText} tone="teal" title={title} sub={`${list.length.toLocaleString('en-GB')} of ${audit.length.toLocaleString('en-GB')} entries · every action here is also written to the hash-chained audit log on Governance › Controls & compliance`}>
       <div className="gv-inline" style={{ marginBottom: 12 }}>
         <Fld label="Action"><select className="select" value={f.action} onChange={set('action')}>{AUDIT_FILTERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Fld>
         <Fld label="Asset or scope"><input className="input" list="st-on" value={f.on} onChange={set('on')} placeholder="e.g. INT.CUSTOMER or dataset SRC" /><datalist id="st-on">{onList.map((o) => <option key={o} value={o} />)}</datalist></Fld>
@@ -370,7 +369,7 @@ function AuditTrail({ audit }) {
 }
 
 /* ---------------------------------------------------------------- Review queue */
-function ReviewQueue({ queue, register }) {
+export function ReviewQueue({ queue, register }) {
   const a1 = useAct();
   const onDecide = (id, ok) => a1.run(decideTask(id, ok), `${ok ? 'Approved' : 'Rejected'} — recorded in the audit chain`);
   const nav = useNavigate();

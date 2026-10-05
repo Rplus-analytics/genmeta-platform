@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   Send, KeyRound, ShieldQuestion, RefreshCw, Plus, Check, X, HelpCircle, Inbox, ShieldCheck, Eye, Users, UserPlus, Layers, Split, Gavel, Fingerprint,
   CalendarCheck, ListChecks, Lock, AlertTriangle, BadgePlus, Terminal,
@@ -6,6 +6,7 @@ import {
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import { Switch } from '../pages/admin/kit.jsx';
 import { recommend, ASSET_NAMES, PERMISSIONS, APPROVERS, DIRECTORY, PLATFORMS, ownerOf, ACCESS_RULES, colClass, systemOf } from './data.js';
+import { PEOPLE_DIR, GROUP_LIST } from './people.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, ChipPick, toast, Meter } from './kit.jsx';
 import {
   useAccess, setViewRole, ACCESS_VIEW, me, roleOf, assignRole, unassign, defineRole, toggleSod, combinationsHeld, saveScope, removeScope, TARGETS, LEVELS,
@@ -15,18 +16,37 @@ import {
 
 const TABS = ['Requests & grants', 'Access reviews', 'Roles & people', 'Permissions', 'Separation of duties', 'Access rules', 'Directory', 'Platforms']
   .map((label, i) => ({ value: ['requests', 'reviews', 'roles', 'scopes', 'sod', 'rules', 'directory', 'platforms'][i], label, icon: [Inbox, CalendarCheck, Users, Layers, Split, Gavel, Fingerprint, RefreshCw][i] }));
-const AssetSelect = ({ value, onChange, label = 'Asset' }) => <select className="select" aria-label={label} value={value} onChange={onChange}><option value="">Choose…</option>{ASSET_NAMES.map((a) => <option key={a}>{a}</option>)}</select>;
-const EFFECT_TONE = { allow: 'allow', mask: 'warn', deny: 'deny' };
+export const AssetSelect = ({ value, onChange, label = 'Asset' }) => <select className="select" aria-label={label} value={value} onChange={onChange}><option value="">Choose…</option>{ASSET_NAMES.map((a) => <option key={a}>{a}</option>)}</select>;
+export const EFFECT_TONE = { allow: 'allow', mask: 'warn', deny: 'deny' };
 const EFFECT_WORD = { allow: 'Allowed', mask: 'Allowed, masked', deny: 'Denied' };
 
+/* type-ahead over the 3,000-person directory — never a 3,000-entry drop-down */
+export function PersonPicker({ value, onChange, placeholder = 'Type a name', groups = false }) {
+  const [q, setQ] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  useEffect(() => { if (!value) setQ(''); else setQ(value); }, [value]);
+  const t = q.trim().toLowerCase();
+  const hits = t.length >= 2 ? [
+    ...(groups ? GROUP_LIST.filter((g) => g.toLowerCase().includes(t)).slice(0, 3).map((g) => ({ id: g, name: g, sub: `directory group · ${PEOPLE_DIR.filter((p) => p.groups.includes(g)).length.toLocaleString('en-GB')} people` })) : []),
+    ...PEOPLE_DIR.filter((p) => p.name.toLowerCase().includes(t)).slice(0, 8).map((p) => ({ id: p.id, name: p.name, sub: `${p.dept} · ${p.groups[0]}` })),
+  ] : [];
+  return (
+    <div className="ac-pp">
+      <input className="input" value={q} placeholder={placeholder} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); if (!e.target.value) onChange(''); }} aria-label="Person" />
+      {open && hits.length > 0 && <ul>{hits.map((p) => <li key={p.id}><button type="button" onMouseDown={() => { setQ(p.name); onChange(p.name); setOpen(false); }}><b>{p.name}</b><small>{p.sub}</small></button></li>)}</ul>}
+    </div>
+  );
+}
+
 /* run an action; a refusal shows inline (and as a toast) with its reason */
-function useAct() {
+export function useAct() {
   const [msg, setMsg] = useState(null);
   const run = (res, okText) => { if (!res.ok) { setMsg(res.why); toast(`Refused — ${res.why}`); return false; } setMsg(null); if (okText) toast(okText); return true; };
   const Refusal = () => (msg ? <div className="gv-callout bad ac-refuse"><Lock size={15} /><span><b>Refused.</b> {msg} <span className="gv-faint">Written to the audit log.</span></span><button type="button" className="ib" aria-label="Dismiss" onClick={() => setMsg(null)}><X size={13} /></button></div> : null);
   return { run, Refusal };
 }
-function RoleNote({ st, need, what }) {
+export function RoleNote({ st, need, what }) {
   const r = roleOf(st.role);
   const ok = need.some((n) => n === st.role || r?.may.includes(n));
   if (ok) return null;
@@ -55,7 +75,7 @@ export default function Access() {
       <Tiles items={top} />
       {tab === 'requests' && <Requests st={st} />}
       {tab === 'reviews' && <Reviews st={st} />}
-      {tab === 'roles' && <Roles st={st} />}
+      {tab === 'roles' && <RolesMatrix st={st} />}
       {tab === 'scopes' && <Scopes st={st} />}
       {tab === 'sod' && <Sod st={st} />}
       {tab === 'rules' && <Rules st={st} />}
@@ -66,7 +86,7 @@ export default function Access() {
 }
 
 /* ------------------------------------------------------------------ the result of a decision */
-function Decision({ res, title }) {
+export function Decision({ res, title }) {
   return (
     <div className="gv-result">
       <header><StatusBadge s={EFFECT_TONE[res.effect]}>{res.effect === 'allow' && res.granted ? 'Allowed, full (grant held)' : EFFECT_WORD[res.effect]}</StatusBadge><b>{title}</b>
@@ -85,7 +105,8 @@ function Decision({ res, title }) {
 }
 
 /* ------------------------------------------------------------------ requests & grants */
-function Requests({ st }) {
+export function Requests({ st, show = ['request', 'requests', 'grants', 'policies', 'check'] }) {
+  const has = (k) => show.includes(k);
   const [rq, setRq] = useState({ asset: '', days: 30, why: '' });
   const [gr, setGr] = useState({ asset: '', person: '', days: 30 });
   const [pol, setPol] = useState(st.policies);
@@ -97,7 +118,7 @@ function Requests({ st }) {
   const p = rq.asset && policyFor(rq.asset);
   return (
     <>
-      <div className="gv-two">
+      {has('request') && <div className="gv-two">
         <Card icon={Send} tone="info" title="Request access" sub={`You are asking as ${me()} (${st.role}, clearance ${roleOf(st.role).clearance}). Routed to the asset's owner or steward under the policy for its sensitivity.`}>
           <a1.Refusal />
           <Fld label="Asset"><AssetSelect value={rq.asset} onChange={(e) => setRq((o) => ({ ...o, asset: e.target.value }))} /></Fld>
@@ -112,13 +133,13 @@ function Requests({ st }) {
           <a2.Refusal />
           <Fld label="Asset"><AssetSelect value={gr.asset} onChange={(e) => setGr((o) => ({ ...o, asset: e.target.value }))} /></Fld>
           <div className="gv-inline">
-            <Fld label="Person"><select className="select" value={gr.person} onChange={(e) => setGr((o) => ({ ...o, person: e.target.value }))}><option value="">Choose…</option>{people.map((x) => <option key={x}>{x}</option>)}</select></Fld>
+            <Fld label="Person"><PersonPicker value={gr.person} onChange={(v) => setGr((o) => ({ ...o, person: v }))} /></Fld>
             <Fld label="Days"><input className="input" type="number" min={1} value={gr.days} onChange={(e) => setGr((o) => ({ ...o, days: e.target.value }))} /></Fld>
           </div>
           <div style={{ marginTop: 12 }}><Button variant="secondary" size="md" icon={KeyRound} disabled={!gr.asset || !gr.person} onClick={() => { if (a2.run(grantDirect(gr), 'Access granted — written to the audit log')) setGr({ asset: '', person: '', days: 30 }); }}>Grant</Button></div>
         </Card>
-      </div>
-      <Card icon={Inbox} tone="warn" title="Requests" count={st.requests.length}>
+      </div>}
+      {has('requests') && <Card icon={Inbox} tone="warn" title="Requests" count={st.requests.length}>
         <a3.Refusal />
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Asset</th><th>Requested by</th><th>When</th><th>Days</th><th>Justification</th><th>Approvers</th><th>Status</th><th /></tr></thead>
@@ -134,8 +155,8 @@ function Requests({ st }) {
             {!st.requests.length && <tr><td colSpan={8}><Empty>No requests yet — send one above (switch “Viewing as” to approve it as someone else).</Empty></td></tr>}
           </tbody>
         </table></div>
-      </Card>
-      <Card icon={KeyRound} tone="ok" title="Grants" count={st.grants.filter((g) => g.status === 'active').length} sub="The same grants Access reviews works on — revoking here or there changes both.">
+      </Card>}
+      {has('grants') && <Card icon={KeyRound} tone="ok" title="Grants" count={st.grants.filter((g) => g.status === 'active').length} sub="The same grants Access reviews works on — revoking here or there changes both.">
         <a4.Refusal />
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Asset</th><th>Person</th><th>Granted</th><th>Granted by</th><th>Expires</th><th>Last used</th><th>Status</th><th /></tr></thead>
@@ -144,8 +165,8 @@ function Requests({ st }) {
               <td>{g.status === 'active' && <Button variant="subtle" size="sm" onClick={() => a4.run(revokeGrant(g.id), 'Grant revoked — written to the audit log')}>Revoke</Button>}</td></tr>)}
           </tbody>
         </table></div>
-      </Card>
-      <Card icon={ShieldCheck} tone="violet" title="Access policies" sub="Enforced on every request and view." actions={<Button variant="secondary" size="md" onClick={() => a4.run(setPolicies(pol), 'Access policies saved — written to the audit log')}>Save policies</Button>}>
+      </Card>}
+      {has('policies') && <Card icon={ShieldCheck} tone="violet" title="Access policies by sensitivity" sub="Enforced on every request and view." actions={<Button variant="secondary" size="md" onClick={() => a4.run(setPolicies(pol), 'Access policies saved — written to the audit log')}>Save policies</Button>}>
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Sensitivity</th><th>Who approves</th><th>Max days</th><th>Justification</th><th>Mask sensitive detail without a grant</th></tr></thead>
           <tbody>{pol.map((x, i) => {
@@ -159,23 +180,23 @@ function Requests({ st }) {
             );
           })}</tbody>
         </table></div>
-      </Card>
-      <Card icon={ShieldQuestion} tone="teal" title="Check access — see an asset as someone else would" sub="Uses the same decision point: scopes (most specific wins), grants, and every access rule including special-category data.">
+      </Card>}
+      {has('check') && <Card icon={ShieldQuestion} tone="teal" title="Check access — see an asset as someone else would" sub="Uses the same decision point: scopes (most specific wins), grants, and every access rule including special-category data.">
         <div className="gv-inline">
           <Fld label="Asset"><AssetSelect value={chk.asset} onChange={(e) => setChk((o) => ({ ...o, asset: e.target.value, column: '' }))} /></Fld>
           <Fld label="Column"><select className="select" value={chk.column} onChange={(e) => setChk((o) => ({ ...o, column: e.target.value }))} disabled={!columnsOf(chk.asset).length}><option value="">All columns</option>{columnsOf(chk.asset).map((c) => <option key={c}>{c}</option>)}</select></Fld>
-          <Fld label="Person"><select className="select" value={chk.person} onChange={(e) => setChk((o) => ({ ...o, person: e.target.value }))}>{people.map((x) => <option key={x}>{x}</option>)}</select></Fld>
+          <Fld label="Person"><PersonPicker value={chk.person} onChange={(v) => setChk((o) => ({ ...o, person: v }))} /></Fld>
           <Fld label="App role"><select className="select" value={chk.role} onChange={(e) => setChk((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.key}</option>)}</select></Fld>
           <Fld label="Location"><select className="select" value={chk.loc} onChange={(e) => setChk((o) => ({ ...o, loc: e.target.value }))}><option value="uk">United Kingdom</option><option value="non-uk">Outside the UK</option></select></Fld>
           <Fld label="Purpose"><input className="input" placeholder="optional" value={chk.purpose} onChange={(e) => setChk((o) => ({ ...o, purpose: e.target.value }))} /></Fld>
           <Button variant="secondary" size="md" icon={ShieldQuestion} disabled={!chk.asset} onClick={() => setResult(evaluate(chk, 'check'))}>Check</Button>
         </div>
         {result && <Decision res={result} title={`${result.known !== false ? chk.asset : chk.asset}${chk.column ? `.${chk.column}` : ''}`} />}
-      </Card>
+      </Card>}
     </>
   );
 }
-function Provision({ p }) {
+export function Provision({ p }) {
   return (
     <div className="ac-prov">
       <div><b><Terminal size={13} /> Provision on {p.platform}</b> <span className="gv-faint">{p.auto ? `recorded — run this statement on ${p.platform}; it publishes its grants, so the next reconciliation confirms it` : `recorded — run this statement on ${p.platform}; it does not publish its grants, so this cannot be confirmed`}</span></div>
@@ -187,14 +208,14 @@ function Provision({ p }) {
 }
 
 /* ------------------------------------------------------------------ roles & people */
-const sees = (r, s) => {
+export const sees = (r, s) => {
   const rank = CLEAR_RANK[r.clearance] || 1;
   if (s === 'Public' || s === 'Internal') return ['Full', 'ok'];
   if (s === 'Confidential') return rank >= 2 ? ['Full', 'ok'] : ['Masked', 'warn'];
   if (r.may.includes('read_sensitive')) return ['Full', 'ok'];
   return rank >= 2 ? ['Request', 'warn'] : ['Masked · request', 'fail'];
 };
-function Roles({ st }) {
+export function RolesMatrix({ st, hideTable = false }) {
   const [f, setF] = useState({ person: '', role: 'analyst' });
   const [nr, setNr] = useState({ name: '', clearance: 'L2', may: ['read_metadata'] });
   const a1 = useAct(); const a2 = useAct(); const a3 = useAct();
@@ -212,7 +233,7 @@ function Roles({ st }) {
         </table></div>
         <Note>Full: columns and profiles shown. Masked: PII and FINANCIAL columns hidden. Request: visible in the catalogue, detail needs a grant from the owner. Special-category columns always need L3. Roles holding read_sensitive (governance lead, DPO) see Restricted data in full without stating a purpose — the decision point applies the same rule.</Note>
       </Card>
-      <Card icon={Users} tone="info" title="Roles" count={st.roles.length}>
+      {!hideTable && <Card icon={Users} tone="info" title="Roles" count={st.roles.length}>
         <a3.Refusal />
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>Role</th><th>Clearance</th><th>May do</th><th>Held by</th></tr></thead>
@@ -222,7 +243,7 @@ function Roles({ st }) {
               <td>{who.length ? <div className="ac-held">{who.map((a) => <span key={a.person} className={`ac-person ${a.source}`} title={`${a.source} · since ${a.at}`}>{a.person}<em>{a.source}</em><button type="button" aria-label={`Remove ${r.key} from ${a.person}`} onClick={() => a3.run(unassign(a.person, r.key), `Removed ${r.key} from ${a.person}`)}><X size={11} /></button></span>)}</div> : <span className="gv-faint">nobody yet</span>}</td></tr>
           ); })}</tbody>
         </table></div>
-      </Card>
+      </Card>}
       <div className="gv-two">
         <Card icon={UserPlus} tone="ok" title="Assign a role" sub="Checked against separation of duties when it would happen — a clash is refused with the reason.">
           <a1.Refusal />
@@ -231,7 +252,7 @@ function Roles({ st }) {
             <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Fld>
             <Button variant="primary" size="md" icon={Plus} disabled={!f.person.trim()} onClick={() => { if (a1.run(assignRole(f.person, f.role), `Assigned ${f.role} to ${f.person.trim()} — written to the audit log`)) setF((o) => ({ ...o, person: '' })); }}>Assign role</Button>
           </div>
-          <Note>Try: assign auditor to Admin (already governance-lead) — refused. Held by shows whether each assignment came from the directory or was made here (manual).</Note>
+          <Note>Try: assign auditor to Admin (already governance-lead) — refused. {hideTable ? 'Manual assignments show on each role card and can be removed from its member list.' : 'Held by shows whether each assignment came from the directory or was made here (manual).'}</Note>
         </Card>
         <Card icon={BadgePlus} tone="violet" title="Define a role" sub="Governance leads only. The role carries a clearance and a set of permissions.">
           <a2.Refusal />
@@ -248,7 +269,7 @@ function Roles({ st }) {
 }
 
 /* ------------------------------------------------------------------ permissions by level */
-function Scopes({ st }) {
+export function Scopes({ st }) {
   const [f, setF] = useState({ role: 'analyst', level: 'table', target: '', actions: ['read_metadata'] });
   const a1 = useAct(); const a2 = useAct();
   const opts = TARGETS[f.level];
@@ -282,7 +303,7 @@ function Scopes({ st }) {
 }
 
 /* ------------------------------------------------------------------ separation of duties */
-function Sod({ st }) {
+export function Sod({ st }) {
   const a1 = useAct();
   const held = combinationsHeld(st);
   const offBuiltIn = st.sod.filter((s) => s.builtIn && !s.on);
@@ -310,7 +331,7 @@ function Sod({ st }) {
 }
 
 /* ------------------------------------------------------------------ access rules */
-function Rules({ st }) {
+export function Rules({ st }) {
   const [f, setF] = useState({ asset: 'INT.CUSTOMER', column: '', loc: 'uk', purpose: '' });
   const [res, setRes] = useState(null);
   const cols = columnsOf(f.asset);
@@ -340,7 +361,7 @@ function Rules({ st }) {
 
 /* ------------------------------------------------------------------ directory & identity */
 const OUT_TONE = { applied: 'ok', unchanged: 'info', skipped: 'warn', refused: 'fail' };
-function Directory({ st }) {
+export function Directory({ st }) {
   const a1 = useAct();
   const map = Object.fromEntries(DIRECTORY);
   const res = st.sync?.results || [];
@@ -363,7 +384,7 @@ function Directory({ st }) {
             <thead><tr><th>Person</th><th>Group</th><th>Role</th><th>Result</th><th>Why</th></tr></thead>
             <tbody>{res.map((x) => <tr key={x.person + x.group}><td className="gv-strong">{x.person}</td><td><Mono>{x.group}</Mono></td><td>{x.role !== '—' ? <span className="tag mono">{x.role}</span> : '—'}</td><td><StatusBadge s={OUT_TONE[x.outcome]}>{x.outcome === 'skipped' ? 'skipped: no group' : x.outcome === 'refused' ? 'refused: separation of duties' : x.outcome}</StatusBadge></td><td className="gv-muted">{x.why}</td></tr>)}</tbody>
           </table></div>
-          <Note>Applied people now appear under “Held by” in Roles & people, labelled “directory”.</Note>
+          <Note>Applied people now count towards each role under Access › Roles, labelled “directory”.</Note>
         </Card>
       )}
     </>
@@ -371,7 +392,7 @@ function Directory({ st }) {
 }
 
 /* ------------------------------------------------------------------ platform consistency */
-function Platforms({ st }) {
+export function Platforms({ st }) {
   const a1 = useAct();
   const rc = st.recon;
   const rows = rc?.rows || [];
@@ -407,7 +428,7 @@ function Platforms({ st }) {
 }
 
 /* ------------------------------------------------------------------ access reviews (the same grants as Requests & grants) */
-function Reviews({ st }) {
+export function Reviews({ st }) {
   const [f, setF] = useState('all');
   const a1 = useAct();
   const dec = st.review.dec; const applied = st.review.applied;

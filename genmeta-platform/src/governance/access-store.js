@@ -39,6 +39,8 @@ export const DIRECTORY_MEMBERS = [
   ['GenMeta-Engineering', ['Rajesh', 'Pradeep Kumar']],
   ['GenMeta-Ops', ['Owen Hughes']],
   ['GenMeta-ProductOwners', ['Aisha Khan']],
+  ['Finance-Analysts', ['Meera Shah']],
+  ['Risk-Investigators', []],
   ['GenMeta-Contractors', ['Liam Patel']],
 ];
 /* grants the platform itself reports (Rplus_DWH publishes them; the others cannot be read) */

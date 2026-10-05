@@ -556,7 +556,7 @@ export const ACCESS_RULES = [
   { n: 3, name: 'Personal and financial detail is masked below L2', id: 'rule-pii-mask', when: 'classifications: PII, FINANCIAL · min_clearance: L2', effect: 'mask' },
   { n: 4, name: 'Restricted data needs a stated purpose', id: 'rule-purpose', when: 'sensitivity: Restricted · requires_purpose: true', effect: 'mask' },
 ];
-export const DIRECTORY = [['GenMeta-Governance', 'governance-lead'], ['GenMeta-Ops', 'platform-ops'], ['GenMeta-Engineering', 'data-engineer'], ['GenMeta-ProductOwners', 'product-owner'], ['GenMeta-Analysts', 'analyst'], ['GenMeta-DPO', 'dpo'], ['GenMeta-Audit', 'auditor']];
+export const DIRECTORY = [['GenMeta-Governance', 'governance-lead'], ['GenMeta-Ops', 'platform-ops'], ['GenMeta-Engineering', 'data-engineer'], ['GenMeta-ProductOwners', 'product-owner'], ['GenMeta-Analysts', 'analyst'], ['GenMeta-DPO', 'dpo'], ['GenMeta-Audit', 'auditor'], ['Finance-Analysts', 'analyst'], ['Risk-Investigators', 'analyst']];
 export const PLATFORMS = [
   ['Rplus_DWH', 16, true, 'read with SHOW GRANTS ON each object'],
   ['Rplus Streaming (Confluent)', 1, false, 'topic ACLs need a cluster admin API key'],

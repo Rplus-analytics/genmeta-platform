@@ -108,7 +108,7 @@ function OverviewTab() {
           {[
             [ShieldCheck, 'violet', 'Policies', `${POLICY_ITEMS.length} items · 16 without an owner`, '68% of automated checks passing', 'warn', 'policies'],
             [FileText, 'bad', 'DPIA & GDPR', '0 of 5 records of processing accepted', '82 of 150 handling checks failing', 'bad', 'dpia'],
-            [KeyRound, 'info', 'Access', '6 grants due for quarterly review', '3 recommended to revoke', 'warn', 'access'],
+            [KeyRound, 'info', 'Access', '6 grants due for quarterly review', '3 recommended to revoke', 'warn', 'access/reviews'],
           ].map(([I, tn, t, a1, b1, st, to]) => (
             <button key={t} type="button" className="gv-jump-row" onClick={() => nav(`${BASE}/${to}`)}>
               <span className={`gv-chip ${tn}`}><I size={16} /></span>

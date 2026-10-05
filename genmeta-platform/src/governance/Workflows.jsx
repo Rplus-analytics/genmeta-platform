@@ -167,7 +167,7 @@ function RequestDrawer({ r, actor, setActor, onClose }) {
   const evidence = s?.evidence || [];
   const allChecked = evidence.every((e) => checked[e]);
   const act = (verdict) => { decide(r.id, actor, verdict, comment.trim()); toast(`${verdict === 'rejected' ? 'Rejected' : verdict === 'done' ? 'Task completed' : 'Approved'} — ${s.name}`); setComment(''); setChecked({}); };
-  const subjectLink = r.subject.kind === 'model' ? `${BASE}/models/${r.subject.id}` : r.subject.kind === 'policy' ? `${BASE}/policies/${r.subject.id}` : r.subject.kind === 'access' ? `${BASE}/access` : null;
+  const subjectLink = r.subject.kind === 'model' ? `${BASE}/models/${r.subject.id}` : r.subject.kind === 'policy' ? `${BASE}/policies/${r.subject.id}` : r.subject.kind === 'access' ? `${BASE}/access/requests` : null;
   return (
     <Drawer wide title={r.subject.label} onClose={onClose} footer={st.cur ? <>
       <Button variant="secondary" size="md" icon={X} disabled={!ok || !comment.trim()} onClick={() => act('rejected')}>Reject</Button>

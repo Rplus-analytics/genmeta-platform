@@ -88,8 +88,8 @@ export default function EstateOverview() {
 
   /* ---- posture: weighted average of the areas */
   const areas = [
-    ['Named ownership', pct(estate.tot.named, estate.tot.n), 'stewardship', Users],
-    ['Stewardship', pct(estate.tot.steward, estate.tot.n), 'stewardship', Users],
+    ['Named ownership', pct(estate.tot.named, estate.tot.n), 'access/coverage', Users],
+    ['Stewardship', pct(estate.tot.steward, estate.tot.n), 'access/coverage', Users],
     ['Classification', 97, '', Tags],
     ['Policy compliance', compPct, 'policies?tab=compliance', ScrollText],
     ['Retention on personal data', pct(comp.retention, comp.sens), 'policies?tab=compliance', FileText],
@@ -107,10 +107,10 @@ export default function EstateOverview() {
     accRec < dp.records.length && { sev: 'bad', mod: 'DPIA & GDPR', icon: FileText, t: `${accRec} of ${dp.records.length} records of processing accepted`, d: `${hr.failing} of ${hr.total} personal-data handling checks failing`, to: 'dpia', cta: 'Review' },
     ...dueSoon.map((x) => ({ sev: 'warn', mod: 'Approvals', icon: Inbox, t: `${x.r.subject.label} — “${x.st.cur.step.name}”`, d: `waiting on ${waitingOn(x.r, x.st)} · due ${Math.round((x.st.cur.due - TODAY) / 864e5) || 'today'}${Math.round((x.st.cur.due - TODAY) / 864e5) ? ' days' : ''}`, to: `workflows?req=${x.r.id}`, cta: 'Decide' })),
     { sev: 'warn', mod: 'Residency', icon: Globe2, t: '4 data locations outside the “United Kingdom only” policy', d: 'each needs an override with a reason, or a move', to: '?tab=residency', cta: 'Review' },
-    { sev: 'warn', mod: 'Stewardship', icon: Users, t: `${estate.sensNoSteward} restricted assets have no data steward`, d: `${pct(estate.tot.steward, estate.tot.n)}% of the estate has a steward`, to: 'stewardship', cta: 'Assign' },
-    revoke && { sev: 'warn', mod: 'Access', icon: KeyRound, t: `${revoke} access grants recommended to revoke`, d: 'not used in 30 days', to: 'access', cta: 'Review grants' },
-    { sev: 'info', mod: 'Data quality', icon: AlertTriangle, t: `${estate.open} open quality issues`, d: 'routed to owners and stewards', to: 'stewardship', cta: 'Open queue' },
-    { sev: 'info', mod: 'Classification', icon: Tags, t: `${estate.cls} classification reviews waiting`, d: `${estate.clsHigh} high priority, suggested by the classifier`, to: 'stewardship', cta: 'Review' },
+    { sev: 'warn', mod: 'Stewardship', icon: Users, t: `${estate.sensNoSteward} restricted assets have no data steward`, d: `${pct(estate.tot.steward, estate.tot.n)}% of the estate has a steward`, to: 'access/coverage', cta: 'Assign' },
+    revoke && { sev: 'warn', mod: 'Access', icon: KeyRound, t: `${revoke} access grants recommended to revoke`, d: 'not used in 30 days', to: 'access/reviews', cta: 'Review grants' },
+    { sev: 'info', mod: 'Data quality', icon: AlertTriangle, t: `${estate.open} open quality issues`, d: 'routed to owners and stewards', to: 'access/approvals', cta: 'Open queue' },
+    { sev: 'info', mod: 'Classification', icon: Tags, t: `${estate.cls} classification reviews waiting`, d: `${estate.clsHigh} high priority, suggested by the classifier`, to: 'access/queue', cta: 'Review' },
   ].filter(Boolean);
   const SEV_ORDER = { bad: 0, warn: 1, info: 2 };
   attention.sort((a, b) => SEV_ORDER[a.sev] - SEV_ORDER[b.sev]);
@@ -137,7 +137,7 @@ export default function EstateOverview() {
         </div>
         <div className="es-kpis">
           {[
-            [Database, 'info', 'Data assets', estate.tot.n, `${estate.rows.length} systems · ${estate.tot.restricted} restricted`, 'stewardship'],
+            [Database, 'info', 'Data assets', estate.tot.n, `${estate.rows.length} systems · ${estate.tot.restricted} restricted`, 'access/ownership'],
             [Bot, 'violet', 'AI models', models.length, `${live.length} in production · ${openReq.filter((x) => x.st.wf.module === 'ai-models').length} awaiting approval`, 'models'],
             [ScrollText, compPct >= 80 ? 'ok' : 'warn', 'Policy compliance', `${compPct}%`, `${comp.pass} of ${comp.checks.length} checks pass · ${comp.items} items`, 'policies?tab=compliance'],
             [Inbox, overdue.length ? 'bad' : 'warn', 'Approvals open', openReq.length, `${overdue.length} overdue · ${dueSoon.length} due within 2 days`, 'workflows'],
@@ -203,7 +203,7 @@ export default function EstateOverview() {
             <thead><tr><th>System</th><th className="num">Assets</th><th>Sensitivity</th><th>Named owner</th><th>Steward</th><th>Custodian</th><th className="num">Open quality issues</th></tr></thead>
             <tbody>
               {estate.rows.map((s) => (
-                <tr key={s.system} className="click" onClick={go('stewardship')}>
+                <tr key={s.system} className="click" onClick={go('access/ownership')}>
                   <td className="gv-strong">{s.system}</td>
                   <td className="num">{s.n}</td>
                   <td><span className="es-mini">{s.restricted > 0 && <span style={{ flex: s.restricted, background: COL.bad }} />}{s.confidential > 0 && <span style={{ flex: s.confidential, background: COL.warn }} />}{s.internal > 0 && <span style={{ flex: s.internal, background: COL.info }} />}</span><small className="gv-faint">{s.restricted} restricted</small></td>
@@ -290,7 +290,7 @@ export default function EstateOverview() {
       <div className="es-four">
         {[
           [FileText, accRec === dp.records.length ? 'ok' : 'bad', 'DPIA & GDPR', `${accRec} / ${dp.records.length}`, 'records of processing accepted', `${hr.failing} of ${hr.total} handling checks failing · ${dp.assessments.filter((a) => a.stage === 'Approved').length} DPIA(s) signed off`, 'dpia'],
-          [KeyRound, 'warn', 'Access & RBAC', `${revoke}`, 'grants recommended to revoke', `${REVIEW_ITEMS.length} grants in the quarterly review · 1 access request waiting`, 'access'],
+          [KeyRound, 'warn', 'Access', `${revoke}`, 'grants recommended to revoke', `${REVIEW_ITEMS.length} grants in the quarterly review · 1 access request waiting`, 'access/reviews'],
           [Globe2, 'warn', 'Residency', '4', 'locations outside the UK-only policy', '13 locations in the register · 0 overrides recorded', '?tab=residency'],
           [Fingerprint, 'ok', 'Audit trail', 'Verified', 'hash chain intact', `${AUDIT.length} entries · last ${fmtTs(AUDIT[0].ts)}`, '?tab=audit'],
         ].map(([I, tn, t, v, l, s, to]) => (
