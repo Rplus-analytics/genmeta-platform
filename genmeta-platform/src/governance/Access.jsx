@@ -6,10 +6,10 @@ import {
 import { PageHead, Tabs, Button, Segmented } from '../components/ui.jsx';
 import { Switch } from '../pages/admin/kit.jsx';
 import { recommend, ASSET_NAMES, PERMISSIONS, APPROVERS, DIRECTORY, PLATFORMS, ownerOf, ACCESS_RULES, colClass, systemOf } from './data.js';
-import { PEOPLE_DIR, GROUP_LIST } from './people.js';
+import { PEOPLE_DIR, GROUP_LIST, rolesFor } from './people.js';
 import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, ChipPick, toast, Meter } from './kit.jsx';
 import {
-  useAccess, setViewRole, ACCESS_VIEW, me, roleOf, assignRole, unassign, defineRole, toggleSod, combinationsHeld, saveScope, removeScope, TARGETS, LEVELS,
+  useAccess, setViewRole, ACCESS_VIEW, me, roleOf, assignRole, unassign, defineRole, toggleSod, combinationsHeld, saveScope, removeScope, TARGETS, LEVELS, syncSummary, findPerson, rolesHeld,
   evaluate, columnsOf, requestAccess, approveRequest, rejectRequest, grantDirect, revokeGrant, policyFor, setPolicies, setReviewDecision, clearReviewDecision,
   applyReview, syncDirectory, reconcile, statementFor, DIRECTORY_MEMBERS, CLEAR_RANK,
 } from './access-store.js';
@@ -21,7 +21,7 @@ export const EFFECT_TONE = { allow: 'allow', mask: 'warn', deny: 'deny' };
 const EFFECT_WORD = { allow: 'Allowed', mask: 'Allowed, masked', deny: 'Denied' };
 
 /* type-ahead over the 3,000-person directory — never a 3,000-entry drop-down */
-export function PersonPicker({ value, onChange, placeholder = 'Type a name', groups = false }) {
+export function PersonPicker({ value, onChange, onType, placeholder = 'Type a name', groups = false }) {
   const [q, setQ] = useState(value || '');
   const [open, setOpen] = useState(false);
   useEffect(() => { if (!value) setQ(''); else setQ(value); }, [value]);
@@ -33,7 +33,7 @@ export function PersonPicker({ value, onChange, placeholder = 'Type a name', gro
   return (
     <div className="ac-pp">
       <input className="input" value={q} placeholder={placeholder} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onChange={(e) => { setQ(e.target.value); setOpen(true); if (!e.target.value) onChange(''); }} aria-label="Person" />
+        onChange={(e) => { setQ(e.target.value); setOpen(true); if (onType) onType(e.target.value); else if (!e.target.value) onChange(''); }} aria-label="Person" />
       {open && hits.length > 0 && <ul>{hits.map((p) => <li key={p.id}><button type="button" onMouseDown={() => { setQ(p.name); onChange(p.name); setOpen(false); }}><b>{p.name}</b><small>{p.sub}</small></button></li>)}</ul>}
     </div>
   );
@@ -185,13 +185,14 @@ export function Requests({ st, show = ['request', 'requests', 'grants', 'policie
         <div className="gv-inline">
           <Fld label="Asset"><AssetSelect value={chk.asset} onChange={(e) => setChk((o) => ({ ...o, asset: e.target.value, column: '' }))} /></Fld>
           <Fld label="Column"><select className="select" value={chk.column} onChange={(e) => setChk((o) => ({ ...o, column: e.target.value }))} disabled={!columnsOf(chk.asset).length}><option value="">All columns</option>{columnsOf(chk.asset).map((c) => <option key={c}>{c}</option>)}</select></Fld>
-          <Fld label="Person"><PersonPicker value={chk.person} onChange={(v) => setChk((o) => ({ ...o, person: v }))} /></Fld>
+          <Fld label="Person"><PersonPicker value={chk.person} onType={(v) => { setChk((o) => ({ ...o, person: v })); setResult(null); }} onChange={(v) => { const pr = findPerson(v); const held = pr ? rolesFor(pr, st.assign) : []; setChk((o) => ({ ...o, person: v, role: held[0] || o.role })); setResult(null); }} /></Fld>
           <Fld label="Access role"><select className="select" value={chk.role} onChange={(e) => setChk((o) => ({ ...o, role: e.target.value }))}>{st.roles.map((r) => <option key={r.key} value={r.key}>{r.key}</option>)}</select></Fld>
           <Fld label="Location"><select className="select" value={chk.loc} onChange={(e) => setChk((o) => ({ ...o, loc: e.target.value }))}><option value="uk">United Kingdom</option><option value="non-uk">Outside the UK</option></select></Fld>
           <Fld label="Purpose"><input className="input" placeholder="optional" value={chk.purpose} onChange={(e) => setChk((o) => ({ ...o, purpose: e.target.value }))} /></Fld>
-          <Button variant="secondary" size="md" icon={ShieldQuestion} disabled={!chk.asset} onClick={() => setResult(evaluate(chk, 'check'))}>Check</Button>
+          <Button variant="secondary" size="md" icon={ShieldQuestion} disabled={!chk.asset || !chk.person.trim()} onClick={() => { const pr = findPerson(chk.person); setResult(pr ? { ...evaluate({ ...chk, person: pr.name }, 'check'), who: pr.name } : { missing: chk.person.trim() }); }}>Check</Button>
         </div>
-        {result && <Decision res={result} title={`${result.known !== false ? chk.asset : chk.asset}${chk.column ? `.${chk.column}` : ''}`} />}
+        {result?.missing && <div className="gv-callout warn ac-refuse"><AlertTriangle size={15} /><span><b>Not found in the directory.</b> “{result.missing}” is not in AWS IAM Identity Center — pick a name from the list.</span></div>}
+        {result && !result.missing && <Decision res={result} title={`${result.who} · ${chk.asset}${chk.column ? `.${chk.column}` : ''}`} />}
       </Card>}
     </>
   );
@@ -427,7 +428,7 @@ export function Directory({ st, syncOnly = false }) {
   const a1 = useAct();
   const map = Object.fromEntries(DIRECTORY);
   const res = st.sync?.results || [];
-  const n = (o) => res.filter((x) => x.outcome === o).length;
+  const sm = syncSummary(st.sync);
   return (
     <>
       {!syncOnly && <Card icon={Fingerprint} tone="warn" title="AWS IAM Identity Center" sub="Test directory — groups and members below. The group carries the access role, the access role carries the clearance."
@@ -441,10 +442,11 @@ export function Directory({ st, syncOnly = false }) {
         <Note>Microsoft Entra ID / Active Directory: the same group → access role → clearance mapping over SCIM or OIDC group claims. Manual assignments made in Roles & people › Access roles stay and keep their “manual” label.</Note>
       </Card>}
       {st.sync && (
-        <Card icon={ListChecks} tone="info" title="Last synchronisation" count={(st.sync.total || res.length).toLocaleString('en-GB')} sub={`${st.sync.at} by ${st.sync.by} · ${(st.sync.total || res.length).toLocaleString('en-GB')} identities · ${n('applied')} applied · ${(n('unchanged') + (st.sync.others || 0)).toLocaleString('en-GB')} unchanged · ${n('skipped')} skipped: no group · ${n('refused')} refused: separation of duties`}>
+        <Card icon={ListChecks} tone="info" title="Last synchronisation" count={sm.total.toLocaleString('en-GB')} sub={`${st.sync.at} by ${st.sync.by} · ${sm.total.toLocaleString('en-GB')} identities · ${sm.applied} applied · ${sm.unchanged.toLocaleString('en-GB')} unchanged · ${sm.skipped} skipped: no group · ${sm.refused} refused: separation of duties`}>
           <div className="table-wrap"><table className="tbl">
             <thead><tr><th>Person</th><th>Group</th><th>Access role</th><th>Result</th><th>Why</th></tr></thead>
             <tbody>{res.map((x) => <tr key={x.person + x.group}><td className="gv-strong">{x.person}</td><td><Mono>{x.group}</Mono></td><td>{x.role !== '—' ? <span className="tag mono">{x.role}</span> : '—'}</td><td><StatusBadge s={OUT_TONE[x.outcome]}>{x.outcome === 'skipped' ? 'skipped: no group' : x.outcome === 'refused' ? 'refused: separation of duties' : x.outcome}</StatusBadge></td><td className="gv-muted">{x.why}</td></tr>)}
+            {(st.sync.skippedOthers || []).map(([g, k]) => <tr key={`skip-${g}`}><td className="gv-strong">{k.toLocaleString('en-GB')} other members of {g}</td><td><Mono>{g}</Mono></td><td>—</td><td><StatusBadge s={OUT_TONE.skipped}>skipped: no group</StatusBadge></td><td className="gv-muted">no group mapping — the group carries no GenMeta role · counted, not listed (Roles & people › People, filter “Without an access role”)</td></tr>)}
             {st.sync.others > 0 && <tr><td className="gv-strong">{st.sync.others.toLocaleString('en-GB')} other people</td><td className="gv-muted">their groups</td><td>—</td><td><StatusBadge s="info">unchanged</StatusBadge></td><td className="gv-muted">already hold the access roles their groups carry — counted, not listed</td></tr>}</tbody>
           </table></div>
           <Note>Applied people now count towards each access role under Roles & people › Access roles, labelled “directory”.</Note>

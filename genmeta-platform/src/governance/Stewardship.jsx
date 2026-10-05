@@ -345,7 +345,8 @@ export function AuditTrail({ audit, title = 'Ownership and responsibility audit 
   const [n, setN] = useState(200);
   const whoList = [...new Set(audit.map((a) => a.who))].sort();
   const onList = [...new Set(audit.map((a) => a.on))].sort();
-  const list = audit.filter((a) => (!f.action || a.cat === f.action) && (!f.on || a.on.toLowerCase().includes(f.on.toLowerCase())) && (!f.who || a.who === f.who));
+  /* “Access” is every access.* event — sync, requests, grants, evaluations and refusals; the other filters go by category */
+  const list = audit.filter((a) => (!f.action || (f.action === 'access' ? a.action.startsWith('access.') : a.cat === f.action)) && (!f.on || a.on.toLowerCase().includes(f.on.toLowerCase())) && (!f.who || a.who === f.who));
   const set = (k) => (e) => { setF((o) => ({ ...o, [k]: e.target.value })); setN(200); };
   return (
     <Card icon={ScrollText} tone="teal" title={title} sub={`${list.length.toLocaleString('en-GB')} of ${audit.length.toLocaleString('en-GB')} entries · every action here is also written to the hash-chained audit log on Governance › Overview › Audit & reporting`}>
