@@ -224,7 +224,8 @@ export function decide({ asset, column, role, person, loc = 'uk', purpose = '' }
   S('rule-offshore', sens === 'Restricted' ? (loc === 'uk' ? 'request from the United Kingdom — not applied' : 'Restricted data requested from outside the UK — denied') : 'not Restricted — not applied', sens === 'Restricted' && loc !== 'uk' ? 'deny' : 'allow');
   const pii = (column ? [column] : cols).filter((c) => ['PII', 'FINANCIAL', 'GOVERNMENT_ID'].includes(colClass(c)));
   S('rule-pii-mask', pii.length ? (rank < 2 ? `personal and financial column(s) masked — clearance ${cl} is below L2` : `clearance ${cl} — not applied`) : 'no personal or financial column — not applied', pii.length && rank < 2 ? 'mask' : 'allow');
-  S('rule-purpose', sens === 'Restricted' ? (purpose.trim() ? `purpose stated: “${purpose.trim()}”` : 'Restricted data needs a stated purpose — none given') : 'not Restricted — not applied', sens === 'Restricted' && !purpose.trim() ? 'mask' : 'allow');
+  const purposeOver = r.may.includes('read_sensitive');
+  S('rule-purpose', sens === 'Restricted' ? (purpose.trim() ? `purpose stated: “${purpose.trim()}”` : purposeOver ? `no purpose given — not applied: ${r.key} holds read_sensitive` : 'Restricted data needs a stated purpose — none given') : 'not Restricted — not applied', sens === 'Restricted' && !purpose.trim() && !purposeOver ? 'mask' : 'allow');
   const effect = steps.some((x) => x[2] === 'deny') ? 'deny' : steps.some((x) => x[2] === 'mask') ? 'mask' : 'allow';
   /* per column */
   const colRows = (column ? [column] : cols).map((c) => {
@@ -235,7 +236,7 @@ export function decide({ asset, column, role, person, loc = 'uk', purpose = '' }
     if (cw && cw.level === 'column') return { col: c, cls, effect: scopeEffect(cw.actions), why: `column scope: ${cw.actions.join(', ')}` };
     if (['PII', 'FINANCIAL', 'GOVERNMENT_ID'].includes(cls) && rank < 2) return { col: c, cls, effect: 'mask', why: `${cls} masked below L2` };
     if (needsGrant && !granted && !r.may.includes('read_sensitive')) return { col: c, cls, effect: 'mask', why: 'no grant on Restricted data' };
-    if (sens === 'Restricted' && !purpose.trim()) return { col: c, cls, effect: 'mask', why: 'no purpose stated' };
+    if (sens === 'Restricted' && !purpose.trim() && !r.may.includes('read_sensitive')) return { col: c, cls, effect: 'mask', why: 'no purpose stated' };
     return { col: c, cls, effect: 'allow', why: granted ? 'grant held' : 'clearance and scope allow it' };
   });
   return { effect, steps, cols: colRows, asker: { person, role: r, cl }, known: true, sens, granted: !!granted };
@@ -289,7 +290,7 @@ export function approveRequest(id, automatic = false) {
   const g = { id: `g${Date.now()}`, person: r.by, role: r.role, asset: r.asset, sens: sensitivityOf(r.asset), granted: fmtD(today()), lastUsed: 'never', why: r.why || '—', by: automatic ? 'automatic' : me(), expires: prov.due, status: 'active', source: 'request', provision: prov };
   st = { ...st, requests: st.requests.map((x) => (x.id === id ? { ...x, status: 'approved', decidedBy: automatic ? 'automatic' : `${me()} (${st.role})`, decidedAt: now(), provision: prov } : x)), grants: [g, ...st.grants] };
   log('access.approve', r.asset, `${automatic ? 'automatically approved' : 'approved'} ${r.by}'s request for ${r.days} days on ${r.asset}`);
-  log('access.grant', r.asset, `provisioned on ${prov.platform}: ${prov.grant} · due ${prov.due} · revoke with ${prov.revoke}${prov.auto ? '' : ' (statement handed to the platform team — grants not published)'}`);
+  log('access.grant', r.asset, `provisioned on ${prov.platform}: ${prov.grant} · due ${prov.due} · revoke with ${prov.revoke}${prov.auto ? '' : ` (${prov.platform} does not publish its grants — cannot be confirmed)`} — recorded, not applied: automatic correction is off`);
   emit();
   return { ok: true, prov };
 }
@@ -362,12 +363,19 @@ const platformRole = (role) => `GENMETA_${role.toUpperCase().replace(/[^A-Z0-9]+
 export function statementFor(s) {
   const sys = s.level === 'system' ? s.target : TARGETS[s.level].find((t) => t.id === s.target)?.system;
   const db = DB[sys]; const pr = platformRole(s.role);
-  if (!db) return { sys, sql: `— ${sys} does not take SQL grants: grant ${pr} ${s.actions.includes('read_profile') ? 'read' : 'metadata'} on ${s.target} in the platform console`, checkable: false };
+  if (!db) return { sys, why: (PLATFORMS.find(([p]) => p === sys) || [])[3] || 'this platform does not publish its grants', sql: `— ${sys} does not take SQL grants: grant ${pr} ${s.actions.includes('read_profile') ? 'read' : 'metadata'} on ${s.target} in the platform console`, checkable: false };
   const checkable = (PLATFORMS.find(([p]) => p === sys) || [])[2];
   if (s.level === 'system') return { sys, sql: `GRANT USAGE ON DATABASE ${db} TO ROLE ${pr};`, checkable };
   if (s.level === 'dataset') return { sys, sql: `GRANT USAGE ON DATABASE ${db} TO ROLE ${pr};\nGRANT USAGE ON SCHEMA ${db}.${s.target} TO ROLE ${pr};${s.actions.includes('read_profile') ? `\nGRANT SELECT ON ALL TABLES IN SCHEMA ${db}.${s.target} TO ROLE ${pr};` : ''}`, checkable };
   if (s.level === 'table') return { sys, sql: `GRANT SELECT ON TABLE ${db}.${s.target} TO ROLE ${pr};`, checkable };
-  if (s.level === 'column') { const [ds, tb, col] = s.target.split('.'); return { sys, sql: s.actions.includes('read_profile') || s.actions.includes('read_sensitive') ? `GRANT SELECT (${col}) ON TABLE ${db}.${ds}.${tb} TO ROLE ${pr};` : `ALTER TABLE ${db}.${ds}.${tb} MODIFY COLUMN ${col} SET MASKING POLICY GENMETA_MASK_FOR_${pr};`, checkable }; }
+  if (s.level === 'column') {
+    /* Snowflake: column access is a masking policy, not a GRANT — and SHOW GRANTS cannot see it */
+    const [ds, tb, col] = s.target.split('.');
+    const pol = `${db}.GOVERNANCE.GENMETA_MASK_${col}`;
+    const shows = s.actions.includes('read_profile') || s.actions.includes('read_sensitive');
+    return { sys, checkable: false, why: 'not checkable with SHOW GRANTS — column access is a masking policy',
+      sql: `CREATE MASKING POLICY IF NOT EXISTS ${pol} AS (val STRING) RETURNS STRING ->\n  CASE WHEN IS_ROLE_IN_SESSION('${pr}') ${shows ? "THEN val ELSE '***MASKED***'" : "THEN '***MASKED***' ELSE val"} END;\nALTER TABLE ${db}.${ds}.${tb} MODIFY COLUMN ${col} SET MASKING POLICY ${pol};` };
+  }
   return { sys, sql: `GRANT SELECT ON ${s.target} TO ROLE ${pr};`, checkable };
 }
 export function reconcile() {
@@ -375,7 +383,7 @@ export function reconcile() {
   const rows = st.scopes.map((s) => {
     const x = statementFor(s);
     const present = PLATFORM_HAS.includes(`${s.level}:${s.target}:${s.role}`);
-    return { scope: s, sys: x.sys, sql: x.sql, state: !x.checkable ? 'not checkable' : present ? 'present' : 'missing' };
+    return { scope: s, sys: x.sys, sql: x.sql, why: x.why || (!x.checkable ? (PLATFORMS.find(([p]) => p === x.sys) || [])[3] : ''), state: !x.checkable ? 'not checkable' : present ? 'present' : 'missing' };
   });
   const per = Object.fromEntries(PLATFORMS.map(([p]) => [p, { checked: 0, missing: 0, nc: 0, sql: [] }]));
   rows.forEach((r) => { const p = per[r.sys]; if (!p) return; p.checked += 1; if (r.state === 'missing') { p.missing += 1; p.sql.push(r.sql); } if (r.state === 'not checkable') { p.nc += 1; p.sql.push(r.sql); } });

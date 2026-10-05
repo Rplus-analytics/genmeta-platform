@@ -178,7 +178,7 @@ function Requests({ st }) {
 function Provision({ p }) {
   return (
     <div className="ac-prov">
-      <div><b><Terminal size={13} /> Provision on {p.platform}</b> <span className="gv-faint">{p.auto ? 'applied — the platform publishes its grants' : 'statement handed to the platform team — this platform does not publish its grants'}</span></div>
+      <div><b><Terminal size={13} /> Provision on {p.platform}</b> <span className="gv-faint">{p.auto ? `recorded — run this statement on ${p.platform}; it publishes its grants, so the next reconciliation confirms it` : `recorded — run this statement on ${p.platform}; it does not publish its grants, so this cannot be confirmed`}</span></div>
       <code>{p.grant}</code>
       <div className="gv-faint" style={{ margin: '6px 0 2px' }}>Due to expire <b>{p.due}</b> — revoke with:</div>
       <code>{p.revoke}</code>
@@ -210,7 +210,7 @@ function Roles({ st }) {
               {['Public', 'Internal', 'Confidential', 'Restricted'].map((s) => { const [v, tone] = sees(r, s); return <td key={s}><StatusBadge s={tone}>{v}</StatusBadge></td>; })}</tr>
           ))}</tbody>
         </table></div>
-        <Note>Full: columns and profiles shown. Masked: PII and FINANCIAL columns hidden. Request: visible in the catalogue, detail needs a grant from the owner. Special-category columns always need L3.</Note>
+        <Note>Full: columns and profiles shown. Masked: PII and FINANCIAL columns hidden. Request: visible in the catalogue, detail needs a grant from the owner. Special-category columns always need L3. Roles holding read_sensitive (governance lead, DPO) see Restricted data in full without stating a purpose — the decision point applies the same rule.</Note>
       </Card>
       <Card icon={Users} tone="info" title="Roles" count={st.roles.length}>
         <a3.Refusal />
@@ -398,7 +398,7 @@ function Platforms({ st }) {
           <div className="table-wrap"><table className="tbl">
             <thead><tr><th>Scope</th><th>Platform</th><th>In the platform</th><th>Statement</th></tr></thead>
             <tbody>{rows.map((r, i) => <tr key={i}><td><span className="tag">{r.scope.level}</span> <Mono>{r.scope.target}</Mono><span className="gv-sub">{r.scope.role} · {r.scope.actions.join(', ')}</span></td><td>{r.sys}</td>
-              <td><StatusBadge s={r.state === 'present' ? 'ok' : r.state === 'missing' ? 'fail' : 'warn'}>{r.state}</StatusBadge></td><td><code className="ac-sql">{r.sql}</code></td></tr>)}</tbody>
+              <td><StatusBadge s={r.state === 'present' ? 'ok' : r.state === 'missing' ? 'fail' : 'warn'}>{r.state}</StatusBadge>{r.why && <span className="gv-sub">{r.why}</span>}</td><td><code className="ac-sql">{r.sql}</code></td></tr>)}</tbody>
           </table></div>
         </Card>
       )}
