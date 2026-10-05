@@ -1213,3 +1213,8 @@ tr.tb-new td { background: #effaf3; }
 .ac-sql { min-width: 260px; }
 .ac-bad { color: var(--gv-bad, #c0392b); }
 tr.ac-off td { background: #fff6f5; }
+
+/* Workflows: modules as sections above the tabs */
+.wf-modnav.wf-sections { margin: 4px 0 18px; }
+.wf-sections .wf-dot { font-style: normal; margin-left: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--gv-warn, #d98a00); color: #fff; font-size: 11px; font-weight: 600; display: inline-grid; place-items: center; }
+.wf-sections button.on .wf-dot { background: #fff; color: var(--navy); }
