@@ -108,7 +108,7 @@ function Requests({ st }) {
           <div style={{ marginTop: 12 }}><Button variant="primary" size="md" icon={Send} disabled={!rq.asset} onClick={() => { if (a1.run(requestAccess(rq), 'Request sent — written to the audit log')) setRq({ asset: '', days: 30, why: '' }); }}>Send request</Button></div>
           {p && <Note>{p.s} · approved by {p.ap.toLowerCase()} · up to {p.days} days{p.just ? ' · justification required' : ''}</Note>}
         </Card>
-        <Card icon={KeyRound} tone="ok" title="Grant directly" sub="Governance leads (grant_access). Provisioned with the statement for the platform.">
+        <Card icon={KeyRound} tone="ok" title="Grant directly" sub="Asset owner, steward or governance lead — owners and stewards come from the Stewardship register and need “Grant and revoke access directly” in the governance model.">
           <a2.Refusal />
           <Fld label="Asset"><AssetSelect value={gr.asset} onChange={(e) => setGr((o) => ({ ...o, asset: e.target.value }))} /></Fld>
           <div className="gv-inline">
