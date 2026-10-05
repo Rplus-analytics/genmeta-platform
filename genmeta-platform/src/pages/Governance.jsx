@@ -10,7 +10,7 @@ import Policies, { PolicyItemPage, usePolicyFilters, POLICIES_BASE } from '../go
 import TemplateBuilder from '../governance/TemplateBuilder.jsx';
 import Dpia, { DpiaActivityPage, DpiaAssetPage, useDpiaFilters, DPIA_BASE } from '../governance/Dpia.jsx';
 import { FacetPanel } from '../governance/catalog.jsx';
-import AccessHub, { ACCESS_BASE } from '../governance/AccessHub.jsx';
+import AccessHub, { ACCESS_BASE, usePeopleFilters } from '../governance/AccessHub.jsx';
 import Workflows from '../governance/Workflows.jsx';
 import { ModelCatalogue, ModelPage, ModelFiltersPanel, useModelFilters, MODELS_BASE } from '../governance/Models.jsx';
 import '../governance/governance.css';
@@ -32,9 +32,11 @@ export default function Governance() {
   const onModelList = pathname === MODELS_BASE || pathname === `${MODELS_BASE}/`;
   const pol = usePolicyFilters();
   const dp = useDpiaFilters();
+  const people = usePeopleFilters();
   const [sp] = useSearchParams();
   const onPolicyList = (pathname === POLICIES_BASE || pathname === `${POLICIES_BASE}/`) && !sp.get('tab');
   const onDpiaList = (pathname === DPIA_BASE || pathname === `${DPIA_BASE}/`) && !sp.get('tab') && sp.get('view') !== 'policies';
+  const onPeople = pathname === ACCESS_BASE || pathname === `${ACCESS_BASE}/` || pathname === `${ACCESS_BASE}/people`;
   const links = GOVERNANCE_NAV.map((n) => {
     const I = ICONS[n.icon];
     const link = (
@@ -46,7 +48,7 @@ export default function Governance() {
     return link;
   });
   /* on the AI model list the catalogue-style filters sit under the links, as in Data assets */
-  const menu = <>{links}{onModelList && <ModelFiltersPanel state={models} />}{onPolicyList && <FacetPanel state={pol} sourceLabel="Regulation" />}{onDpiaList && <FacetPanel state={dp} sourceLabel="Where and why" />}</>;
+  const menu = <>{links}{onModelList && <ModelFiltersPanel state={models} />}{onPolicyList && <FacetPanel state={pol} sourceLabel="Regulation" />}{onDpiaList && <FacetPanel state={dp} sourceLabel="Where and why" />}{onPeople && <FacetPanel state={people} />}</>;
   return (
     <InnerLayout title="Governance" menu={menu}>
       <Routes>
@@ -61,8 +63,8 @@ export default function Governance() {
         <Route path="policies" element={<Policies filters={pol} />} />
         <Route path="policies/:itemId" element={<PolicyItemPage />} />
         <Route path="stewardship" element={<Navigate to={`${ACCESS_BASE}/ownership`} replace />} />
-        <Route path="access" element={<AccessHub />} />
-        <Route path="access/:section" element={<AccessHub />} />
+        <Route path="access" element={<AccessHub peopleFilters={people} />} />
+        <Route path="access/:section" element={<AccessHub peopleFilters={people} />} />
         <Route path="workflows" element={<Workflows />} />
         <Route path="workflows/:wfId" element={<Workflows />} />
         <Route path="*" element={<Navigate to={BASE} replace />} />

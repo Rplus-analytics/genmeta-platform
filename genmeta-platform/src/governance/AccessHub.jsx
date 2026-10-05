@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { NavLink, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Users, Fingerprint, BadgeCheck, UserCheck, ClipboardList, ShieldCheck, ListChecks, ScrollText, Layers, KeyRound, Inbox, CalendarCheck, ClipboardCheck,
-  ShieldQuestion, Split, Gavel, RefreshCw, Server, History, Search, Download, X, AlertTriangle, Settings2,
+  ShieldQuestion, Split, Gavel, RefreshCw, Server, History, Search, Download, X, AlertTriangle, Settings2, Eye, Lock, Building2, MapPin, Clock,
 } from 'lucide-react';
 import { PageHead, Button, Tabs } from '../components/ui.jsx';
 import { BASE, ACCESS_RULES, AUDIT, fmtTs, ownerOf } from './data.js';
@@ -11,10 +11,11 @@ import {
   useAccess, setViewRole, ACCESS_VIEW, roleOf, combinationsHeld, unassign, revokeGrant, syncDirectory, statementFor,
 } from './access-store.js';
 import { useStewardship, stewardRights } from './stewardship-store.js';
-import { PEOPLE_DIR, GROUP_LIST, groupRole, rolesFor, sourceFor, initials, DEPTS } from './people.js';
+import { PEOPLE_DIR, GROUP_LIST, groupRole, rolesFor, sourceFor, initials } from './people.js';
 import {
   Requests, Reviews, RolesMatrix, Scopes, Sod, Rules, Directory, Platforms, useAct, RoleNote,
 } from './Access.jsx';
+import { useFacets } from './catalog.jsx';
 import { Register, StewardRoles, Gaps, Approvals, AuditTrail, ReviewQueue } from './Stewardship.jsx';
 
 /* Govern › Governance › Access — Stewardship and Access & RBAC as one section.
@@ -82,7 +83,7 @@ function AccessNav({ group, section, st, ss }) {
 }
 
 /* ------------------------------------------------------------------ page */
-export default function AccessHub() {
+export default function AccessHub({ peopleFilters }) {
   const { section } = useParams();
   const st = useAccess(); const ss = useStewardship();
   if (!section) return <Navigate to={`${ACCESS_BASE}/people`} replace />;
@@ -97,7 +98,7 @@ export default function AccessHub() {
         </Fld>
       </PageHead>
       <AccessNav group={group} section={section} st={st} ss={ss} />
-      {section === 'people' && <People st={st} ss={ss} />}
+      {section === 'people' && <People st={st} ss={ss} filters={peopleFilters} />}
       {section === 'groups' && <Groups st={st} />}
       {section === 'roles' && <RolesSection st={st} />}
       {section === 'ownership' && <Register ss={ss} />}
@@ -159,49 +160,61 @@ function SectionTiles({ group, st, ss }) {
   return <Tiles items={items[group]} />;
 }
 
-/* ------------------------------------------------------------------ People (landing page) */
-const SOURCES = [['all', 'All'], ['directory', 'From directory'], ['manual', 'Manual'], ['named', 'Named test people'], ['inactive', 'Inactive 90+ days'], ['sod', 'SoD breach'], ['owners', 'Owners & stewards']];
+/* ------------------------------------------------------------------ People (landing page)
+   Filters live in the Governance inner menu (as Policies, DPIA and AI models); search, sort and paging stay on the page. */
 const clearanceOf = (roles) => roles.map((r) => roleOf(r)?.clearance).filter(Boolean).sort().pop() || '—';
-function People({ st, ss }) {
-  const [f, setF] = useState({ q: '', role: [], cl: [], dept: [], group: [], src: 'all', sort: 'named', page: 1, per: 25 });
+const PEOPLE_FACETS = [
+  { key: 'show', label: 'Show', icon: Eye, open: true, of: (x) => x.show },
+  { key: 'role', label: 'Role', icon: BadgeCheck, open: true, of: (x) => (x.roles.length ? x.roles.map((r) => roleOf(r)?.name || r) : ['No role']) },
+  { key: 'cl', label: 'Clearance', icon: Lock, open: true, of: (x) => [x.cl === '—' ? 'No role' : x.cl] },
+  { key: 'src', label: 'Source', icon: RefreshCw, of: (x) => [x.src === 'manual' ? 'Manual assignment' : x.src === 'none' ? 'No assignment' : 'From directory'] },
+  { key: 'dept', label: 'Department', icon: Building2, of: (x) => [x.p.dept] },
+  { key: 'group', label: 'Directory group', icon: Fingerprint, of: (x) => x.p.groups },
+  { key: 'loc', label: 'Location', icon: MapPin, of: (x) => [x.p.loc] },
+  { key: 'active', label: 'Last active', icon: Clock, of: (x) => [x.p.lastActive <= 7 ? 'This week' : x.p.lastActive <= 30 ? 'Last 30 days' : x.p.lastActive <= 90 ? '31–90 days' : 'Over 90 days'] },
+];
+const PEOPLE_SORTS = {
+  named: ['Named test people first', (a, b) => (b.p.named - a.p.named) || a.p.name.localeCompare(b.p.name)],
+  name: ['Name', (a, b) => a.p.name.localeCompare(b.p.name)],
+  active: ['Last active', (a, b) => a.p.lastActive - b.p.lastActive],
+};
+export function usePeopleFilters() {
+  const st = useAccess(); const ss = useStewardship();
+  const rows = useMemo(() => {
+    const breachers = new Set(combinationsHeld(st).map((b) => b.person));
+    const stewards = new Set(ss.register.flatMap((r) => Object.values(r.roles).filter(Boolean).map((c) => c.who)));
+    return PEOPLE_DIR.map((p) => {
+      const roles = rolesFor(p, st.assign); const src = sourceFor(p, st.assign);
+      const show = [p.named && 'Named test people', stewards.has(p.name) && 'Owners & stewards', breachers.has(p.name) && 'Separation-of-duties breach', !roles.length && 'Without a role', src === 'manual' && 'Manual assignment', p.lastActive > 90 && 'Inactive 90+ days'].filter(Boolean);
+      return { p, roles, cl: clearanceOf(roles), src, show, sod: breachers.has(p.name) };
+    });
+  }, [st, ss.register]);
+  return useFacets('access-people', rows, PEOPLE_FACETS, (x) => `${x.p.name} ${x.p.email}`, PEOPLE_SORTS);
+}
+
+function People({ st, ss, filters }) {
+  const { results: list, q, setQ, sort, setSort, active, toggle, clearAll, total } = filters;
+  const [pg, setPg] = useState({ page: 1, per: 25 });
   const [open, setOpen] = useState(null);
-  const breachers = new Set(combinationsHeld(st).map((b) => b.person));
-  const stewards = new Set(ss.register.flatMap((r) => Object.values(r.roles).filter(Boolean).map((c) => c.who)));
-  const rows = useMemo(() => PEOPLE_DIR.map((p) => { const roles = rolesFor(p, st.assign); return { p, roles, cl: clearanceOf(roles), src: sourceFor(p, st.assign) }; }), [st.assign]);
-  const match = (x, except) => {
-    const q = f.q.trim().toLowerCase();
-    return (!q || x.p.name.toLowerCase().includes(q) || x.p.email.includes(q))
-      && (except === 'role' || !f.role.length || x.roles.some((r) => f.role.includes(r)))
-      && (except === 'cl' || !f.cl.length || f.cl.includes(x.cl))
-      && (except === 'dept' || !f.dept.length || f.dept.includes(x.p.dept))
-      && (except === 'group' || !f.group.length || x.p.groups.some((g) => f.group.includes(g)))
-      && (f.src === 'all' || (f.src === 'manual' ? x.src === 'manual' : f.src === 'directory' ? x.src === 'directory' : f.src === 'named' ? x.p.named : f.src === 'inactive' ? x.p.lastActive > 90 : f.src === 'sod' ? breachers.has(x.p.name) : stewards.has(x.p.name)));
-  };
-  const list = rows.filter((x) => match(x)).sort((a, b) => (f.sort === 'active' ? a.p.lastActive - b.p.lastActive : f.sort === 'named' ? (b.p.named - a.p.named) || a.p.name.localeCompare(b.p.name) : a.p.name.localeCompare(b.p.name)));
-  const pages = Math.max(1, Math.ceil(list.length / f.per)); const page = Math.min(f.page, pages);
-  const shown = list.slice((page - 1) * f.per, page * f.per);
-  const cnt = (key, fn) => { const m = {}; rows.filter((x) => match(x, key)).forEach((x) => [].concat(fn(x)).forEach((k) => { m[k] = (m[k] || 0) + 1; })); return m; };
-  const rc = cnt('role', (x) => x.roles); const cc = cnt('cl', (x) => x.cl); const dc = cnt('dept', (x) => x.p.dept); const gc = cnt('group', (x) => x.p.groups);
-  const toggle = (k, v) => setF((o) => ({ ...o, page: 1, [k]: o[k].includes(v) ? o[k].filter((x) => x !== v) : [...o[k], v] }));
-  const Facet = ({ title, k, items }) => (<><h5>{title}</h5>{items.map(([v, n, l]) => <label key={v}><input type="checkbox" checked={f[k].includes(v)} onChange={() => toggle(k, v)} />{l || v}<em>{(n || 0).toLocaleString('en-GB')}</em></label>)}</>);
+  const pages = Math.max(1, Math.ceil(list.length / pg.per)); const page = Math.min(pg.page, pages);
+  const shown = list.slice((page - 1) * pg.per, page * pg.per);
+  const label = (k) => PEOPLE_FACETS.find((f) => f.key === k)?.label;
   const exportCsv = () => {
     const csv = ['Name,Email,Roles,Clearance,Department,Groups,Source', ...list.map((x) => [x.p.name, x.p.email, x.roles.join(' '), x.cl, x.p.dept, x.p.groups.join(' '), x.src].map((v) => `"${v}"`).join(','))].join('\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'people.csv'; a.click();
   };
   return (
-    <div className="ax-people">
-      <aside className="dash-card ax-facets">
-        <Facet title="Role" k="role" items={st.roles.map((r) => [r.key, rc[r.key], r.name])} />
-        <Facet title="Clearance" k="cl" items={['L3', 'L2', 'L1', '—'].map((c) => [c, cc[c], c === '—' ? 'No role' : c])} />
-        <Facet title="Department" k="dept" items={DEPTS.map((d) => [d, dc[d]]).sort((a, b) => (b[1] || 0) - (a[1] || 0))} />
-        <Facet title="Group" k="group" items={GROUP_LIST.map((g) => [g, gc[g]]).sort((a, b) => (b[1] || 0) - (a[1] || 0))} />
-      </aside>
+    <>
       <Card icon={Users} tone="info" title="People" count={list.length.toLocaleString('en-GB')} actions={<Button variant="secondary" size="sm" icon={Download} onClick={exportCsv}>Export CSV</Button>}>
         <div className="ax-tools">
-          <label className="search gv-search ax-search"><Search size={15} /><input value={f.q} onChange={(e) => setF((o) => ({ ...o, q: e.target.value, page: 1 }))} placeholder={`Search ${PEOPLE_DIR.length.toLocaleString('en-GB')} people by name or email`} aria-label="Search people" /></label>
-          <select className="select" value={f.sort} onChange={(e) => setF((o) => ({ ...o, sort: e.target.value }))} aria-label="Sort"><option value="name">Sort: name</option><option value="named">Sort: named test people first</option><option value="active">Sort: last active</option></select>
+          <label className="search gv-search ax-search"><Search size={15} /><input value={q} onChange={(e) => { setQ(e.target.value); setPg((o) => ({ ...o, page: 1 })); }} placeholder={`Search ${total.toLocaleString('en-GB')} people by name or email`} aria-label="Search people" /></label>
+          <select className="select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">{Object.entries(PEOPLE_SORTS).map(([k, [l]]) => <option key={k} value={k}>Sort: {l.toLowerCase()}</option>)}</select>
         </div>
-        <div className="gv-chiprow">{SOURCES.map(([k, l]) => <button key={k} type="button" className={`chip ${f.src === k ? 'on' : ''}`} onClick={() => setF((o) => ({ ...o, src: k, page: 1 }))}>{l}</button>)}</div>
+        <div className="applied ax-applied">
+          {active.map(([k, v]) => <button type="button" key={k + v} className="achip" onClick={() => toggle(k, v)} aria-label={`Remove ${label(k)} ${v}`}><span>{label(k)}:</span> {v}<X size={12} /></button>)}
+          {!active.length && !q && <span className="gv-muted">Showing everyone — filter from the menu on the left</span>}
+          {(active.length > 0 || q) && <button type="button" className="btn link" onClick={clearAll}>Clear all</button>}
+        </div>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Person</th><th>Roles (via group)</th><th>Clearance</th><th>Department</th><th>Owns / stewards</th><th>Grants</th><th>Last active</th></tr></thead>
@@ -211,7 +224,7 @@ function People({ st, ss }) {
               return (
                 <tr key={x.p.id} className="click" onClick={() => setOpen(x.p)}>
                   <td><div className="ax-who"><span className="ax-av" style={{ background: x.p.col }}>{initials(x.p.name)}</span><div><b>{x.p.name}</b>{x.p.named && <span className="gv-tag info" style={{ marginLeft: 6 }}>test user</span>}<span className="gv-sub">{x.p.email}</span></div></div></td>
-                  <td>{x.roles.map((r) => <span key={r} className="tag">{roleOf(r)?.name || r}</span>)}{!x.roles.length && <StatusBadge s="warn">no role</StatusBadge>}{x.src === 'manual' && <span className="gv-tag violet" style={{ marginLeft: 4 }}>manual</span>}{breachers.has(x.p.name) && <StatusBadge s="fail">SoD</StatusBadge>}</td>
+                  <td>{x.roles.map((r) => <span key={r} className="tag">{roleOf(r)?.name || r}</span>)}{!x.roles.length && <StatusBadge s="warn">no role</StatusBadge>}{x.src === 'manual' && <span className="gv-tag violet" style={{ marginLeft: 4 }}>manual</span>}{x.sod && <StatusBadge s="fail">SoD</StatusBadge>}</td>
                   <td><span className="tag">{x.cl}</span></td>
                   <td>{x.p.dept}<span className="gv-sub">{x.p.loc}</span></td>
                   <td>{owns ? `${owns} asset${owns === 1 ? '' : 's'}` : <span className="gv-faint">—</span>}</td>
@@ -224,17 +237,17 @@ function People({ st, ss }) {
           </table>
         </div>
         <div className="ax-pager">
-          <span>{list.length ? ((page - 1) * f.per + 1).toLocaleString('en-GB') : 0}–{Math.min(page * f.per, list.length).toLocaleString('en-GB')} of {list.length.toLocaleString('en-GB')} people</span>
+          <span>{list.length ? ((page - 1) * pg.per + 1).toLocaleString('en-GB') : 0}–{Math.min(page * pg.per, list.length).toLocaleString('en-GB')} of {list.length.toLocaleString('en-GB')} people</span>
           <span className="gv-inline" style={{ gap: 6, alignItems: 'center' }}>
-            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setF((o) => ({ ...o, page: page - 1 }))}>‹</Button>
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPg((o) => ({ ...o, page: page - 1 }))}>‹</Button>
             Page {page} of {pages.toLocaleString('en-GB')}
-            <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => setF((o) => ({ ...o, page: page + 1 }))}>›</Button>
-            <select className="select" value={f.per} onChange={(e) => setF((o) => ({ ...o, per: +e.target.value, page: 1 }))} aria-label="Per page">{[25, 50, 100].map((n) => <option key={n} value={n}>{n} per page</option>)}</select>
+            <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => setPg((o) => ({ ...o, page: page + 1 }))}>›</Button>
+            <select className="select" value={pg.per} onChange={(e) => setPg({ per: +e.target.value, page: 1 })} aria-label="Per page">{[25, 50, 100].map((n) => <option key={n} value={n}>{n} per page</option>)}</select>
           </span>
         </div>
       </Card>
       {open && <PersonDrawer p={open} st={st} ss={ss} onClose={() => setOpen(null)} />}
-    </div>
+    </>
   );
 }
 

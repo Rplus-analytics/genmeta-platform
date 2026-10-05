@@ -1230,13 +1230,6 @@ tr.ac-off td { background: #fff6f5; }
 
 /* Access — Stewardship and Access & RBAC as one section */
 
-.ax-people { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
-.ax-facets { position: sticky; top: 12px; padding: 14px; max-height: calc(100vh - 120px); overflow: auto; }
-.ax-facets h5 { margin: 12px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
-.ax-facets h5:first-child { margin-top: 0; }
-.ax-facets label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 3px 0; cursor: pointer; color: var(--text); }
-.ax-facets label em { margin-left: auto; font-style: normal; font-size: 11.5px; color: var(--muted); }
-@media (max-width: 1000px) { .ax-people { grid-template-columns: 1fr; } .ax-facets { position: static; max-height: none; } }
 .ax-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 .ax-search { flex: 1; min-width: 240px; }
 .ax-who { display: flex; align-items: center; gap: 9px; }
@@ -1271,3 +1264,4 @@ tr.ac-off td { background: #fff6f5; }
 .ax-pol b { font-weight: 600; }
 .ax-pol .tag { margin: 0 4px 4px 0; }
 @media (max-width: 1100px) { .ax-pol { grid-template-columns: 1fr 1fr; } }
+.ax-applied { margin: 0 0 10px; min-height: 26px; font-size: 13px; }
