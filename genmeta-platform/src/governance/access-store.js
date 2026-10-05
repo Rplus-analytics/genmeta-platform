@@ -3,6 +3,7 @@ import {
   ROLES, SOD, DIRECTORY, PLATFORMS, ACCESS_POLICIES, REVIEW_ITEMS, ASSET_NAMES, PD_MAP, SYSTEMS, systemOf, sensitivityOf, ownerOf, colClass, writeAudit,
 } from './data.js';
 import { stewardRights, ownersOf } from './stewardship-store.js';
+import { PEOPLE_DIR, NAMED_DIRECTORY, groupRolesOf } from './people.js';
 
 /* Governance › Access & RBAC — one in-memory store so every tab (requests, reviews, roles, scopes, separation of duties,
    rules, directory, platforms) reads the same people, grants and decisions, and every action lands in the audit log.
@@ -31,16 +32,8 @@ const SPECIFICITY = { column: 4, table: 3, report: 3, dataset: 2, system: 1 };
 export const isKnownAsset = (a) => ASSET_NAMES.includes(a);
 
 /* ---------------------------------------------------------------- directory (test data) */
-export const DIRECTORY_MEMBERS = [
-  ['GenMeta-Governance', ['Admin', 'Sarah Jones']],
-  ['GenMeta-Audit', ['Sam Okafor', 'Sarah Jones']],
-  ['GenMeta-DPO', ['Dana Whitfield', 'Mark Owusu']],
-  ['GenMeta-Analysts', ['Priya Shah', 'Emma Clarke', 'Noor Ali']],
-  ['GenMeta-Engineering', ['Rajesh', 'Pradeep Kumar']],
-  ['GenMeta-Ops', ['Owen Hughes']],
-  ['GenMeta-ProductOwners', ['Aisha Khan']],
-  ['GenMeta-Contractors', ['Liam Patel']],
-];
+/* the directory's named test people, per group — the same directory Roles & people › Groups shows (people.js) */
+export const DIRECTORY_MEMBERS = NAMED_DIRECTORY;
 /* grants the platform itself reports (Rplus_DWH publishes them; the others cannot be read) */
 const PLATFORM_HAS = ['system:Rplus_DWH:data-engineer'];
 const DB = { Rplus_DWH: 'RPLUS', 'SQL Server': 'RPLUS_SQL' };
@@ -52,15 +45,22 @@ const now = () => new Date().toLocaleString('en-GB', { day: 'numeric', month: 's
 const addDays = (n, from = today()) => { const d = new Date(from); d.setDate(d.getDate() + n); return fmtD(d); };
 
 const A = (person, role, source = 'manual', at = '12 Sep 2026') => ({ person, role, source, at });
+/* Restricted grants last at most 90 days. One that reached its end and is still needed was extended by the asset's owner
+   for another 90 days at most — we keep who and when. */
+const plusDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+function expiryOf(r) {
+  let exp = plusDays(new Date(r.granted), 90); const ext = [];
+  while (exp < today()) { ext.push(exp); exp = plusDays(exp, 90); }
+  return { expires: fmtD(exp), extended: ext.length ? { by: ownerOf(r.asset) || 'owner', at: fmtD(ext[ext.length - 1]), times: ext.length } : null };
+}
 let st = {
   role: 'governance-lead',
   roles: ROLES.map((r) => ({ ...r, builtIn: true })),
+  /* every named person holds the roles their directory groups carry (synchronised nightly), plus Tom Reid's two
+     manual roles — held before the manage_metadata ↔ approve_access rule was switched on, so it shows under "Combinations held today" */
   assign: [
-    A('Admin', 'governance-lead'), A('Dana Whitfield', 'dpo'), A('Sam Okafor', 'auditor'), A('Owen Hughes', 'platform-ops'),
-    A('Rajesh', 'data-engineer'), A('Pradeep Kumar', 'data-engineer'), A('Aisha Khan', 'product-owner'),
-    A('Priya Shah', 'analyst'), A('Emma Clarke', 'analyst'),
-    /* held before the manage_metadata ↔ approve_access rule was switched on — shows under "Combinations held today" */
-    A('Tom Reid', 'data-engineer', 'manual', '3 Mar 2026'), A('Tom Reid', 'product-owner', 'manual', '3 Mar 2026'),
+    ...PEOPLE_DIR.filter((p) => p.named).flatMap((p) => groupRolesOf(p).map((r) => A(p.name, r, 'directory', '12 Sep 2026'))),
+    A('Tom Reid', 'product-owner', 'manual', '3 Mar 2026'),
   ],
   scopes: [
     { role: 'analyst', level: 'dataset', target: 'INT', actions: ['read_metadata', 'read_profile'], by: 'Admin', at: '14 Sep 2026' },
@@ -70,13 +70,29 @@ let st = {
   ],
   sod: SOD.map((s) => ({ ...s, on: true })),
   /* the same grants Access reviews works on */
-  grants: REVIEW_ITEMS.map((r) => ({ id: r.id, person: r.person, role: r.role, asset: r.asset, sens: r.sens, granted: r.granted, lastUsed: r.lastUsed, why: r.why, by: ownerOf(r.asset) || 'owner', expires: (() => { const e = new Date(r.granted); e.setDate(e.getDate() + 90); const min = new Date(); min.setDate(min.getDate() + 21); return fmtD(e > min ? e : min); })(), status: 'active', source: 'request' })),
+  grants: REVIEW_ITEMS.map((r) => ({ id: r.id, person: r.person, role: r.role, asset: r.asset, sens: r.sens, granted: r.granted, lastUsed: r.lastUsed, why: r.why, by: ownerOf(r.asset) || 'owner', ...expiryOf(r), status: 'active', source: 'request' })),
   requests: [],
   policies: ACCESS_POLICIES.map((p) => ({ ...p })),
-  sync: null,
+  sync: null, /* set below: the nightly synchronisation */
   recon: null,
   review: { dec: {}, applied: null },
 };
+
+/* what a synchronisation finds: named people one by one, everyone else counted */
+function syncResults() {
+  const map = Object.fromEntries(DIRECTORY);
+  const results = [];
+  DIRECTORY_MEMBERS.forEach(([group, people]) => people.forEach((p) => {
+    const role = map[group];
+    if (!role) { results.push({ person: p, group, role: '—', outcome: 'skipped', why: 'no group mapping — the group carries no GenMeta role' }); return; }
+    if (rolesHeld(p).includes(role)) { results.push({ person: p, group, role, outcome: 'unchanged', why: st.assign.find((a) => a.person === p && a.role === role).source === 'manual' ? 'already held — kept as a manual assignment' : 'already held' }); return; }
+    const c = sodClash(p, role);
+    if (c) { results.push({ person: p, group, role, outcome: 'refused', why: `separation of duties — ${c.text}` }); return; }
+    results.push({ person: p, group, role, outcome: 'applied', why: `added from ${group}` });
+  }));
+  return results;
+}
+const OTHERS = PEOPLE_DIR.filter((p) => !p.named).length;
 
 const listeners = new Set();
 const emit = () => { st = { ...st }; listeners.forEach((l) => l()); };
@@ -90,7 +106,7 @@ const refuse = (action, asset, why0) => { const why = why0.charAt(0).toUpperCase
 const can = (perm) => roleOf(st.role)?.may.includes(perm);
 /* OWN-06: a governance lead always may; otherwise the asset's owner or steward, if the governance model gives their role the responsibility */
 const mayOnAsset = (asset, what) => st.role === 'governance-lead' || stewardRights(me(), asset)[what];
-const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in the Stewardship register (owner or steward with that responsibility).`;
+const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in Data stewardship and ownership › Ownership register (owner or steward with that responsibility).`;
 export const approversFor = (asset) => { const o = ownersOf(asset); return o.length ? `${o.join(', ')} or a governance lead` : 'a governance lead (no owner or steward with that responsibility)'; };
 
 export function setViewRole(role) { st = { ...st, role }; emit(); }
@@ -347,20 +363,12 @@ export function applyReview() {
 /* ---------------------------------------------------------------- directory sync */
 export function syncDirectory() {
   if (!['governance-lead', 'platform-ops'].includes(st.role)) return refuse('access.sync', 'directory', `only a governance lead or platform ops can synchronise the directory (you are viewing as ${st.role})`);
-  const map = Object.fromEntries(DIRECTORY);
-  const results = [];
-  DIRECTORY_MEMBERS.forEach(([group, people]) => people.forEach((p) => {
-    const role = map[group];
-    if (!role) { results.push({ person: p, group, role: '—', outcome: 'skipped', why: 'no group mapping — the group carries no GenMeta role' }); return; }
-    if (rolesHeld(p).includes(role)) { results.push({ person: p, group, role, outcome: 'unchanged', why: st.assign.find((a) => a.person === p && a.role === role).source === 'manual' ? 'already held — kept as a manual assignment' : 'already held' }); return; }
-    const c = sodClash(p, role);
-    if (c) { results.push({ person: p, group, role, outcome: 'refused', why: `separation of duties — ${c.text}` }); log('access.sync.refused', p, `directory sync refused ${role} for ${p}: ${c.text}`); return; }
-    st = { ...st, assign: [...st.assign, A(p, role, 'directory', fmtD(today()))] };
-    results.push({ person: p, group, role, outcome: 'applied', why: `added from ${group}` });
-  }));
+  const results = syncResults();
+  results.filter((r) => r.outcome === 'applied').forEach((r) => { st = { ...st, assign: [...st.assign, A(r.person, r.role, 'directory', fmtD(today()))] }; });
+  results.filter((r) => r.outcome === 'refused').forEach((r) => log('access.sync.refused', r.person, `directory sync refused ${r.role} for ${r.person}: ${r.why}`));
   const n = (o) => results.filter((r) => r.outcome === o).length;
-  st = { ...st, sync: { at: now(), by: me(), results } };
-  log('access.sync', 'directory', `synchronised AWS IAM Identity Center: ${n('applied')} applied, ${n('unchanged')} unchanged, ${n('skipped')} skipped (no group), ${n('refused')} refused (separation of duties)`);
+  st = { ...st, sync: { at: now(), by: me(), results, others: OTHERS, total: PEOPLE_DIR.length } };
+  log('access.sync', 'directory', `synchronised AWS IAM Identity Center: ${PEOPLE_DIR.length.toLocaleString('en-GB')} identities — ${n('applied')} applied, ${n('unchanged') + OTHERS} unchanged, ${n('skipped')} skipped (no group), ${n('refused')} refused (separation of duties)`);
   emit();
   return { ok: true, results };
 }
@@ -400,3 +408,6 @@ export function reconcile() {
   emit();
   return { ok: true };
 }
+
+/* the nightly synchronisation that brought today's directory in (seeded) */
+st = { ...st, sync: { at: '5 Oct 2026, 02:00', by: 'nightly schedule', results: syncResults(), others: OTHERS, total: PEOPLE_DIR.length } };

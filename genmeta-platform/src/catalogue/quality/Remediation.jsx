@@ -39,7 +39,7 @@ export default function Remediation({ a }) {
 
       <div className="card pad-lg ml-card">
         <h3 className="sec-h">Remediation record</h3>
-        <p className="ml-note">Every automatic or manual fix, kept for audit, alongside the steward it was routed to. Tasks created here appear in Stewardship.</p>
+        <p className="ml-note">Every automatic or manual fix, kept for audit, alongside the steward it was routed to. Tasks created here appear in Access › Ownership register.</p>
         {record.length ? (
           <div className="e2e-hop-wrap">
             <table className="tbl dq-remed">
@@ -55,7 +55,7 @@ export default function Remediation({ a }) {
                       <td className="ml-detail">{r.actions}</td>
                       <td>{r.routedTo || '—'}</td>
                       <td>{r.authorisedBy || '—'}</td>
-                      <td>{hasTask ? <button className="tlink dq-asbtn" onClick={() => nav('/app/stewardship')}>Open in Stewardship</button> : <span className="faint">—</span>}</td>
+                      <td>{hasTask ? <button className="tlink dq-asbtn" onClick={() => nav('/app/governance/access/ownership')}>Open in Stewardship</button> : <span className="faint">—</span>}</td>
                     </tr>
                   );
                 })}

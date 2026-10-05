@@ -49,7 +49,7 @@ export const RULES = { any: 'Any one approver', all: 'Every approver', sequentia
 /* who can act: test users with a GenMeta role */
 export const ACTORS = [
   ['Admin', 'governance-lead'], ['Priya Shah', 'governance-lead'], ['Dana Whitfield', 'dpo'], ['Meera Shah', 'platform-ops'],
-  ['Rajesh', 'data-engineer'], ['PK', 'product-owner'], ['Customer Analytics Lead', 'product-owner'],
+  ['Rajesh', 'data-engineer'], ['Pradeep Kumar', 'product-owner'], ['Customer Analytics Lead', 'product-owner'],
 ];
 export const ROLE_LABEL = { 'governance-lead': 'Governance lead', dpo: 'Data protection officer', 'platform-ops': 'Platform / Ops engineer', 'data-engineer': 'Data engineer', 'product-owner': 'Data product owner', analyst: 'Analyst', auditor: 'Auditor', owner: 'Owner of the item' };
 export const APPROVER_ROLES = ['governance-lead', 'dpo', 'platform-ops', 'data-engineer', 'product-owner', 'auditor', 'owner'];
@@ -101,7 +101,7 @@ let workflows = [
     ] },
   { id: 'wf-access', name: 'Sensitive data access request', module: 'access', event: 'Access requested', status: 'active', version: 2,
     desc: 'Access to an asset is approved by its owner, and by a governance lead when the asset is Restricted.', updatedAt: d('2026-09-12T09:00:00'), updatedBy: 'Priya Shah',
-    usedBy: ['Access & RBAC › Access requests'],
+    usedBy: ['Access › Requests & grants'],
     outcome: { approved: 'Grant is created and expires after 90 days', rejected: 'Requester is told why' },
     steps: [
       S('a1', 'approval', 'Asset owner approves', { approvers: ['owner'], sla: 2 }),

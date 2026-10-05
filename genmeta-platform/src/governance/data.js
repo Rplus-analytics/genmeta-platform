@@ -453,7 +453,7 @@ export const REPO_SCAN = {
 
 /* ------------------------------------------------------------------ DPIA & GDPR */
 export const PD_MAP = [
-  ['PRL.ORDER_MASTER', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT', 'MAX_RETAIL_PRICE', 'SAMPLE_SUPPLIER_NAME'], [], 'PK', 'eu-west-2 (London)', 'Orders'],
+  ['PRL.ORDER_MASTER', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT', 'MAX_RETAIL_PRICE', 'SAMPLE_SUPPLIER_NAME'], [], 'Pradeep Kumar', 'eu-west-2 (London)', 'Orders'],
   ['STG.CUSTOMER_ORDER', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT'], ['PRL.ORDER_MASTER'], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
   ['STG.CUSTOMER_ORDER_LIVE_RPLUS', 'Rplus_DWH', ['CUSTOMER_NAME', 'CUSTOMER_ACCOUNT_BALANCE', 'NATION_NAME', 'ORDER_TOTAL_AMOUNT'], [], 'Rajesh', 'eu-west-2 (London)', 'Customer'],
   ['API.GET_customers', 'Rplus API (Rest API)', ['full_name', 'email', 'account_balance', 'nino', 'ethnicity'], [], 'Rajesh', 'not recorded', 'Customer'],
@@ -471,7 +471,7 @@ export const PD_MAP = [
   ['SQL_SRC.CUSTOMER', 'SQL Server', ['full_name', 'email'], ['SQL_CLN.CUSTOMER'], 'Rajesh', 'not recorded', 'Customer'],
   ['SRC.CUSTOMER', 'Rplus_DWH', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE', 'NI_NUMBER'], ['INT.CUSTOMER'], 'Rajesh / Priya', 'eu-west-2 (London)', 'Customer'],
   ['SRC.PART', 'Rplus_DWH', ['PART_NAME', 'RETAIL_PRICE'], ['INT.PART'], 'Raghav', 'eu-west-2 (London)', 'Product'],
-  ['STG.ORDER_ITEM_SUMMARY', 'Rplus_DWH', ['MAX_RETAIL_PRICE', 'SAMPLE_SUPPLIER_NAME'], ['PRL.ORDER_MASTER'], 'PK', 'eu-west-2 (London)', 'Orders'],
+  ['STG.ORDER_ITEM_SUMMARY', 'Rplus_DWH', ['MAX_RETAIL_PRICE', 'SAMPLE_SUPPLIER_NAME'], ['PRL.ORDER_MASTER'], 'Pradeep Kumar', 'eu-west-2 (London)', 'Orders'],
   ['STREAMING.customer-value', 'Rplus Streaming (Confluent)', ['CUSTOMER_NAME', 'ACCOUNT_BALANCE'], [], 'Rajesh', 'not recorded', 'Customer'],
   ['BI.Supplier Performance', 'Rplus Reports (Power BI)', ['SUPPLIER_NAME'], [], 'Raghav', 'not recorded', 'Supplier'],
   ['INT.NATION', 'Rplus_DWH', ['NATION_NAME'], ['STG.CUSTOMER_ORDER', 'STG.CUSTOMER_ORDER_LIVE_RPLUS'], 'Raghav', 'eu-west-2 (London)', 'Reference'],
@@ -556,7 +556,7 @@ export const ACCESS_RULES = [
   { n: 3, name: 'Personal and financial detail is masked below L2', id: 'rule-pii-mask', when: 'classifications: PII, FINANCIAL · min_clearance: L2', effect: 'mask' },
   { n: 4, name: 'Restricted data needs a stated purpose', id: 'rule-purpose', when: 'sensitivity: Restricted · requires_purpose: true', effect: 'mask' },
 ];
-export const DIRECTORY = [['GenMeta-Governance', 'governance-lead'], ['GenMeta-Ops', 'platform-ops'], ['GenMeta-Engineering', 'data-engineer'], ['GenMeta-ProductOwners', 'product-owner'], ['GenMeta-Analysts', 'analyst'], ['GenMeta-DPO', 'dpo'], ['GenMeta-Audit', 'auditor']];
+export const DIRECTORY = [['GenMeta-Governance', 'governance-lead'], ['GenMeta-Ops', 'platform-ops'], ['GenMeta-Engineering', 'data-engineer'], ['GenMeta-ProductOwners', 'product-owner'], ['GenMeta-Analysts', 'analyst'], ['GenMeta-DPO', 'dpo'], ['GenMeta-Audit', 'auditor'], ['Finance-Analysts', 'analyst'], ['Risk-Investigators', 'analyst']];
 export const PLATFORMS = [
   ['Rplus_DWH', 16, true, 'read with SHOW GRANTS ON each object'],
   ['Rplus Streaming (Confluent)', 1, false, 'topic ACLs need a cluster admin API key'],

@@ -37,7 +37,7 @@ export function AuditTab() {
         { l: 'Audit records', v: AUDIT.length, s: `${AUDIT.length} carry the user identity` },
         { l: 'Chain integrity', v: 'Verified', s: '0 broken link(s)' },
         { l: 'Data access (14 days)', v: 0, s: '2 people active' },
-        { l: 'Violations and refusals', v: violations().length, s: `${violations().filter((r) => r.action.startsWith('access.')).length} from Access & RBAC · 0 anomalies flagged` },
+        { l: 'Violations and refusals', v: violations().length, s: `${violations().filter((r) => r.action.startsWith('access.')).length} from Access · 0 anomalies flagged` },
       ]} />
       <SubNav value={sub} onChange={setSub} items={[
         { value: 'search', label: 'Search the trail', icon: Search, count: AUDIT.length }, { value: 'dash', label: 'Dashboards', icon: BarChart3 },

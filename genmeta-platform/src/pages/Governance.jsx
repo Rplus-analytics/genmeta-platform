@@ -4,14 +4,13 @@ import { GOVERNANCE_NAV } from '../nav.js';
 import InnerLayout from '../components/InnerLayout.jsx';
 import { BASE } from '../governance/data.js';
 import { Toaster } from '../governance/kit.jsx';
-import Stewardship from '../governance/Stewardship.jsx';
 import RegisterModel from '../governance/RegisterModel.jsx';
 import GovernanceOverview from '../governance/Overview.jsx';
 import Policies, { PolicyItemPage, usePolicyFilters, POLICIES_BASE } from '../governance/Policies.jsx';
 import TemplateBuilder from '../governance/TemplateBuilder.jsx';
 import Dpia, { DpiaActivityPage, DpiaAssetPage, useDpiaFilters, DPIA_BASE } from '../governance/Dpia.jsx';
 import { FacetPanel } from '../governance/catalog.jsx';
-import Access from '../governance/Access.jsx';
+import AccessHub, { ACCESS_BASE, usePeopleFilters } from '../governance/AccessHub.jsx';
 import Workflows from '../governance/Workflows.jsx';
 import { ModelCatalogue, ModelPage, ModelFiltersPanel, useModelFilters, MODELS_BASE } from '../governance/Models.jsx';
 import '../governance/governance.css';
@@ -25,7 +24,7 @@ function DpiaRoute({ filters }) {
   return <Dpia filters={filters} />;
 }
 
-/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & GDPR, Policies, Access & RBAC, Stewardship, Workflows),
+/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & GDPR, Policies, Access, Workflows),
    docked to the sidebar like Admin and Data assets. Each section keeps its own tabs. */
 export default function Governance() {
   const { pathname } = useLocation();
@@ -33,20 +32,23 @@ export default function Governance() {
   const onModelList = pathname === MODELS_BASE || pathname === `${MODELS_BASE}/`;
   const pol = usePolicyFilters();
   const dp = useDpiaFilters();
+  const people = usePeopleFilters();
   const [sp] = useSearchParams();
   const onPolicyList = (pathname === POLICIES_BASE || pathname === `${POLICIES_BASE}/`) && !sp.get('tab');
   const onDpiaList = (pathname === DPIA_BASE || pathname === `${DPIA_BASE}/`) && !sp.get('tab') && sp.get('view') !== 'policies';
+  const onPeople = pathname === ACCESS_BASE || pathname === `${ACCESS_BASE}/` || pathname === `${ACCESS_BASE}/people`;
   const links = GOVERNANCE_NAV.map((n) => {
     const I = ICONS[n.icon];
-    return (
+    const link = (
       <NavLink key={n.label} to={n.to ? `${BASE}/${n.to}` : BASE} end={!n.to} title={n.label}
         className={({ isActive }) => `admin-link ${isActive ? 'on' : ''}`}>
         <I size={16} strokeWidth={1.6} /><span>{n.label}</span>
       </NavLink>
     );
+    return link;
   });
   /* on the AI model list the catalogue-style filters sit under the links, as in Data assets */
-  const menu = <>{links}{onModelList && <ModelFiltersPanel state={models} />}{onPolicyList && <FacetPanel state={pol} sourceLabel="Regulation" />}{onDpiaList && <FacetPanel state={dp} sourceLabel="Where and why" />}</>;
+  const menu = <>{links}{onModelList && <ModelFiltersPanel state={models} />}{onPolicyList && <FacetPanel state={pol} sourceLabel="Regulation" />}{onDpiaList && <FacetPanel state={dp} sourceLabel="Where and why" />}{onPeople && <FacetPanel state={people} />}</>;
   return (
     <InnerLayout title="Governance" menu={menu}>
       <Routes>
@@ -60,8 +62,9 @@ export default function Governance() {
         <Route path="dpia/:activityId" element={<DpiaActivityPage />} />
         <Route path="policies" element={<Policies filters={pol} />} />
         <Route path="policies/:itemId" element={<PolicyItemPage />} />
-        <Route path="stewardship" element={<Stewardship />} />
-        <Route path="access" element={<Access />} />
+        <Route path="stewardship" element={<Navigate to={`${ACCESS_BASE}/responsibilities`} replace />} />
+        <Route path="access" element={<AccessHub peopleFilters={people} />} />
+        <Route path="access/:section" element={<AccessHub peopleFilters={people} />} />
         <Route path="workflows" element={<Workflows />} />
         <Route path="workflows/:wfId" element={<Workflows />} />
         <Route path="*" element={<Navigate to={BASE} replace />} />

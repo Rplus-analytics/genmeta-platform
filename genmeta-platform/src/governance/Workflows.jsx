@@ -32,26 +32,37 @@ function WorkflowsHome() {
   const [sp, setSp] = useSearchParams();
   const tab = sp.get('tab') || (sp.get('req') ? 'approvals' : 'workflows');
   const [actor, setActor] = useState('Admin');
-  const states = requests.map((r) => ({ r, st: stateOf(r, workflows) }));
+  const mod = MODULES.some((m) => m.key === sp.get('mod')) ? sp.get('mod') : 'all';
+  const allStates = requests.map((r) => ({ r, st: stateOf(r, workflows) }));
+  /* the module picked above the tabs is a section: every tab shows only that module */
+  const wfs = workflows.filter((w) => mod === 'all' || w.module === mod);
+  const states = allStates.filter((x) => mod === 'all' || x.st.wf.module === mod);
   const open = states.filter((x) => x.st.status === 'in progress');
   const mine = open.filter((x) => canAct(x.r, actor)[0]);
   const overdue = open.filter((x) => x.st.cur && x.st.cur.due < TODAY);
-  const setTab = (t) => setSp(t === 'workflows' ? {} : { tab: t });
+  const go = (t, m) => { const q = {}; if (t !== 'workflows') q.tab = t; if (m !== 'all') q.mod = m; setSp(q); };
+  const setTab = (t) => go(t, mod);
+  const setMod = (m) => go(tab, m);
+  const modLabel = mod === 'all' ? 'all modules' : moduleOf(mod).label;
   return (
     <div className="page gv">
       <PageHead eyebrow="Govern" title="Workflows"
         sub="Every approval in GenMeta runs on one workflow engine. Design a workflow once and attach it wherever a decision is needed — AI models, policies, access, data products, DPIA, glossary and quality." />
+      <div className="wf-modnav wf-sections" role="tablist" aria-label="Module">
+        <button type="button" role="tab" aria-selected={mod === 'all'} className={mod === 'all' ? 'on' : ''} onClick={() => setMod('all')}>All modules <em>{workflows.length}</em></button>
+        {MODULES.map((m) => { const I = MOD_ICON[m.icon]; const n = workflows.filter((w) => w.module === m.key).length; const o = allStates.filter((x) => x.st.wf.module === m.key && x.st.status === 'in progress').length; return <button type="button" role="tab" aria-selected={mod === m.key} key={m.key} className={mod === m.key ? 'on' : ''} onClick={() => setMod(m.key)}><I size={14} />{m.label} <em>{n}</em>{o > 0 && <i className="wf-dot" title={`${o} in progress`}>{o}</i>}</button>; })}
+      </div>
       <Tiles items={[
-        { l: 'Active workflows', v: workflows.filter((w) => w.status === 'active').length, s: `${workflows.filter((w) => w.status === 'draft').length} draft · across ${new Set(workflows.map((w) => w.module)).size} of ${MODULES.length} modules` },
+        { l: 'Active workflows', v: wfs.filter((w) => w.status === 'active').length, s: mod === 'all' ? `${wfs.filter((w) => w.status === 'draft').length} draft · across ${new Set(wfs.map((w) => w.module)).size} of ${MODULES.length} modules` : `${wfs.filter((w) => w.status === 'draft').length} draft · ${modLabel}` },
         { l: 'Waiting for you', v: mine.length, s: `acting as ${actor}` },
         { l: 'Requests in progress', v: open.length, s: `${states.length} requests in total` },
         { l: 'Overdue', v: overdue.length, s: 'past the step’s SLA' },
         { l: 'Approved', v: states.filter((x) => x.st.status === 'approved').length, s: `${states.filter((x) => x.st.status === 'rejected').length} rejected` },
       ]} />
-      <Tabs items={[{ value: 'workflows', label: 'Workflows by module', icon: WorkflowIcon }, { value: 'approvals', label: `Approvals (${open.length})`, icon: Inbox }, { value: 'activity', label: 'Activity', icon: History }]} value={tab} onChange={setTab} />
-      {tab === 'approvals' && <Approvals states={states} actor={actor} setActor={setActor} openId={sp.get('req')} />}
-      {tab === 'workflows' && <ModuleSections workflows={workflows} states={states} />}
-      {tab === 'activity' && <Activity states={states} />}
+      <Tabs items={[{ value: 'workflows', label: `Workflows (${wfs.length})`, icon: WorkflowIcon }, { value: 'approvals', label: `Approvals (${open.length})`, icon: Inbox }, { value: 'activity', label: 'Activity', icon: History }]} value={tab} onChange={setTab} />
+      {tab === 'approvals' && <Approvals states={states} actor={actor} setActor={setActor} openId={sp.get('req')} modLabel={modLabel} />}
+      {tab === 'workflows' && <ModuleSections workflows={workflows} states={states} only={mod} goApprovals={() => setTab('approvals')} />}
+      {tab === 'activity' && <Activity states={states} modLabel={modLabel} />}
     </div>
   );
 }
@@ -65,12 +76,11 @@ function ActorPick({ actor, setActor }) {
     </label>
   );
 }
-function Approvals({ states, actor, setActor, openId }) {
+function Approvals({ states, actor, setActor, openId, modLabel }) {
   const [view, setView] = useState('mine');
-  const [mod, setMod] = useState('all');
   const [sel, setSel] = useState(openId || null);
   useEffect(() => { if (openId) setSel(openId); }, [openId]);
-  const inMod = states.filter((x) => mod === 'all' || x.st.wf.module === mod);
+  const inMod = states;
   const lists = {
     mine: inMod.filter((x) => x.st.status === 'in progress' && canAct(x.r, actor)[0]),
     open: inMod.filter((x) => x.st.status === 'in progress'),
@@ -81,7 +91,7 @@ function Approvals({ states, actor, setActor, openId }) {
   const cur = states.find((x) => x.r.id === sel);
   return (
     <>
-      <Card icon={Inbox} tone="warn" title="Approvals" count={rows.length} sub="Every decision across GenMeta in one inbox. Switch who you are acting as to see what each role can approve."
+      <Card icon={Inbox} tone="warn" title={`Approvals — ${modLabel}`} count={rows.length} sub="Every decision in this section in one inbox. Switch who you are acting as to see what each role can approve."
         actions={<ActorPick actor={actor} setActor={setActor} />}>
         <div className="gv-toolbar" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
           <SubNav value={view} onChange={setView} items={[
@@ -90,7 +100,6 @@ function Approvals({ states, actor, setActor, openId }) {
             { value: 'mineReq', label: 'Requested by me', count: lists.mineReq.length },
             { value: 'done', label: 'Completed', count: lists.done.length },
           ]} />
-          <select className="select" value={mod} onChange={(e) => setMod(e.target.value)} aria-label="Module"><option value="all">All modules</option>{MODULES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}</select>
         </div>
         <div className="table-wrap">
           <table className="tbl">
@@ -158,7 +167,7 @@ function RequestDrawer({ r, actor, setActor, onClose }) {
   const evidence = s?.evidence || [];
   const allChecked = evidence.every((e) => checked[e]);
   const act = (verdict) => { decide(r.id, actor, verdict, comment.trim()); toast(`${verdict === 'rejected' ? 'Rejected' : verdict === 'done' ? 'Task completed' : 'Approved'} — ${s.name}`); setComment(''); setChecked({}); };
-  const subjectLink = r.subject.kind === 'model' ? `${BASE}/models/${r.subject.id}` : r.subject.kind === 'policy' ? `${BASE}/policies/${r.subject.id}` : r.subject.kind === 'access' ? `${BASE}/access` : null;
+  const subjectLink = r.subject.kind === 'model' ? `${BASE}/models/${r.subject.id}` : r.subject.kind === 'policy' ? `${BASE}/policies/${r.subject.id}` : r.subject.kind === 'access' ? `${BASE}/access/requests` : null;
   return (
     <Drawer wide title={r.subject.label} onClose={onClose} footer={st.cur ? <>
       <Button variant="secondary" size="md" icon={X} disabled={!ok || !comment.trim()} onClick={() => act('rejected')}>Reject</Button>
@@ -207,16 +216,10 @@ function WfCard({ w, states }) {
     </button>
   );
 }
-function ModuleSections({ workflows, states }) {
-  const nav = useNavigate();
+function ModuleSections({ workflows, states, only, goApprovals }) {
   const [creating, setCreating] = useState(null);
-  const [only, setOnly] = useState('all');
   return (
     <>
-      <div className="wf-modnav">
-        <button type="button" className={only === 'all' ? 'on' : ''} onClick={() => setOnly('all')}>All modules <em>{workflows.length}</em></button>
-        {MODULES.map((m) => { const I = MOD_ICON[m.icon]; const n = workflows.filter((w) => w.module === m.key).length; return <button type="button" key={m.key} className={only === m.key ? 'on' : ''} onClick={() => setOnly(m.key)}><I size={14} />{m.label} <em>{n}</em></button>; })}
-      </div>
       {MODULES.filter((m) => only === 'all' || only === m.key).map((m) => {
         const I = MOD_ICON[m.icon];
         const list = workflows.filter((w) => w.module === m.key);
@@ -235,7 +238,7 @@ function ModuleSections({ workflows, states }) {
                 <span><b>{mine.length - open.length}</b>completed</span>
               </div>
               <div className="gv-inline" style={{ gap: 8 }}>
-                {open.length > 0 && <Button variant="secondary" size="sm" icon={Inbox} onClick={() => nav(`${WF_BASE}?tab=approvals`)}>Approvals</Button>}
+                {open.length > 0 && <Button variant="secondary" size="sm" icon={Inbox} onClick={goApprovals}>Approvals</Button>}
                 <Button variant="primary" size="sm" icon={Plus} onClick={() => setCreating(m.key)}>New workflow</Button>
               </div>
             </header>
@@ -278,13 +281,14 @@ function NewWorkflow({ mod, workflows, onClose }) {
 }
 
 /* ================================================================== activity */
-function Activity({ states }) {
+function Activity({ states, modLabel }) {
   const rows = states.flatMap(({ r, st }) => [
     { at: r.requestedAt, who: r.requestedBy, what: `requested ${st.wf.name}`, sub: r.subject.label, id: r.id },
     ...st.steps.filter((x) => (x.status === 'done' && !x.auto) || x.status === 'rejected').map((x) => ({ at: x.at, who: x.who, what: `${x.status === 'rejected' ? 'rejected' : x.step.kind === 'task' ? 'completed' : 'approved'} “${x.step.name}”`, sub: r.subject.label, id: r.id, comment: x.comment, bad: x.status === 'rejected' })),
   ]).sort((a, b) => b.at - a.at);
   return (
-    <Card icon={History} tone="info" title="Activity" count={rows.length} sub="Every request and decision, newest first. The same entries are written to the hash-chained audit log.">
+    <Card icon={History} tone="info" title={`Activity — ${modLabel}`} count={rows.length} sub="Every request and decision in this section, newest first. The same entries are written to the hash-chained audit log.">
+      {!rows.length && <Empty>No requests in this section yet.</Empty>}
       <ul className="gv-lines">
         {rows.map((x, k) => <li key={k}><b>{x.who}</b> {x.what} — {x.sub} <span className="gv-faint">· {x.id} · {fmt(x.at)}</span>{x.comment && <span className="gv-sub">“{x.comment}”</span>}</li>)}
       </ul>

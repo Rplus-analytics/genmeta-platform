@@ -19,7 +19,7 @@ export const NAV = [
   { to: '/app/ask', label: 'Ask GenMeta', group: 'Discover', icon: 'MessagesSquare' },
   { to: '/app/governance', label: 'Governance', group: 'Govern', icon: 'Landmark' },
   { to: '/app/classification', label: 'Classification', group: 'Govern', icon: 'Tag' },
-  { to: '/app/stewardship', label: 'Stewardship', group: 'Govern', icon: 'Users', badge: 73 },
+  { to: '/app/stewardship', label: 'Stewardship', group: 'Govern', icon: 'Users' },
   { to: '/app/code-analyzer', label: 'Code analyzer', group: 'Govern', icon: 'FileCode2' },
   { to: '/app/sources', label: 'Data sources', group: 'Govern', icon: 'Database' },
   { to: '/app/admin', label: 'Admin', group: 'Admin', icon: 'ShieldCheck' },
@@ -31,8 +31,7 @@ export const GOVERNANCE_NAV = [
   { to: 'models', label: 'AI model governance', icon: 'Bot' },
   { to: 'dpia', label: 'DPIA & GDPR', icon: 'ShieldCheck' },
   { to: 'policies', label: 'Policies', icon: 'ScrollText' },
-  { to: 'access', label: 'Access & RBAC', icon: 'KeyRound' },
-  { to: 'stewardship', label: 'Stewardship', icon: 'Users' },
+  { to: 'access', label: 'Access', icon: 'KeyRound' },
   { to: 'workflows', label: 'Workflows', icon: 'Workflow' },
 ];
 
@@ -61,7 +60,7 @@ export const ADMIN_CRUMBS = {
   'sso/configure': 'SSO configure', 'sso/mapping': 'SSO group mapping',
 };
 NAV.find((n) => n.to === '/app/admin').crumbs = ADMIN_CRUMBS;
-NAV.find((n) => n.to === '/app/governance').crumbs = { models: 'AI model governance', dpia: 'DPIA & GDPR', policies: 'Policies', access: 'Access & RBAC', stewardship: 'Stewardship', workflows: 'Workflows' };
+NAV.find((n) => n.to === '/app/governance').crumbs = { models: 'AI model governance', dpia: 'DPIA & GDPR', policies: 'Policies', access: 'Access', stewardship: 'Access', workflows: 'Workflows' };
 
 /* Is this path part of the Data assets section? */
 export const isDataAssets = (pathname) => DATA_ASSETS_NAV.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));

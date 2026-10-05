@@ -30,7 +30,7 @@ export default function AssetQualityPanel({ assetKey }) {
 
   const checks = failingChecks(a);
   const actions = [];
-  if (!a.owner || !a.steward) actions.push({ text: 'Assign an owner and steward', link: 'Stewardship', to: '/app/stewardship' });
+  if (!a.owner || !a.steward) actions.push({ text: 'Assign an owner and steward', link: 'Stewardship', to: '/app/governance/access/ownership' });
   if (!a.desc) actions.push({ text: 'Add a description', link: 'Overview', to: `/app/catalogue/${a.id}` });
   if (!live) actions.push({ text: 'Profile this asset', link: 'Run profiling', to: `/app/catalogue/${a.id}?quality=profiling` });
   if (!(a.pk && a.pk.length)) actions.push({ text: 'Declare a primary key candidate', link: null, to: null });
