@@ -32,7 +32,7 @@ const SPECIFICITY = { column: 4, table: 3, report: 3, dataset: 2, system: 1 };
 export const isKnownAsset = (a) => ASSET_NAMES.includes(a);
 
 /* ---------------------------------------------------------------- directory (test data) */
-/* the directory's named test people, per group — the same directory Who › Groups shows (people.js) */
+/* the directory's named test people, per group — the same directory Roles & people › Groups shows (people.js) */
 export const DIRECTORY_MEMBERS = NAMED_DIRECTORY;
 /* grants the platform itself reports (Rplus_DWH publishes them; the others cannot be read) */
 const PLATFORM_HAS = ['system:Rplus_DWH:data-engineer'];
@@ -106,7 +106,7 @@ const refuse = (action, asset, why0) => { const why = why0.charAt(0).toUpperCase
 const can = (perm) => roleOf(st.role)?.may.includes(perm);
 /* OWN-06: a governance lead always may; otherwise the asset's owner or steward, if the governance model gives their role the responsibility */
 const mayOnAsset = (asset, what) => st.role === 'governance-lead' || stewardRights(me(), asset)[what];
-const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in the Stewardship register (owner or steward with that responsibility).`;
+const notOwner = (asset, resp) => `${me()} is not a governance lead, and holds no role on ${asset} with “${resp}” in 3.10 › Ownership register (owner or steward with that responsibility).`;
 export const approversFor = (asset) => { const o = ownersOf(asset); return o.length ? `${o.join(', ')} or a governance lead` : 'a governance lead (no owner or steward with that responsibility)'; };
 
 export function setViewRole(role) { st = { ...st, role }; emit(); }

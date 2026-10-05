@@ -110,7 +110,7 @@ export default function EstateOverview() {
     { sev: 'warn', mod: 'Stewardship', icon: Users, t: `${estate.sensNoSteward} restricted assets have no data steward`, d: `${pct(estate.tot.steward, estate.tot.n)}% of the estate has a steward`, to: 'access/coverage', cta: 'Assign' },
     revoke && { sev: 'warn', mod: 'Access', icon: KeyRound, t: `${revoke} access grants recommended to revoke`, d: 'not used in 30 days', to: 'access/reviews', cta: 'Review grants' },
     { sev: 'info', mod: 'Data quality', icon: AlertTriangle, t: `${estate.open} open quality issues`, d: 'routed to owners and stewards', to: 'access/approvals', cta: 'Open queue' },
-    { sev: 'info', mod: 'Classification', icon: Tags, t: `${estate.cls} classification reviews waiting`, d: `${estate.clsHigh} high priority, suggested by the classifier`, to: 'access/queue', cta: 'Review' },
+    { sev: 'info', mod: 'Classification', icon: Tags, t: `${estate.cls} classification reviews waiting`, d: `${estate.clsHigh} high priority, suggested by the classifier`, to: 'access/approvals', cta: 'Review' },
   ].filter(Boolean);
   const SEV_ORDER = { bad: 0, warn: 1, info: 2 };
   attention.sort((a, b) => SEV_ORDER[a.sev] - SEV_ORDER[b.sev]);

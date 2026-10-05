@@ -148,7 +148,7 @@ export function AssetPanel({ r, ss }) {
         <h4>Who is accountable</h4>
         <ul className="gv-ap-roles">
           {lines.map(([role, who, how], i) => <li key={i}><span>{role}</span><b>{who}</b><small>{how}</small></li>)}
-          {gaps.map((x) => <li key={x.key} className="gap"><span>{x.name}</span><b>gap</b><small>nobody holds this role</small></li>)}
+          {gaps.map((x) => <li key={x.key} className="gap"><span>{x.name}</span><b>gap</b><small>nobody holds this stewardship role</small></li>)}
         </ul>
         {colRoles.map((c) => <Note key={c.column + c.role}>Column-level: {c.column} → {roles.find((x) => x.key === c.role)?.name} {c.who}</Note>)}
         <Note>You ({me()}){mine.keys.length ? ` hold ${mine.names.join(', ')} here — ${[mine.approve && 'approve access requests', mine.grant && 'grant and revoke access', mine.changes && 'approve ownership changes', mine.quality && 'resolve quality issues'].filter(Boolean).join(', ') || 'no access rights'}.` : ' hold no role on this asset.'}</Note>
@@ -160,7 +160,7 @@ export function AssetPanel({ r, ss }) {
           <Fld label="Scope"><select className="select" value={f.scope} onChange={(e) => setF({ ...f, scope: e.target.value })}>
             <option value="asset">This asset</option><option value="column">A column</option><option value="dataset">Dataset {ds}</option><option value="system">System {r.system}</option></select></Fld>
           {f.scope === 'column' && <Fld label="Column"><select className="select" value={f.column} onChange={(e) => setF({ ...f, column: e.target.value })}><option value="">Choose…</option>{cols.map((c) => <option key={c}>{c}</option>)}</select></Fld>}
-          <Fld label="Role"><select className="select" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{roles.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}</select></Fld>
+          <Fld label="Stewardship role"><select className="select" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{roles.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}</select></Fld>
           <Fld label="Person"><PersonPicker groups value={f.person} onChange={(v) => setF({ ...f, person: v })} placeholder="Name or group" /></Fld>
           <Fld label="Reason"><input className="input" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Why (recorded in the audit trail)" /></Fld>
         </div>
@@ -169,7 +169,7 @@ export function AssetPanel({ r, ss }) {
         <Note>{lead ? 'As a governance lead your assignment applies straight away.' : `You are viewing as ${me()} — this creates an ownership change request that a different person (a governance lead or the asset's owner) must approve.`}</Note>
       </div>
       <div className="gv-ap-sec">
-        <h4>Steward actions <span className="gv-faint">— allowed only for people whose role carries the responsibility</span></h4>
+        <h4>Steward actions <span className="gv-faint">— allowed only for people whose stewardship role carries the responsibility</span></h4>
         <a2.Refusal />
         <Fld label="Description"><textarea className="input gv-ta" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What this asset holds and what it is for" /></Fld>
         <Button variant="secondary" size="sm" disabled={!desc.trim()} onClick={() => a2.run(describe(r.asset), 'Description saved')}>Save description</Button>
@@ -191,11 +191,11 @@ export function StewardRoles({ roles, changes }) {
   };
   return (
     <>
-      <Card icon={Users} tone="violet" title="Roles and their responsibilities" sub={`Governance model ${changes[0][0]} · tick a box to give a role that responsibility. “Approve or decline access requests” and “Grant and revoke access directly” are what let an owner or steward act on access.`}>
+      <Card icon={Users} tone="violet" title="Stewardship roles and their responsibilities" sub={`Governance model ${changes[0][0]} · tick a box to give a role that responsibility. “Approve or decline access requests” and “Grant and revoke access directly” are what let an owner or steward act on access.`}>
         <a1.Refusal />
         <div className="table-wrap">
           <table className="tbl gv-rolemx">
-            <thead><tr><th>Role</th>{RESPONSIBILITIES.map((r) => <th key={r} className="gv-rot"><span>{r}</span></th>)}<th /></tr></thead>
+            <thead><tr><th>Stewardship role</th>{RESPONSIBILITIES.map((r) => <th key={r} className="gv-rot"><span>{r}</span></th>)}<th /></tr></thead>
             <tbody>{roles.map((r) => (
               <tr key={r.key}>
                 <td><div className="gv-inline" style={{ gap: 6, alignItems: 'center' }}><b className="gv-strong">{r.name}</b>{r.builtIn ? <><span className="gv-tag">built-in</span><span className="gv-tag info">required</span></> : <span className="gv-tag violet">bespoke</span>}</div><span className="gv-sub">{r.desc}</span></td>
@@ -205,14 +205,14 @@ export function StewardRoles({ roles, changes }) {
             ))}</tbody>
           </table>
         </div>
-        <div className="gv-subhead">New bespoke role</div>
+        <div className="gv-subhead">New stewardship role (bespoke)</div>
         <div className="gv-inline" style={{ alignItems: 'flex-end' }}>
           <Fld label="Name"><input className="input" value={nf.name} onChange={(e) => setNf({ ...nf, name: e.target.value })} placeholder="e.g. Records manager" /></Fld>
-          <Fld label="Description"><input className="input" style={{ minWidth: 320 }} value={nf.desc} onChange={(e) => setNf({ ...nf, desc: e.target.value })} placeholder="What this role is for" /></Fld>
+          <Fld label="Description"><input className="input" style={{ minWidth: 320 }} value={nf.desc} onChange={(e) => setNf({ ...nf, desc: e.target.value })} placeholder="What this stewardship role is for" /></Fld>
           <Button variant="primary" size="md" icon={Plus} disabled={!nf.name.trim() || roles.some((x) => x.name.toLowerCase() === nf.name.trim().toLowerCase())} onClick={() => {
             const name = nf.name.trim();
             if (a1.run(changeModel((all) => [...all, { key: name.toLowerCase().replace(/\W+/g, '-'), name, builtIn: false, desc: nf.desc.trim(), resp: '00000000' }], `created bespoke role ${name} with no responsibilities`), `Added ${name} — it now has its own column in the register`)) setNf({ name: '', desc: '' });
-          }}>Add role</Button>
+          }}>Add stewardship role</Button>
         </div>
         <Note>Only a governance lead can change the model; anyone else is refused and it is logged.</Note>
       </Card>
@@ -240,7 +240,7 @@ export function Gaps({ ss }) {
   const TYPES = ['all', 'tables', 'columns', 'files, APIs & topics', 'reports', 'datasets'];
   return (
     <>
-      <Card icon={ShieldCheck} tone="info" title="Coverage by type" sub="How much of the estate has each built-in role filled. Every row that is not 100% appears in Gaps below.">
+      <Card icon={ShieldCheck} tone="info" title="Coverage by type" sub="How much of the estate has each built-in stewardship role filled. Every row that is not 100% appears in the gap list below.">
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>Type</th><th className="num">Count</th><th>Owner</th><th>Steward</th><th>Custodian</th><th className="num">With a gap</th></tr></thead>
@@ -254,13 +254,13 @@ export function Gaps({ ss }) {
         </div>
         <Note>People holding roles: {ranked.map(([who, rs], i) => <span key={who}>{i ? '; ' : ''}<b>{who}</b> ({Object.entries(rs).map(([k, n]) => `${k} ×${n}`).join(', ')})</span>)}</Note>
       </Card>
-      <Card icon={AlertTriangle} tone="bad" title="Gaps" count={gaps.length} sub="Every asset, column and dataset missing an owner, steward or custodian. Pick a type and a missing role to bulk-assign.">
+      <Card icon={AlertTriangle} tone="bad" title="Gaps" count={gaps.length} sub="Every asset, column and dataset missing an owner, steward or custodian. Pick a type and a missing stewardship role to bulk-assign.">
         <a1.Refusal />
         <div className="gv-chiprow">
           {TYPES.map((t) => <button key={t} type="button" className={`chip ${type === t ? 'on' : ''}`} onClick={() => { setType(t); setPicked([]); }}>{t === 'all' ? 'All types' : t} <b>{t === 'all' ? gaps.length : gaps.filter((g) => g.type === t).length}</b></button>)}
         </div>
         <div className="gv-chiprow">
-          {['any', ...BUILT_IN].map((m) => <button key={m} type="button" className={`chip ${missing === m ? 'on' : ''}`} onClick={() => { setMissing(m); setPicked([]); }}>{m === 'any' ? 'Any missing role' : m} <b>{m === 'any' ? shown.length : gaps.filter((g) => (type === 'all' || g.type === type) && g.miss.includes(m)).length}</b></button>)}
+          {['any', ...BUILT_IN].map((m) => <button key={m} type="button" className={`chip ${missing === m ? 'on' : ''}`} onClick={() => { setMissing(m); setPicked([]); }}>{m === 'any' ? 'Any missing stewardship role' : m} <b>{m === 'any' ? shown.length : gaps.filter((g) => (type === 'all' || g.type === type) && g.miss.includes(m)).length}</b></button>)}
         </div>
         {canBulk && (
           <div className="gv-bulk">

@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { NavLink, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Users, Fingerprint, BadgeCheck, UserCheck, ClipboardList, ShieldCheck, ListChecks, ScrollText, Layers, KeyRound, Inbox, CalendarCheck, ClipboardCheck,
-  ShieldQuestion, Split, Gavel, RefreshCw, Server, History, Search, Download, X, AlertTriangle, Settings2, Eye, Lock, Building2, MapPin, Clock,
+  ShieldQuestion, Split, Gavel, RefreshCw, Server, History, Search, Download, X, AlertTriangle, Eye, Lock, Building2, MapPin, Clock,
 } from 'lucide-react';
 import { PageHead, Button, Tabs } from '../components/ui.jsx';
 import { BASE, ACCESS_RULES, AUDIT, fmtTs, ownerOf } from './data.js';
-import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, toast } from './kit.jsx';
+import { Card, Tiles, StatusBadge, Empty, Note, Mono, Fld, Drawer, toast, SubNav } from './kit.jsx';
 import {
   useAccess, setViewRole, ACCESS_VIEW, roleOf, combinationsHeld, unassign, revokeGrant, syncDirectory, statementFor,
 } from './access-store.js';
@@ -17,155 +17,109 @@ import {
 } from './Access.jsx';
 import { useFacets } from './catalog.jsx';
 import { Register, StewardRoles, Gaps, Approvals, AuditTrail, ReviewQueue } from './Stewardship.jsx';
-
-/* Govern › Governance › Access — Stewardship and Access & RBAC as one section.
-   Who (people, groups, roles), Ownership (register, responsibilities, gaps, queue), What (policies, permissions, grants),
-   Decisions (requests, reviews, ownership changes and quality, check access) and Settings. People is the landing page. */
+/* Govern › Governance › Access & Stewardship — one screen, two halves that match the requirements tracker:
+   3.16 Access control and RBAC, and 3.10 Data stewardship and ownership. "Viewing as (test)" is shared by both. */
 export const ACCESS_BASE = `${BASE}/access`;
-export const ACCESS_SECTIONS = [
-  ['Who', [['people', 'People', Users], ['groups', 'Groups', Fingerprint], ['roles', 'Roles', BadgeCheck]]],
-  ['Ownership', [['ownership', 'Ownership register', UserCheck], ['responsibilities', 'Responsibilities', ClipboardList], ['coverage', 'Coverage gaps', ShieldCheck], ['queue', 'Review queue', ListChecks]]],
-  ['What', [['policies', 'Access policies', ScrollText], ['permissions', 'Permissions by level', Layers], ['grants', 'Grants', KeyRound]]],
-  ['Decisions', [['requests', 'Requests', Inbox], ['reviews', 'Access reviews', CalendarCheck], ['approvals', 'Ownership changes & quality', ClipboardCheck], ['check', 'Check access', ShieldQuestion]]],
-  ['Settings', [['sod', 'Separation of duties', Split], ['rules', 'Access rules', Gavel], ['directory', 'Directory sync', RefreshCw], ['platforms', 'Platforms', Server], ['audit', 'Audit trail', History]]],
+export const HALVES = [
+  { key: 'access', label: '3.16 Access control and RBAC', short: 'Access control and RBAC', tabs: [
+    ['people', 'Roles & people', Users, 'RBAC-01'],
+    ['permissions', 'Permissions by level', Layers, 'RBAC-02'],
+    ['sod', 'Separation of duties', Split, 'RBAC-03'],
+    ['rules', 'Access rules', Gavel, 'RBAC-04, RBAC-05'],
+    ['requests', 'Requests & grants', Inbox, 'RBAC-05, RBAC-06, OWN-06'],
+    ['policies', 'Access policies', ScrollText, 'OWN-06'],
+    ['reviews', 'Access reviews', CalendarCheck, 'RBAC-06'],
+    ['directory', 'Directory & identity', Fingerprint, 'RBAC-07'],
+    ['platforms', 'Platform consistency', Server, 'RBAC-08'],
+  ] },
+  { key: 'stewardship', label: '3.10 Data stewardship and ownership', short: 'Data stewardship and ownership', tabs: [
+    ['responsibilities', 'Roles & responsibilities', ClipboardList, 'OWN-01, OWN-02, OWN-04'],
+    ['ownership', 'Ownership register', UserCheck, 'OWN-01, OWN-04'],
+    ['coverage', 'Coverage gaps', ShieldCheck, 'OWN-03'],
+    ['approvals', 'Approvals & quality issues', ClipboardCheck, 'OWN-02'],
+    ['audit', 'Audit trail', History, 'OWN-05'],
+  ] },
 ];
-const ALL = ACCESS_SECTIONS.flatMap(([, l]) => l);
-const LEADS = {
-  people: 'Everyone the directory knows about. Search or filter — the list is paged and filtered, so 3,000 or 300,000 people behave the same. Open a person to see their effective access, what they own and where each right comes from.',
-  groups: 'Directory groups are the unit of administration: a group carries a role, the role carries a clearance. Members come from AWS IAM Identity Center — nobody is added one by one here.',
-  roles: 'Each role shows how many people hold it and through which groups — never a list of names. Open a role to page through its members; manual assignments are exceptions you can remove.',
-  ownership: 'Who is accountable for every system, dataset, table, column and report: owners, stewards, custodians and bespoke roles.',
-  responsibilities: 'The governance model: which responsibilities each ownership role carries. “Approve or decline access requests” and “Grant and revoke access directly” are what let an owner or steward act on access.',
-  coverage: 'How much of the estate has each role filled, and every asset, column and dataset with a gap.',
-  queue: 'Classification reviews and ownership gaps, priority-ordered.',
-  policies: 'Every rule that decides access, in one list: persona policies (a role or team on part of the estate), purpose policies (by classification, wherever the data is), stakeholder policies (owners and stewards on their own assets) and the policy for each sensitivity level. Any deny wins.',
-  permissions: 'Scopes that narrow or widen what a role may do on a system, dataset, table, column or report. The most specific wins.',
-  grants: 'Every grant, paged and filterable — the same grants Access reviews works on.',
-  requests: 'Ask for access, grant it directly, and decide requests. Approval follows ownership: the asset’s owner or steward, or a governance lead.',
-  reviews: 'Recurring reviews of Restricted grants, decided by each asset’s owner.',
-  approvals: 'Ownership change requests from non-leads, and data-quality issues routed to the asset’s steward.',
-  check: 'See an asset as someone else would — the same decision point that runs on every view.',
-  sod: 'Duties that may not be held by one person, and anyone who holds a conflicting pair today.',
-  rules: 'Rules evaluated on every view, and the decision point to test them.',
-  directory: 'Synchronise the test directory: applied, skipped (no group) and refused (separation of duties).',
-  platforms: 'Check each saved scope on its platform and get the statement to correct drift.',
-  audit: 'Every access and ownership action, newest first. The same entries are in the hash-chained audit log on Governance › Overview › Audit & reporting.',
-};
+/* Roles & people has three views; old links land on the tab that now holds them */
+const VIEWS = [['people', 'People'], ['groups', 'Groups'], ['roles', 'Access roles']];
+const MOVED = { grants: 'requests', check: 'requests', queue: 'approvals' };
+const tabOf = (section) => (VIEWS.some(([v]) => v === section) ? 'people' : section);
+export const halfOf = (section) => HALVES.find((h) => h.tabs.some(([k]) => k === tabOf(section)));
 
-/* ------------------------------------------------------------------ navigation: sections above, tabs within (as Workflows and DPIA) */
-const GROUP_ICON = { Who: Users, Ownership: UserCheck, What: ScrollText, Decisions: Inbox, Settings: Settings2 };
 function useCounts(st, ss) {
   return {
-    people: PEOPLE_DIR.length.toLocaleString('en-GB'), groups: GROUP_LIST.length, roles: st.roles.length, ownership: ss.register.length,
-    grants: st.grants.filter((g) => g.status === 'active').length, requests: st.requests.filter((r) => r.status === 'pending').length || '',
-    approvals: (ss.requests.filter((r) => r.status === 'pending').length + ss.issues.filter((i) => i.status === 'open').length) || '',
-    queue: ss.queue.filter((q) => q.status === 'In review' || q.status === 'Open').length || '', sod: combinationsHeld(st).length || '',
+    ownership: ss.register.length,
+    requests: st.requests.filter((r) => r.status === 'pending').length || '',
+    approvals: (ss.requests.filter((r) => r.status === 'pending').length + ss.issues.filter((i) => i.status === 'open').length + ss.queue.filter((q) => q.status === 'In review' || q.status === 'Open').length) || '',
+    sod: combinationsHeld(st).length || '',
   };
 }
-const COVERS = {
-  Who: 'Roles, people and groups (RBAC-01, RBAC-07)',
-  Ownership: 'Owners, stewards, their responsibilities, coverage gaps and the review queue (OWN-02 – OWN-06)',
-  What: 'Permissions by level, policies, grants (RBAC-02, RBAC-05, RBAC-06)',
-  Decisions: 'Requests, reviews, check access (RBAC-05, RBAC-06)',
-  Settings: 'Separation of duties, rules, directory, platforms (RBAC-03, RBAC-04, RBAC-07, RBAC-08)',
-};
-const ATTN = { Who: ['sod'], Ownership: ['queue'], What: [], Decisions: ['requests', 'approvals'], Settings: ['sod'] };
 
-function AccessNav({ group, section, st, ss }) {
-  const nav = useNavigate();
-  const count = useCounts(st, ss);
-  const go = (k) => nav(`${ACCESS_BASE}/${k}`);
-  const list = ACCESS_SECTIONS.find(([g]) => g === group)[1];
-  return (
-    <>
-      <div className="wf-modnav wf-sections" role="tablist" aria-label="Access section">
-        {ACCESS_SECTIONS.map(([g, l]) => { const I = GROUP_ICON[g]; const attn = ATTN[g].reduce((n, k) => n + (+count[k] || 0), 0); return (
-          <button type="button" role="tab" key={g} aria-selected={g === group} className={g === group ? 'on' : ''} onClick={() => go(l[0][0])}><I size={14} />{g} <em>{l.length}</em>{attn > 0 && g !== 'Settings' && <i className="wf-dot" title={`${attn} need attention`}>{attn}</i>}</button>
-        ); })}
-      </div>
-      <p className="ax-covers">{COVERS[group]}</p>
-      <SectionTiles group={group} st={st} ss={ss} />
-      <Tabs items={list.map(([k, l, I]) => ({ value: k, label: count[k] !== undefined && count[k] !== '' ? `${l} (${count[k]})` : l, icon: I }))} value={section} onChange={go} />
-    </>
-  );
+function HalfTiles({ half, st, ss }) {
+  const ds = directoryStats(st.assign);
+  const unmappedGroups = GROUP_LIST.filter((g) => !groupRole(g));
+  const active = st.grants.filter((g) => g.status === 'active');
+  const items = half === 'access' ? [
+    { l: 'People in the directory', v: ds.people.toLocaleString('en-GB'), s: `${GROUP_LIST.length} groups · ${st.sync ? `synchronised ${st.sync.at}` : 'not yet synchronised'}` },
+    { l: 'From the directory', v: `${ds.fromDir}%`, s: `${ds.manual} manual access-role assignment(s) to tidy` },
+    { l: 'Without an access role', v: ds.roleless, s: `members of ${unmappedGroups.join(', ')} — no role mapping` },
+    { l: 'Separation-of-duties breaches', v: combinationsHeld(st).length, s: 'held today — needs a decision' },
+    { l: 'Active grants', v: active.length, s: `${st.requests.filter((r) => r.status === 'pending').length} request(s) pending · Restricted ≤ 90 days` },
+  ] : [
+    { l: 'Assets in the register', v: ss.register.length, s: `governance model ${ss.changes[0][0]}` },
+    { l: 'Steward coverage', v: `${Math.round((ss.register.filter((r) => r.roles.steward).length / ss.register.length) * 1000) / 10}%`, s: `${ss.register.filter((r) => r.roles.steward).length} of ${ss.register.length} assets` },
+    { l: 'Open quality issues', v: ss.issues.filter((i) => i.status === 'open').length, s: 'routed to the asset’s steward' },
+    { l: 'Change requests pending', v: ss.requests.filter((r) => r.status === 'pending').length, s: 'need a different approver' },
+    { l: 'Review queue', v: ss.queue.filter((q) => q.status === 'In review' || q.status === 'Open').length, s: 'classification reviews and ownership gaps' },
+  ];
+  return <Tiles items={items} />;
 }
 
 /* ------------------------------------------------------------------ page */
 export default function AccessHub({ peopleFilters }) {
   const { section } = useParams();
+  const nav = useNavigate();
   const st = useAccess(); const ss = useStewardship();
   if (!section) return <Navigate to={`${ACCESS_BASE}/people`} replace />;
-  const cur = ALL.find(([k]) => k === section);
-  if (!cur) return <Navigate to={`${ACCESS_BASE}/people`} replace />;
-  const group = ACCESS_SECTIONS.find(([, l]) => l.some(([k]) => k === section))[0];
+  if (MOVED[section]) return <Navigate to={`${ACCESS_BASE}/${MOVED[section]}`} replace />;
+  const half = halfOf(section);
+  if (!half) return <Navigate to={`${ACCESS_BASE}/people`} replace />;
+  const tab = tabOf(section);
+  const [, title, , covers] = half.tabs.find(([k]) => k === tab);
+  const count = useCounts(st, ss);
+  const go = (k) => nav(`${ACCESS_BASE}/${k}`);
   return (
     <div className="page gv">
-      <PageHead eyebrow={`Govern · Access · ${group}`} title={cur[1]} sub={LEADS[section]}>
+      <PageHead eyebrow={`Govern · Access & Stewardship · ${half.label} · ${title}`} title={title} sub={`Covers ${covers}`}>
         <Fld label="Viewing as (test)">
           <select className="select" value={st.role} onChange={(e) => setViewRole(e.target.value)} aria-label="Viewing as">{ACCESS_VIEW.map(([r, p]) => <option key={r} value={r}>{r} · {p}</option>)}</select>
         </Fld>
       </PageHead>
-      <AccessNav group={group} section={section} st={st} ss={ss} />
+      <div className="ax-halves" role="tablist" aria-label="Requirement area">
+        {HALVES.map((h) => <button key={h.key} type="button" role="tab" aria-selected={h === half} className={h === half ? 'on' : ''} onClick={() => go(h.tabs[0][0])}>{h.label}</button>)}
+      </div>
+      {half.key === 'stewardship' && <p className="ax-own6">OWN-06 (owners and stewards decide access) lives in 3.16 › <button type="button" className="ax-same inline" onClick={() => go('requests')}>Requests & grants ›</button></p>}
+      <HalfTiles half={half.key} st={st} ss={ss} />
+      <Tabs items={half.tabs.map(([k, l, I]) => ({ value: k, label: count[k] !== undefined && count[k] !== '' ? `${l} (${count[k]})` : l, icon: I }))} value={tab} onChange={go} className="ax-tabs" />
+      {tab === 'people' && <SubNav value={section} onChange={go} items={VIEWS.map(([v, l]) => ({ value: v, label: l, count: v === 'people' ? PEOPLE_DIR.length.toLocaleString('en-GB') : v === 'groups' ? GROUP_LIST.length : st.roles.length }))} />}
       {section === 'people' && <People st={st} ss={ss} filters={peopleFilters} />}
       {section === 'groups' && <Groups st={st} />}
       {section === 'roles' && <RolesSection st={st} />}
-      {section === 'ownership' && <Register ss={ss} />}
-      {section === 'responsibilities' && <StewardRoles roles={ss.roles} changes={ss.changes} />}
-      {section === 'coverage' && <Gaps ss={ss} />}
-      {section === 'queue' && <ReviewQueue queue={ss.queue} register={ss.register} />}
-      {section === 'policies' && <Policies st={st} ss={ss} />}
       {section === 'permissions' && <Scopes st={st} />}
-      {section === 'grants' && <Grants st={st} />}
-      {section === 'requests' && <Requests st={st} show={['request', 'requests']} />}
-      {section === 'reviews' && <Reviews st={st} />}
-      {section === 'approvals' && <Approvals ss={ss} />}
-      {section === 'check' && <Requests st={st} show={['check']} />}
       {section === 'sod' && <Sod st={st} />}
       {section === 'rules' && <Rules st={st} />}
-      {section === 'directory' && <><Groups st={st} title="AWS IAM Identity Center — groups and members" note="The same directory as Who › Groups: the group carries the role, the role carries the clearance. Microsoft Entra ID / Active Directory works the same way over SCIM or OIDC group claims. Manual assignments made in Who › Roles stay and keep their “manual” label." /><Directory st={st} syncOnly /></>}
+      {section === 'requests' && <><Requests st={st} show={['request', 'requests']} /><Grants st={st} /><Requests st={st} show={['check']} /></>}
+      {section === 'policies' && <Policies st={st} ss={ss} />}
+      {section === 'reviews' && <Reviews st={st} />}
+      {section === 'directory' && <><Groups st={st} title="AWS IAM Identity Center — groups and the access role each carries" note="The same directory as Roles & people › Groups: the group carries the access role, the access role carries the clearance. Microsoft Entra ID / Active Directory works the same way over SCIM or OIDC group claims. Manual assignments made in Roles & people › Access roles stay and keep their “manual” label." /><Directory st={st} syncOnly /></>}
       {section === 'platforms' && <Platforms st={st} />}
+      {section === 'responsibilities' && <StewardRoles roles={ss.roles} changes={ss.changes} />}
+      {section === 'ownership' && <Register ss={ss} />}
+      {section === 'coverage' && <Gaps ss={ss} />}
+      {section === 'approvals' && <><Approvals ss={ss} /><ReviewQueue queue={ss.queue} register={ss.register} /></>}
       {section === 'audit' && <Audit ss={ss} />}
     </div>
   );
-}
-
-function SectionTiles({ group, st, ss }) {
-  const active = st.grants.filter((g) => g.status === 'active');
-  const ds = directoryStats(st.assign);
-  const unmappedGroups = GROUP_LIST.filter((g) => !groupRole(g));
-  const items = {
-    Who: [
-      { l: 'People', v: PEOPLE_DIR.length.toLocaleString('en-GB'), s: `${PEOPLE_DIR.filter((p) => p.lastActive <= 30).length.toLocaleString('en-GB')} active in 30 days` },
-      { l: 'From the directory', v: `${ds.fromDir}%`, s: `${ds.manual} manual assignment(s) to tidy` },
-      { l: 'Without a role', v: ds.roleless, s: `members of ${unmappedGroups.join(', ')} — no role mapping` },
-      { l: 'Separation-of-duties breaches', v: combinationsHeld(st).length, s: 'held today — needs a decision' },
-    ],
-    Ownership: [
-      { l: 'Assets in the register', v: ss.register.length, s: `governance model ${ss.changes[0][0]}` },
-      { l: 'Steward coverage', v: `${Math.round((ss.register.filter((r) => r.roles.steward).length / ss.register.length) * 1000) / 10}%`, s: `${ss.register.filter((r) => r.roles.steward).length} of ${ss.register.length} assets` },
-      { l: 'Open quality issues', v: ss.issues.filter((i) => i.status === 'open').length, s: 'routed to the asset’s steward' },
-      { l: 'Change requests pending', v: ss.requests.filter((r) => r.status === 'pending').length, s: 'await a different approver' },
-    ],
-    What: [
-      { l: 'Access policies', v: st.scopes.length + ACCESS_RULES.length + st.policies.length + ss.roles.filter((r) => r.resp[1] === '1' || r.resp[2] === '1').length, s: 'persona, purpose, stakeholder and sensitivity' },
-      { l: 'Scopes', v: st.scopes.length, s: `${new Set(st.scopes.map((s) => s.level)).size} level(s) in use` },
-      { l: 'Active grants', v: active.length, s: 'each with an expiry' },
-      { l: 'Grants not used in 30 days', v: active.filter((g) => g.lastUsed === 'never' || /Jun|May|Apr|Jul/.test(g.lastUsed)).length, s: 'candidates to revoke' },
-    ],
-    Decisions: [
-      { l: 'Requests pending', v: st.requests.filter((r) => r.status === 'pending').length, s: 'routed to owners and stewards' },
-      { l: 'Reviews open', v: st.review.applied ? 0 : 1, s: 'quarterly · Restricted data' },
-      { l: 'Ownership changes pending', v: ss.requests.filter((r) => r.status === 'pending').length, s: 'need a different approver' },
-      { l: 'Open quality issues', v: ss.issues.filter((i) => i.status === 'open').length, s: 'with the asset’s steward' },
-    ],
-    Settings: [
-      { l: 'People in the directory', v: ds.people.toLocaleString('en-GB'), s: `${GROUP_LIST.length} groups · AWS IAM Identity Center` },
-      { l: 'From the directory', v: `${ds.fromDir}%`, s: `${ds.manual} manual assignment(s) — the same as Who` },
-      { l: 'Identities synchronised', v: st.sync ? (st.sync.total || 0).toLocaleString('en-GB') : 0, s: st.sync ? `last ${st.sync.at} · ${st.sync.by}` : 'not yet synchronised' },
-      { l: 'Separation-of-duties breaches', v: combinationsHeld(st).length, s: st.recon ? `scopes last reconciled ${st.recon.at}` : 'held today — needs a decision' },
-    ],
-  };
-  return <Tiles items={items[group]} />;
 }
 
 /* ------------------------------------------------------------------ People (landing page)
@@ -173,8 +127,8 @@ function SectionTiles({ group, st, ss }) {
 const clearanceOf = (roles) => roles.map((r) => roleOf(r)?.clearance).filter(Boolean).sort().pop() || '—';
 const PEOPLE_FACETS = [
   { key: 'show', label: 'Show', icon: Eye, open: true, of: (x) => x.show },
-  { key: 'role', label: 'Role', icon: BadgeCheck, open: true, of: (x) => (x.roles.length ? x.roles.map((r) => roleOf(r)?.name || r) : ['No role']) },
-  { key: 'cl', label: 'Clearance', icon: Lock, open: true, of: (x) => [x.cl === '—' ? 'No role' : x.cl] },
+  { key: 'role', label: 'Access role', icon: BadgeCheck, open: true, of: (x) => (x.roles.length ? x.roles.map((r) => roleOf(r)?.name || r) : ['No access role']) },
+  { key: 'cl', label: 'Clearance', icon: Lock, open: true, of: (x) => [x.cl === '—' ? 'No access role' : x.cl] },
   { key: 'src', label: 'Source', icon: RefreshCw, of: (x) => [x.src === 'manual' ? 'Manual assignment' : x.src === 'none' ? 'No assignment' : 'From directory'] },
   { key: 'dept', label: 'Department', icon: Building2, of: (x) => [x.p.dept] },
   { key: 'group', label: 'Directory group', icon: Fingerprint, of: (x) => x.p.groups },
@@ -193,7 +147,7 @@ export function usePeopleFilters() {
     const stewards = new Set(ss.register.flatMap((r) => Object.values(r.roles).filter(Boolean).map((c) => c.who)));
     return PEOPLE_DIR.map((p) => {
       const roles = rolesFor(p, st.assign); const src = sourceFor(p, st.assign);
-      const show = [p.named && 'Named test people', stewards.has(p.name) && 'Owners & stewards', breachers.has(p.name) && 'Separation-of-duties breach', !roles.length && 'Without a role', src === 'manual' && 'Manual assignment', p.lastActive > 90 && 'Inactive 90+ days'].filter(Boolean);
+      const show = [p.named && 'Named test people', stewards.has(p.name) && 'Owners & stewards', breachers.has(p.name) && 'Separation-of-duties breach', !roles.length && 'Without an access role', src === 'manual' && 'Manual assignment', p.lastActive > 90 && 'Inactive 90+ days'].filter(Boolean);
       return { p, roles, cl: clearanceOf(roles), src, show, sod: breachers.has(p.name) };
     });
   }, [st, ss.register]);
@@ -208,7 +162,7 @@ function People({ st, ss, filters }) {
   const shown = list.slice((page - 1) * pg.per, page * pg.per);
   const label = (k) => PEOPLE_FACETS.find((f) => f.key === k)?.label;
   const exportCsv = () => {
-    const csv = ['Name,Email,Roles,Clearance,Department,Groups,Source', ...list.map((x) => [x.p.name, x.p.email, x.roles.join(' '), x.cl, x.p.dept, x.p.groups.join(' '), x.src].map((v) => `"${v}"`).join(','))].join('\n');
+    const csv = ['Name,Email,Access roles,Clearance,Department,Groups,Source', ...list.map((x) => [x.p.name, x.p.email, x.roles.join(' '), x.cl, x.p.dept, x.p.groups.join(' '), x.src].map((v) => `"${v}"`).join(','))].join('\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'people.csv'; a.click();
   };
   return (
@@ -225,14 +179,14 @@ function People({ st, ss, filters }) {
         </div>
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>Person</th><th>Roles (via group)</th><th>Clearance</th><th>Department</th><th>Owns / stewards</th><th>Grants</th><th>Last active</th></tr></thead>
+            <thead><tr><th>Person</th><th>Access roles (via group)</th><th>Clearance</th><th>Department</th><th>Owns / stewards</th><th>Grants</th><th>Last active</th></tr></thead>
             <tbody>{shown.map((x) => {
               const owns = ss.register.filter((r) => Object.values(r.roles).some((c) => c && c.who === x.p.name)).length;
               const grants = st.grants.filter((g) => g.person === x.p.name && g.status === 'active').length;
               return (
                 <tr key={x.p.id} className="click" onClick={() => setOpen(x.p)}>
                   <td><div className="ax-who"><span className="ax-av" style={{ background: x.p.col }}>{initials(x.p.name)}</span><div><b>{x.p.name}</b>{x.p.named && <span className="gv-tag info" style={{ marginLeft: 6 }}>test user</span>}<span className="gv-sub">{x.p.email}</span></div></div></td>
-                  <td>{x.roles.map((r) => <span key={r} className="tag">{roleOf(r)?.name || r}</span>)}{!x.roles.length && <StatusBadge s="warn">no role</StatusBadge>}{x.src === 'manual' && <span className="gv-tag violet" style={{ marginLeft: 4 }}>manual</span>}{x.sod && <StatusBadge s="fail">SoD</StatusBadge>}</td>
+                  <td>{x.roles.map((r) => <span key={r} className="tag">{roleOf(r)?.name || r}</span>)}{!x.roles.length && <StatusBadge s="warn">no access role</StatusBadge>}{x.src === 'manual' && <span className="gv-tag violet" style={{ marginLeft: 4 }}>manual</span>}{x.sod && <StatusBadge s="fail">SoD</StatusBadge>}</td>
                   <td><span className="tag">{x.cl}</span></td>
                   <td>{x.p.dept}<span className="gv-sub">{x.p.loc}</span></td>
                   <td>{owns ? `${owns} asset${owns === 1 ? '' : 's'}` : <span className="gv-faint">—</span>}</td>
@@ -282,9 +236,9 @@ function PersonDrawer({ p, st, ss, onClose }) {
         <dl className="gl-kv gv-kv">
           <dt>Clearance</dt><dd><span className="tag">{clearanceOf(roles)}</span> highest of {roles.length || 'no'} role(s)</dd>
           <dt>May</dt><dd>{may.length ? may.map((m) => <span key={m} className="tag mono">{m}</span>) : '—'}</dd>
-          <dt>Persona policies</dt><dd>{scopes.length ? scopes.map((s, i) => <span key={i} className="tag">{s.role} · {s.level} {s.target} → {s.actions.join(', ')}</span>) : <span className="gv-faint">none — the role’s own permissions apply</span>}</dd>
+          <dt>Persona policies</dt><dd>{scopes.length ? scopes.map((s, i) => <span key={i} className="tag">{s.role} · {s.level} {s.target} → {s.actions.join(', ')}</span>) : <span className="gv-faint">none — the access role’s own permissions apply</span>}</dd>
           <dt>Purpose policies</dt><dd>{ACCESS_RULES.map((r) => <span key={r.id} className="tag">{r.name}</span>)}</dd>
-          <dt>Stakeholder rights</dt><dd>{owns.some((o) => o.rights.approve || o.rights.grant) ? `${owns.filter((o) => o.rights.approve).length} asset(s) where they approve access, ${owns.filter((o) => o.rights.grant).length} where they grant it` : <span className="gv-faint">none — holds no owner or steward role with access rights</span>}</dd>
+          <dt>Stakeholder rights</dt><dd>{owns.some((o) => o.rights.approve || o.rights.grant) ? `${owns.filter((o) => o.rights.approve).length} asset(s) where they approve access, ${owns.filter((o) => o.rights.grant).length} where they grant it` : <span className="gv-faint">none — holds no stewardship role with access rights</span>}</dd>
         </dl>
         <div className="gv-section-label">Why {p.name.split(' ')[0]} has this access</div>
         {roles.map((r) => {
@@ -294,23 +248,23 @@ function PersonDrawer({ p, st, ss, onClose }) {
           return <div key={r} className="ax-path"><span className="tag mono">{man ? 'manual assignment' : g || 'directory'}</span><i>→</i><span className="tag">{roleOf(r)?.name || r}</span><i>→</i><span className="tag">clearance {roleOf(r)?.clearance}</span><small>{a ? `${a.source} · since ${a.at}` : man ? 'given by hand — reviewed as an exception' : 'synced from AWS IAM Identity Center'}</small></div>;
         })}
         {!roles.length && <p className="gv-muted">No role — {p.groups.join(', ')} carries no GenMeta mapping.</p>}
-        {owns.slice(0, 3).map((o) => <div key={o.asset + o.role} className="ax-path"><span className="tag">{o.role}</span><i>on</i><Mono>{o.asset}</Mono><i>→</i><span className="tag">{[o.rights.approve && 'approve requests', o.rights.grant && 'grant and revoke'].filter(Boolean).join(', ') || 'no access rights'}</span><small>Stewardship register</small></div>)}
+        {owns.slice(0, 3).map((o) => <div key={o.asset + o.role} className="ax-path"><span className="tag">{o.role}</span><i>on</i><Mono>{o.asset}</Mono><i>→</i><span className="tag">{[o.rights.approve && 'approve requests', o.rights.grant && 'grant and revoke'].filter(Boolean).join(', ') || 'no access rights'}</span><small>3.10 › Ownership register</small></div>)}
         <Note>The person-centric view Collibra and Entra give: everything one person can do and where each right comes from — so a large estate is navigated by finding one person, not by scrolling a role table.</Note>
       </>)}
       {tab === 'roles' && (
-        <div className="table-wrap"><table className="tbl"><thead><tr><th>Group</th><th>Carries role</th><th>Clearance</th><th>Source</th></tr></thead>
+        <div className="table-wrap"><table className="tbl"><thead><tr><th>Group</th><th>Carries access role</th><th>Clearance</th><th>Source</th></tr></thead>
           <tbody>{p.groups.map((g) => <tr key={g}><td className="mono">{g}</td><td>{groupRole(g) ? roleOf(groupRole(g))?.name : <StatusBadge s="warn">no mapping</StatusBadge>}</td><td>{groupRole(g) ? roleOf(groupRole(g))?.clearance : '—'}</td><td>directory</td></tr>)}
             {manualRolesOf(p, st.assign).map((r) => { const a = st.assign.find((x) => x.person === p.name && x.role === r); return <tr key={r}><td className="gv-muted">—</td><td>{roleOf(r)?.name}</td><td>{roleOf(r)?.clearance}</td><td><span className="gv-tag violet">manual{a ? ` · ${a.at}` : ''}</span></td></tr>; })}</tbody></table></div>
       )}
       {tab === 'own' && (owns.length || cols.length ? (
-        <div className="table-wrap"><table className="tbl"><thead><tr><th>Asset</th><th>Role</th><th>How</th><th>Access rights here</th></tr></thead>
+        <div className="table-wrap"><table className="tbl"><thead><tr><th>Asset</th><th>Stewardship role</th><th>How</th><th>Access rights here</th></tr></thead>
           <tbody>{owns.map((o) => <tr key={o.asset + o.role}><td><Mono>{o.asset}</Mono><span className="gv-sub">{o.system} · {o.sens}</span></td><td>{o.role}</td><td className="gv-muted">{{ a: 'assigned', i: 'inherited from dataset', m: 'imported', d: 'configured default' }[o.how]}</td><td>{[o.rights.approve && 'approve or decline requests', o.rights.grant && 'grant and revoke', o.rights.changes && 'approve ownership changes', o.rights.quality && 'resolve quality issues'].filter(Boolean).join(' · ') || '—'}</td></tr>)}
             {cols.map((c) => <tr key={c.asset + c.column}><td><Mono>{c.asset}.{c.column}</Mono><span className="gv-sub">column</span></td><td>{ss.roles.find((x) => x.key === c.role)?.name}</td><td className="gv-muted">column-level</td><td>—</td></tr>)}</tbody></table></div>
       ) : <Empty>{p.name} holds no ownership or stewardship role on any asset.</Empty>)}
       {tab === 'grants' && (grants.length ? (
         <div className="table-wrap"><table className="tbl"><thead><tr><th>Asset</th><th>Granted by</th><th>Expires</th><th>Status</th></tr></thead>
           <tbody>{grants.map((g) => <tr key={g.id}><td><Mono>{g.asset}</Mono><span className="gv-sub">{g.why}</span></td><td>{g.by}<span className="gv-sub">{g.granted}</span></td><td>{g.expires}{g.extended && <span className="gv-sub">extended by {g.extended.by} on {g.extended.at}</span>}</td><td><StatusBadge s={g.status === 'active' ? 'active' : 'refused'}>{g.status}</StatusBadge></td></tr>)}</tbody></table></div>
-      ) : <Empty>No direct grants — access comes only from roles and policies.</Empty>)}
+      ) : <Empty>No direct grants — access comes only from access roles and policies.</Empty>)}
       {tab === 'act' && (acts.length ? <ul className="gv-lines">{acts.map((a) => <li key={a.seq}><Mono>{a.action}</Mono> · {a.what} <span className="gv-faint">· {fmtTs(a.ts)}</span></li>)}</ul> : <p className="gv-muted">Signed in {p.lastActive === 0 ? 'today' : `${p.lastActive} days ago`}; no governance actions recorded.</p>)}
     </Drawer>
   );
@@ -336,7 +290,7 @@ function MembersDrawer({ title, sub, list, st, onClose, removable }) {
             {removable && <td>{manual && p.named && <Button variant="link" icon={X} onClick={() => a1.run(unassign(p.name, removable), `Removed ${removable} from ${p.name}`)}>Remove</Button>}</td>}</tr>
         ); })}</tbody></table></div>
       <div className="ax-pager"><span>{rows.length.toLocaleString('en-GB')} shown</span><span className="gv-inline" style={{ gap: 6, alignItems: 'center' }}><Button variant="secondary" size="sm" disabled={pg <= 1} onClick={() => setPage(pg - 1)}>‹</Button>{pg} / {pages.toLocaleString('en-GB')}<Button variant="secondary" size="sm" disabled={pg >= pages} onClick={() => setPage(pg + 1)}>›</Button></span></div>
-      <Note>To change who holds this, change the group in the directory — or add a manual assignment in Roles, which shows up as an exception for review.</Note>
+      <Note>To change who holds this, change the group in the directory — or add a manual assignment in Roles & people › Access roles, which shows up as an exception for review.</Note>
     </Drawer>
   );
 }
@@ -349,16 +303,16 @@ function Groups({ st, title = 'Directory groups', note }) {
     <>
       <Card icon={Fingerprint} tone="warn" title={title} count={GROUP_LIST.length}
         sub={`${PEOPLE_DIR.length.toLocaleString('en-GB')} people · AWS IAM Identity Center (test directory)${st.sync ? ` · last synchronised ${st.sync.at}` : ''}`}
-        actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={() => a1.run(syncDirectory(), 'Directory synchronised — results under Settings › Directory sync')}>Synchronise now</Button>}>
+        actions={<Button variant="secondary" size="md" icon={RefreshCw} onClick={() => a1.run(syncDirectory(), 'Directory synchronised — results under Directory & identity')}>Synchronise now</Button>}>
         <RoleNote st={st} need={['governance-lead', 'platform-ops']} what="synchronising the directory" />
         <a1.Refusal />
         <div className="table-wrap"><table className="tbl">
-          <thead><tr><th>Group</th><th>Role in GenMeta</th><th>Clearance</th><th className="num">Members</th><th /></tr></thead>
+          <thead><tr><th>Group</th><th>Access role in GenMeta</th><th>Clearance</th><th className="num">Members</th><th /></tr></thead>
           <tbody>{GROUP_LIST.map((g) => { const r = groupRole(g); const n = PEOPLE_DIR.filter((p) => p.groups.includes(g)).length; return (
-            <tr key={g} className="click" onClick={() => setOpen(g)}><td className="mono">{g}</td><td>{r ? <span className="tag">{roleOf(r)?.name}</span> : <StatusBadge s="warn">no mapping — members get no role</StatusBadge>}</td><td>{r ? roleOf(r)?.clearance : '—'}</td><td className="num"><b>{n.toLocaleString('en-GB')}</b></td><td><Button variant="link">View members ›</Button></td></tr>
+            <tr key={g} className="click" onClick={() => setOpen(g)}><td className="mono">{g}</td><td>{r ? <span className="tag">{roleOf(r)?.name}</span> : <StatusBadge s="warn">no mapping — members get no access role</StatusBadge>}</td><td>{r ? roleOf(r)?.clearance : '—'}</td><td className="num"><b>{n.toLocaleString('en-GB')}</b></td><td><Button variant="link">View members ›</Button></td></tr>
           ); })}</tbody>
         </table></div>
-        <Note>{note || 'Roles are given to groups, and membership is managed in the directory (as in Entra, Collibra and Atlan). Counts here; members on demand — never 2,000 names in a cell. Each count is the same number the role card shows for that group.'}</Note>
+        <Note>{note || 'Access roles are given to groups, and membership is managed in the directory (as in Entra, Collibra and Atlan). Counts here; members on demand — never 2,000 names in a cell. Each count is the same number the access-role card shows for that group.'}</Note>
       </Card>
       {open && <MembersDrawer title={open} sub={groupRole(open) ? `carries ${roleOf(groupRole(open))?.name}` : 'no GenMeta mapping'} list={PEOPLE_DIR.filter((p) => p.groups.includes(open))} st={st} onClose={() => setOpen(null)} />}
     </>
@@ -381,7 +335,7 @@ function RolesSection({ st }) {
             <div className="ax-role-h"><div><b>{r.name}</b><span className="gv-sub mono">{r.key}{!r.builtIn ? ' · defined here' : ''}</span></div><span className="tag">{r.clearance}</span></div>
             <div className="ax-big">{holders.length.toLocaleString('en-GB')} <small>people</small></div>
             <div className="ax-bar">{via.map((g, i) => <i key={g} style={{ width: `${(n(g) / Math.max(1, holders.length)) * 100}%`, background: BAR[i % BAR.length] }} />)}</div>
-            <div className="ax-legend">{via.map((g, i) => <span key={g}><i style={{ background: BAR[i % BAR.length] }} />{g} · {n(g).toLocaleString('en-GB')}</span>)}{manual > 0 && <span><i style={{ background: 'var(--gv-violet, #6D4AFF)' }} />{manual} manual</span>}{!via.length && <span>no directory group carries this role</span>}</div>
+            <div className="ax-legend">{via.map((g, i) => <span key={g}><i style={{ background: BAR[i % BAR.length] }} />{g} · {n(g).toLocaleString('en-GB')}</span>)}{manual > 0 && <span><i style={{ background: 'var(--gv-violet, #6D4AFF)' }} />{manual} manual</span>}{!via.length && <span>no directory group carries this access role</span>}</div>
             <div className="gv-tags">{r.may.map((m) => <span key={m} className="tag mono">{m}</span>)}</div>
             <span className="ax-more">View {holders.length.toLocaleString('en-GB')} members ›</span>
           </button>
@@ -401,15 +355,15 @@ function Policies({ st, ss }) {
   const peopleFor = (role) => PEOPLE_DIR.filter((p) => rolesFor(p, st.assign).includes(role)).length;
   const rows = [
     ...st.scopes.map((s) => ({ same: ['Permissions by level', 'permissions'], kind: 'Persona', name: `${roleOf(s.role)?.name || s.role} — ${s.level} ${s.target}`, who: groupsFor(s.role).length ? groupsFor(s.role) : [s.role], n: peopleFor(s.role), what: `${s.level}: ${s.target} (${statementFor(s).sys})`, effect: s.actions.includes('read_profile') || s.actions.includes('read_sensitive') ? 'Allow' : 'Mask', detail: s.actions.join(', '), to: 'permissions' })),
-    ...ACCESS_RULES.map((r) => ({ same: ['Settings › Access rules', 'rules'], kind: 'Purpose', name: r.name, who: ['Everyone'], n: PEOPLE_DIR.length, what: r.when, effect: r.effect === 'deny' ? 'Deny' : 'Mask', detail: r.id, to: 'rules' })),
-    ...ss.roles.filter((r) => r.resp[1] === '1' || r.resp[2] === '1').map((r) => ({ kind: 'Stakeholder', name: `${r.name} — on the assets they hold`, who: [`${r.name}s in the register`], n: new Set(ss.register.map((x) => x.roles[r.key]?.who).filter(Boolean)).size, what: `${ss.register.filter((x) => x.roles[r.key]).length} assets in the Stewardship register`, effect: 'Allow', detail: [r.resp[1] === '1' && 'approve or decline requests', r.resp[2] === '1' && 'grant and revoke'].filter(Boolean).join(' · '), to: 'responsibilities' })),
+    ...ACCESS_RULES.map((r) => ({ same: ['Access rules', 'rules'], kind: 'Purpose', name: r.name, who: ['Everyone'], n: PEOPLE_DIR.length, what: r.when, effect: r.effect === 'deny' ? 'Deny' : 'Mask', detail: r.id, to: 'rules' })),
+    ...ss.roles.filter((r) => r.resp[1] === '1' || r.resp[2] === '1').map((r) => ({ kind: 'Stakeholder', name: `${r.name} — on the assets they hold`, who: [`${r.name}s in the register`], n: new Set(ss.register.map((x) => x.roles[r.key]?.who).filter(Boolean)).size, what: `${ss.register.filter((x) => x.roles[r.key]).length} assets in 3.10 › Ownership register`, effect: 'Allow', detail: [r.resp[1] === '1' && 'approve or decline requests', r.resp[2] === '1' && 'grant and revoke'].filter(Boolean).join(' · '), to: 'responsibilities' })),
     ...st.policies.map((p) => ({ kind: 'Sensitivity', name: `${p.s} data`, who: ['Everyone'], n: PEOPLE_DIR.length, what: `assets classified ${p.s}`, effect: p.mask ? 'Mask' : 'Allow', detail: `approved by ${p.ap.toLowerCase()} · up to ${p.days} days${p.just ? ' · justification' : ''}${p.mask ? ' · masked without a grant' : ''}`, to: 'policies-edit' })),
   ];
   const shown = rows.filter((r) => kind === 'all' || r.kind === kind);
-  const KINDS = [['all', 'All'], ['Persona', 'Persona — by role or team'], ['Purpose', 'Purpose — by classification'], ['Stakeholder', 'Stakeholder — owners & stewards'], ['Sensitivity', 'Sensitivity level']];
+  const KINDS = [['all', 'All'], ['Persona', 'Persona — by access role or team'], ['Purpose', 'Purpose — by classification'], ['Stakeholder', 'Stakeholder — owners & stewards'], ['Sensitivity', 'Sensitivity level']];
   return (
     <>
-      <Card icon={ScrollText} tone="violet" title="Access policies" count={rows.length} sub="Who (groups or stakeholder roles, never individuals) · what (part of the estate, or a classification) · effect. Effective access is the union of allows; any deny wins.">
+      <Card icon={ScrollText} tone="violet" title="Access policies" count={rows.length} sub="Who (groups or stewardship roles, never individuals) · what (part of the estate, or a classification) · effect. Effective access is the union of allows; any deny wins.">
         <div className="gv-chiprow">{KINDS.map(([k, l]) => <button key={k} type="button" className={`chip ${kind === k ? 'on' : ''}`} onClick={() => setKind(k)}>{l} <b>{k === 'all' ? rows.length : rows.filter((r) => r.kind === k).length}</b></button>)}</div>
         <div className="ax-pols">{shown.map((r, i) => (
           <div key={i} className="ax-pol">
@@ -420,7 +374,7 @@ function Policies({ st, ss }) {
             <div>{r.to !== 'policies-edit' && <Button variant="link" onClick={() => nav(`${ACCESS_BASE}/${r.to}`)}>Edit ›</Button>}</div>
           </div>
         ))}</div>
-        <Note>Persona policies follow Atlan's personas; purpose policies follow Atlan purposes and Informatica CDAM (written once per classification); stakeholder policies follow Informatica's stakeholder-role policies — the OWN-06 rule that owners and stewards act on their own assets.</Note>
+        <Note>Persona policies follow Atlan's personas; purpose policies follow Atlan purposes and Informatica CDAM (written once per classification); stakeholder policies follow Informatica's stakeholder-role policies — owners and stewards act on access to their own assets.</Note>
       </Card>
       <Requests st={st} show={['policies']} />
     </>
@@ -456,6 +410,12 @@ function Grants({ st }) {
 
 /* ------------------------------------------------------------------ one audit trail for access and ownership */
 function Audit({ ss }) {
+  const nav = useNavigate();
   const access = AUDIT.filter((a) => a.action.startsWith('access.')).map((a) => ({ at: fmtTs(a.ts), who: a.who, role: a.role, action: a.action, on: a.asset || '—', what: a.what || '', cat: /refused|denied/.test(a.action) ? 'ownership.denied' : 'access' }));
-  return <AuditTrail title="Access and ownership audit trail" audit={[...access, ...ss.trail]} />;
+  return (
+    <>
+      <p className="ax-own6">One trail for both halves — access and stewardship. The tamper-evident, hash-chained log is on <button type="button" className="ax-same inline" onClick={() => nav(`${BASE}?tab=audit`)}>Governance › Overview › Audit & reporting ›</button></p>
+      <AuditTrail title="Access and stewardship audit trail" audit={[...access, ...ss.trail]} />
+    </>
+  );
 }

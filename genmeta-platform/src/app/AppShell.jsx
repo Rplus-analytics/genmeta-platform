@@ -144,7 +144,7 @@ export default function AppShell() {
             <Route path="governance/*" element={<Governance />} />
             <Route path="classification" element={<Classification />} />
             <Route path="products/*" element={<DataProducts />} />
-            <Route path="stewardship" element={<Navigate to="/app/governance/access/ownership" replace />} />
+            <Route path="stewardship" element={<Navigate to="/app/governance/access/responsibilities" replace />} />
               <Route path="admin/*" element={<Admin />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Routes>

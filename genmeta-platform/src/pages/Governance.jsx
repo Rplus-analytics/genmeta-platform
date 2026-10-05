@@ -24,7 +24,7 @@ function DpiaRoute({ filters }) {
   return <Dpia filters={filters} />;
 }
 
-/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & GDPR, Policies, Access, Workflows),
+/* Govern › Governance: inner vertical menu (Overview, AI model governance, DPIA & GDPR, Policies, Access & Stewardship, Workflows),
    docked to the sidebar like Admin and Data assets. Each section keeps its own tabs. */
 export default function Governance() {
   const { pathname } = useLocation();
@@ -62,7 +62,7 @@ export default function Governance() {
         <Route path="dpia/:activityId" element={<DpiaActivityPage />} />
         <Route path="policies" element={<Policies filters={pol} />} />
         <Route path="policies/:itemId" element={<PolicyItemPage />} />
-        <Route path="stewardship" element={<Navigate to={`${ACCESS_BASE}/ownership`} replace />} />
+        <Route path="stewardship" element={<Navigate to={`${ACCESS_BASE}/responsibilities`} replace />} />
         <Route path="access" element={<AccessHub peopleFilters={people} />} />
         <Route path="access/:section" element={<AccessHub peopleFilters={people} />} />
         <Route path="workflows" element={<Workflows />} />
