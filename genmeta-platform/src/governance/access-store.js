@@ -53,13 +53,20 @@ function expiryOf(r) {
   while (exp < today()) { ext.push(exp); exp = plusDays(exp, 90); }
   return { expires: fmtD(exp), extended: ext.length ? { by: ownerOf(r.asset) || 'owner', at: fmtD(ext[ext.length - 1]), times: ext.length } : null };
 }
+/* a named person's directory roles at seed time — a role that breaks a separation-of-duties rule against one already held
+   is not given (Sarah Jones is in GenMeta-Governance and GenMeta-Audit: she holds governance-lead; the sync refuses auditor) */
+function seedRoles(p) {
+  const held = [];
+  groupRolesOf(p).forEach((r) => { if (!SOD.some((s) => s.kind === 'role' && ((s.a === r && held.includes(s.b)) || (s.b === r && held.includes(s.a))))) held.push(r); });
+  return held;
+}
 let st = {
   role: 'governance-lead',
   roles: ROLES.map((r) => ({ ...r, builtIn: true })),
   /* every named person holds the roles their directory groups carry (synchronised nightly), plus Tom Reid's two
      manual roles — held before the manage_metadata ↔ approve_access rule was switched on, so it shows under "Combinations held today" */
   assign: [
-    ...PEOPLE_DIR.filter((p) => p.named).flatMap((p) => groupRolesOf(p).map((r) => A(p.name, r, 'directory', '12 Sep 2026'))),
+    ...PEOPLE_DIR.filter((p) => p.named).flatMap((p) => seedRoles(p).map((r) => A(p.name, r, 'directory', '12 Sep 2026'))),
     A('Tom Reid', 'product-owner', 'manual', '3 Mar 2026'),
   ],
   scopes: [
@@ -92,7 +99,18 @@ function syncResults() {
   }));
   return results;
 }
-const OTHERS = PEOPLE_DIR.filter((p) => !p.named).length;
+/* everyone else is counted, not listed: those whose groups carry a role are unchanged; those whose groups carry none are skipped */
+const OTHERS = PEOPLE_DIR.filter((p) => !p.named && groupRolesOf(p).length).length;
+const SKIPPED_OTHERS = Object.entries(PEOPLE_DIR.filter((p) => !p.named && !groupRolesOf(p).length).reduce((m, p) => { m[p.groups[0]] = (m[p.groups[0]] || 0) + 1; return m; }, {}));
+/* the numbers a synchronisation reports, per identity: applied + unchanged + skipped = everyone in the directory; refused counts role memberships */
+export function syncSummary(sync) {
+  const res = sync?.results || [];
+  const ppl = (o) => new Set(res.filter((r) => r.outcome === o).map((r) => r.person));
+  const applied = ppl('applied'); const skippedNamed = [...ppl('skipped')].filter((p) => !applied.has(p) && !res.some((r) => r.person === p && r.outcome !== 'skipped'));
+  const skipped = skippedNamed.length + (sync?.skippedOthers || []).reduce((n, [, k]) => n + k, 0);
+  const total = sync?.total || 0;
+  return { total, applied: applied.size, skipped, unchanged: total - applied.size - skipped, refused: res.filter((r) => r.outcome === 'refused').length };
+}
 
 const listeners = new Set();
 const emit = () => { st = { ...st }; listeners.forEach((l) => l()); };
@@ -151,8 +169,12 @@ export function combinationsHeld(s = st) {
   });
   return out;
 }
+/* the directory entry for a typed name (case-insensitive), or null */
+export const findPerson = (name) => { const t = (name || '').trim().toLowerCase(); return t ? PEOPLE_DIR.find((p) => p.name.toLowerCase() === t) || null : null; };
 export function assignRole(person, role, source = 'manual') {
-  const p = person.trim();
+  const found = findPerson(person);
+  if (!found) return refuse('access.assign', person.trim() || '—', `Not found in the directory: “${person.trim()}”. Access roles go to people in AWS IAM Identity Center — check the spelling or pick a name from the list.`);
+  const p = found.name;
   if (source === 'manual' && st.role !== 'governance-lead') return refuse('access.assign', p, `only a governance lead can assign roles (you are viewing as ${st.role})`);
   if (rolesHeld(p).includes(role)) return refuse('access.assign', p, `${p} already holds ${role}`);
   const c = sodClash(p, role);
@@ -367,8 +389,9 @@ export function syncDirectory() {
   results.filter((r) => r.outcome === 'applied').forEach((r) => { st = { ...st, assign: [...st.assign, A(r.person, r.role, 'directory', fmtD(today()))] }; });
   results.filter((r) => r.outcome === 'refused').forEach((r) => log('access.sync.refused', r.person, `directory sync refused ${r.role} for ${r.person}: ${r.why}`));
   const n = (o) => results.filter((r) => r.outcome === o).length;
-  st = { ...st, sync: { at: now(), by: me(), results, others: OTHERS, total: PEOPLE_DIR.length } };
-  log('access.sync', 'directory', `synchronised AWS IAM Identity Center: ${PEOPLE_DIR.length.toLocaleString('en-GB')} identities — ${n('applied')} applied, ${n('unchanged') + OTHERS} unchanged, ${n('skipped')} skipped (no group), ${n('refused')} refused (separation of duties)`);
+  st = { ...st, sync: { at: now(), by: me(), results, others: OTHERS, skippedOthers: SKIPPED_OTHERS, total: PEOPLE_DIR.length } };
+  const sm = syncSummary(st.sync);
+  log('access.sync', 'directory', `synchronised AWS IAM Identity Center: ${sm.total.toLocaleString('en-GB')} identities — ${sm.applied} applied, ${sm.unchanged.toLocaleString('en-GB')} unchanged, ${sm.skipped} skipped (no group), ${sm.refused} refused (separation of duties)`);
   emit();
   return { ok: true, results };
 }
@@ -410,4 +433,4 @@ export function reconcile() {
 }
 
 /* the nightly synchronisation that brought today's directory in (seeded) */
-st = { ...st, sync: { at: '5 Oct 2026, 02:00', by: 'nightly schedule', results: syncResults(), others: OTHERS, total: PEOPLE_DIR.length } };
+st = { ...st, sync: { at: '5 Oct 2026, 02:00', by: 'nightly schedule', results: syncResults(), others: OTHERS, skippedOthers: SKIPPED_OTHERS, total: PEOPLE_DIR.length } };

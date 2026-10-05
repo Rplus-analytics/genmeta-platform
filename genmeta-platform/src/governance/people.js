@@ -24,7 +24,7 @@ export const GROUP_LIST = Object.keys(GROUP_SIZES);
 
 /* named test people: department and the group(s) the directory puts them in */
 const NAMED = [
-  ['Admin', 'Data & Analytics', ['GenMeta-Governance']], ['Sarah Jones', 'Data & Analytics', ['GenMeta-Governance']],
+  ['Admin', 'Data & Analytics', ['GenMeta-Governance']], ['Sarah Jones', 'Data & Analytics', ['GenMeta-Governance', 'GenMeta-Audit']],
   ['Dana Whitfield', 'Legal', ['GenMeta-DPO']], ['Mark Owusu', 'Legal', ['GenMeta-DPO']], ['Sam Okafor', 'Risk & Intelligence', ['GenMeta-Audit']],
   ['Owen Hughes', 'Technology', ['GenMeta-Ops']], ['Rajesh', 'Data & Analytics', ['GenMeta-Engineering']], ['Pradeep Kumar', 'Data & Analytics', ['GenMeta-Engineering']],
   ['Raghav', 'Data & Analytics', ['GenMeta-Engineering']], ['Aisha Khan', 'Digital', ['GenMeta-ProductOwners']], ['Tom Reid', 'Data & Analytics', ['GenMeta-Engineering']],
@@ -63,7 +63,7 @@ export const initials = (n) => n.split(' ').filter((x) => !x.endsWith('.')).map(
 export const groupRolesOf = (p) => [...new Set(p.groups.map(groupRole).filter(Boolean))];
 export function manualRolesOf(p, assign) {
   if (p.named) return assign.filter((a) => a.person === p.name && a.source === 'manual').map((a) => a.role);
-  return p.manualRole ? [p.manualRole] : [];
+  return [...new Set([...(p.manualRole ? [p.manualRole] : []), ...assign.filter((a) => a.source === 'manual' && a.person === p.name).map((a) => a.role)])];
 }
 export function rolesFor(p, assign) {
   if (p.named) return [...new Set(assign.filter((a) => a.person === p.name).map((a) => a.role))];
