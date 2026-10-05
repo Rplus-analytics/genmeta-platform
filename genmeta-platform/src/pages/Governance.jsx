@@ -8,6 +8,7 @@ import Stewardship from '../governance/Stewardship.jsx';
 import RegisterModel from '../governance/RegisterModel.jsx';
 import GovernanceOverview from '../governance/Overview.jsx';
 import Policies, { PolicyItemPage, usePolicyFilters, POLICIES_BASE } from '../governance/Policies.jsx';
+import TemplateBuilder from '../governance/TemplateBuilder.jsx';
 import Dpia, { DpiaActivityPage, DpiaAssetPage, useDpiaFilters, DPIA_BASE } from '../governance/Dpia.jsx';
 import { FacetPanel } from '../governance/catalog.jsx';
 import Access from '../governance/Access.jsx';
@@ -54,6 +55,7 @@ export default function Governance() {
         <Route path="models/register" element={<RegisterModel base={MODELS_BASE} onRegistered={models.refresh} />} />
         <Route path="models/:modelId" element={<ModelPage />} />
         <Route path="dpia" element={<DpiaRoute filters={dp} />} />
+        <Route path="dpia/templates/new" element={<TemplateBuilder />} />
         <Route path="dpia/assets/:asset" element={<DpiaAssetPage />} />
         <Route path="dpia/:activityId" element={<DpiaActivityPage />} />
         <Route path="policies" element={<Policies filters={pol} />} />

@@ -1167,3 +1167,49 @@ td .select[aria-label="Template"] { max-width: 190px; }
 .gv-two > * { min-width: 0; }
 .sc-act { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .pk-scroll.wrap .tbl td { white-space: normal; padding-top: 8px; padding-bottom: 8px; }
+
+/* DPIA › new template builder */
+.tb-from { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.tb-opt { text-align: left; font: inherit; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--white); cursor: pointer; display: flex; flex-direction: column; gap: 3px; color: var(--muted); transition: border-color .15s, box-shadow .15s; }
+.tb-opt b { color: var(--navy); font-size: 14px; } .tb-opt small { font-size: 12px; }
+.tb-opt:hover { border-color: var(--line2); } .tb-opt.on { border-color: var(--royal); box-shadow: 0 0 0 3px var(--ice); color: var(--royal); }
+.tb-secs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.tb-sec { border: 1px solid var(--line); border-radius: 12px; background: var(--white); }
+.tb-sec.open { border-color: var(--royal); box-shadow: 0 0 0 3px var(--ice); }
+.tb-sec-h { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.tb-sec-h b { color: var(--navy); font-size: 14px; } .tb-sec-h small { color: var(--muted); font-size: 12px; }
+.tb-n { width: 22px; height: 22px; border-radius: 50%; background: var(--ice); color: var(--royal); font-size: 12px; font-weight: 600; display: grid; place-items: center; flex: none; }
+.tb-tools { margin-left: auto; display: flex; gap: 2px; }
+.tb-sec-b { padding: 4px 14px 12px; border-top: 1px solid var(--line); }
+.tb-fields td { vertical-align: middle; } .tb-fields .input, .tb-fields .select { width: 100%; }
+.tb-row-tools { white-space: nowrap; }
+.tb-outline { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+.tb-outline button { border: 0; background: none; padding: 0; font: inherit; color: var(--navy); cursor: pointer; text-align: left; }
+.tb-outline span { display: block; color: var(--muted); font-size: 12px; }
+.tb-warn { margin: 10px 0 0; padding-left: 16px; font-size: 12.5px; color: var(--gv-warn, #b26a00); }
+tr.tb-new td { background: #effaf3; }
+
+.tb-wf { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--white); }
+.tb-wf-h { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.tb-wf-h p { margin: 4px 0 0; font-size: 12.5px; }
+.tb-wf-steps { list-style: none; margin: 12px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tb-wf-steps li { display: flex; gap: 10px; align-items: flex-start; }
+.tb-wf-steps i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; background: var(--ice); color: var(--royal); font-size: 12px; font-weight: 600; display: grid; place-items: center; flex: none; }
+.tb-wf-steps b { display: block; font-size: 13.5px; color: var(--navy); } .tb-wf-steps small { color: var(--muted); font-size: 12px; }
+.tb-link { border: 0; background: none; padding: 0; font: inherit; color: var(--royal); cursor: pointer; }
+
+/* Access & RBAC */
+.ac-refuse { margin-bottom: 12px; align-items: flex-start; }
+.ac-refuse .ib { margin-left: auto; }
+.ac-held { display: flex; flex-wrap: wrap; gap: 4px; }
+.ac-person { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; border-radius: 999px; background: #f2f5fa; border: 1px solid var(--line); font-size: 12.5px; }
+.ac-person em { font-style: normal; font-size: 10.5px; color: var(--muted); background: var(--white); border-radius: 6px; padding: 0 5px; }
+.ac-person.directory em { color: #2f6b3a; background: #e6f4ea; }
+.ac-person button { border: 0; background: none; padding: 1px; cursor: pointer; color: var(--muted); display: inline-flex; }
+.ac-prov-row td { background: #f7f9fc; }
+.ac-prov { font-size: 12.5px; }
+.ac-prov b { display: inline-flex; align-items: center; gap: 5px; color: var(--navy); }
+.ac-prov code, .ac-sql { display: block; white-space: pre-wrap; font-family: var(--mono); font-size: 11.5px; background: #0f1b2d; color: #d7e3ff; padding: 6px 9px; border-radius: 6px; margin-top: 4px; }
+.ac-sql { min-width: 260px; }
+.ac-bad { color: var(--gv-bad, #c0392b); }
+tr.ac-off td { background: #fff6f5; }
