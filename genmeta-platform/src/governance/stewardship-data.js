@@ -52,10 +52,10 @@ export const MODEL_ROLES = [
   { key: 'steward', name: 'Data steward', builtIn: true, desc: 'Looks after quality and meaning day to day.', resp: '01101100' },
   { key: 'custodian', name: 'Data custodian', builtIn: true, desc: 'Runs the technical environment that holds the data.', resp: '00000010' },
   { key: 'privacy', name: 'Privacy lead', builtIn: false, desc: 'Signs off access to personal data and reviews privacy risk.', resp: '01000001' },
-  { key: 'records-manager', name: 'TEST Records manager', builtIn: false, desc: 'Keeps records under the retention schedule and arranges disposal.', resp: '00000011' },
+  { key: 'records-manager', name: 'Records manager', builtIn: false, desc: 'Keeps records under the retention schedule and arranges disposal.', resp: '00000011' },
 ];
 export const MODEL_CHANGES = [
-  ['v7', '30 Sept 2026, 10:20', 'Admin', 'created bespoke role TEST Records manager with technical_custody, governance_oversight'],
+  ['v7', '30 Sept 2026, 10:20', 'Admin', 'created bespoke role Records manager with technical_custody, governance_oversight'],
   ['v6', '24 Sept 2026, 07:04', 'Admin', 'removed role Data Analyst'],
   ['v5', '24 Sept 2026, 07:01', 'Admin', 'changed role Data Analyst; added accountability, approve_access, maintain_metadata'],
   ['v4', '24 Sept 2026, 07:00', 'Admin', 'created bespoke role Data Analyst with no responsibilities'],
@@ -83,8 +83,8 @@ const noSteward = REGISTER.filter((r) => !r.roles.steward && PD_MAP.some((x) => 
 const scheduled = ['2 Oct 2026, 08:15', '1 Oct 2026, 08:15', '30 Sept 2026, 08:15'].flatMap((at) => noSteward.slice(0, 6).map((a) => ({ at, who: 'scheduler', action: 'quality.raise', on: a, what: `raised quality issue “${RULE.S}” → no steward`, cat: 'ownership.quality' })));
 const older = [
   { at: '1 Oct 2026, 14:02', who: 'Emma Clarke', action: 'quality.raise', on: 'INT.CUSTOMER', what: 'raised quality issue “Duplicate customer keys after the nightly load” → Priya Shah', cat: 'ownership.quality' },
-  { at: '30 Sept 2026, 11:05', who: 'Admin', action: 'ownership.assign', on: 'PRL.ORDER_MASTER', what: 'TEST Records manager → Noor Ali', cat: 'ownership.assign' },
-  { at: '30 Sept 2026, 10:20', who: 'Admin', action: 'ownership.model', on: 'governance model v7', what: 'created bespoke role TEST Records manager', cat: 'ownership.model' },
+  { at: '30 Sept 2026, 11:05', who: 'Admin', action: 'ownership.assign', on: 'PRL.ORDER_MASTER', what: 'Records manager → Noor Ali', cat: 'ownership.assign' },
+  { at: '30 Sept 2026, 10:20', who: 'Admin', action: 'ownership.model', on: 'governance model v7', what: 'created bespoke role Records manager', cat: 'ownership.model' },
   { at: '28 Sept 2026, 16:40', who: 'Priya Shah', action: 'ownership.resolve.refused', on: 'PRL.ORDER_MASTER', what: 'refused — Priya Shah is not the steward of PRL.ORDER_MASTER (no steward) and is not a governance lead', cat: 'ownership.denied' },
   { at: '24 Sept 2026, 08:49', who: 'Admin', action: 'ownership.assign', on: 'INT.NATION', what: 'Data custodian → Owen Hughes', cat: 'ownership.assign' },
   { at: '24 Sept 2026, 08:49', who: 'Admin', action: 'ownership.assign', on: 'INT.LINEITEM', what: 'Data custodian → Owen Hughes', cat: 'ownership.assign' },

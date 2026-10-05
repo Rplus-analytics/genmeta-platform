@@ -217,9 +217,10 @@ export function decide({ asset, column, role, person, loc = 'uk', purpose = '' }
   }
   S('Catalogue', `${asset} · ${sys} · ${sens}${cols.length ? ` · ${cols.length} personal-data column(s)` : ''}`, 'allow');
   const { win, all } = winningScope(role, asset, column);
-  if (win) S('Scope (most specific wins)', `${win.level} ${win.target} → ${win.actions.join(', ')}${all.length > 1 ? ` · beats ${all.slice(1).map((x) => `${x.level} ${x.target}`).join(', ')}` : ''}`, scopeEffect(win.actions));
-  else S('Scope (most specific wins)', `no scope for ${r.key} on ${asset} — the role's own permissions apply (${r.may.includes('read_profile') ? 'may read profiles' : 'metadata only'})`, r.may.includes('read_profile') || r.may.includes('read_sensitive') ? 'allow' : 'mask');
   const granted = st.grants.find((g) => g.asset === asset && g.person === person && g.status === 'active');
+  const over = granted ? ` — overridden: ${person} holds an active grant on this asset (expires ${granted.expires})` : '';
+  if (win) { const e = scopeEffect(win.actions); S('Scope (most specific wins)', `${win.level} ${win.target} → ${win.actions.join(', ')}${all.length > 1 ? ` · beats ${all.slice(1).map((x) => `${x.level} ${x.target}`).join(', ')}` : ''}${e === 'mask' ? over : granted ? ` · grant held` : ''}`, granted ? 'allow' : e); }
+  else { const e = r.may.includes('read_profile') || r.may.includes('read_sensitive') ? 'allow' : 'mask'; S('Scope (most specific wins)', `no scope for ${r.key} on ${asset} — the role's own permissions apply (${r.may.includes('read_profile') ? 'may read profiles' : 'metadata only'})${e === 'mask' ? over : granted ? ' · grant held' : ''}`, granted ? 'allow' : e); }
   const pol = st.policies.find((p) => p.s === sens);
   const needsGrant = (sens === 'Restricted' || sens === 'Confidential') && pol?.mask;
   S('Access policy and grants', granted ? `${person} holds an active grant (expires ${granted.expires})` : needsGrant ? (r.may.includes('read_sensitive') ? `${sens}: no grant, but ${r.key} may read sensitive detail` : `${sens}: no grant — sensitive detail is masked (approved by ${pol.ap.toLowerCase()}, up to ${pol.days} days)`) : `${sens}: no grant needed`, granted || !needsGrant || r.may.includes('read_sensitive') ? 'allow' : 'mask');
@@ -238,7 +239,7 @@ export function decide({ asset, column, role, person, loc = 'uk', purpose = '' }
     const cw = winningScope(role, asset, c).win;
     if (cls === 'SPECIAL_CATEGORY' && rank < 3) return { col: c, cls, effect: 'deny', why: `special category — needs L3, ${person} has ${cl}` };
     if (sens === 'Restricted' && loc !== 'uk') return { col: c, cls, effect: 'deny', why: 'outside the UK' };
-    if (cw && cw.level === 'column') return { col: c, cls, effect: scopeEffect(cw.actions), why: `column scope: ${cw.actions.join(', ')}` };
+    if (cw && cw.level === 'column' && !granted) return { col: c, cls, effect: scopeEffect(cw.actions), why: `column scope: ${cw.actions.join(', ')}` };
     if (['PII', 'FINANCIAL', 'GOVERNMENT_ID'].includes(cls) && rank < 2 && !granted) return { col: c, cls, effect: 'mask', why: `${cls} masked below L2 — no grant` };
     if (needsGrant && !granted && !r.may.includes('read_sensitive')) return { col: c, cls, effect: 'mask', why: 'no grant on Restricted data' };
     if (sens === 'Restricted' && !purpose.trim() && !purposeOver) return { col: c, cls, effect: 'mask', why: 'no purpose stated' };
