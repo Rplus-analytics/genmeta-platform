@@ -431,3 +431,13 @@
 .dp .fsel { width: auto; max-width: 150px; }
 .dp .sumgrid { grid-template-columns: minmax(280px, 320px) 1fr; }
 .dp .sumi small { white-space: nowrap; }
+
+/* Business glossary › New term (shares the .rg / .cp pattern) */
+.nt .nt-ai { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; background: var(--gv-violet-bg, #F3EFFE); border: 1px solid var(--gv-violet-line, #DCD3FA); font-size: 13px; color: var(--navy); margin: -4px 0 16px; }
+.nt .nt-ai svg { color: var(--gv-violet, #6B46D9); flex: none; }
+.nt .nt-ai span { flex: 1; min-width: 200px; }
+.nt .nt-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.nt .nt-people .rg-f { margin-bottom: 0; }
+.nt .gv-owners input { border: 0; outline: 0; flex: 1; min-width: 140px; font: inherit; font-size: 13px; background: transparent; }
+.nt .rg-f .select { width: 100%; }
+@media (max-width: 900px) { .nt .nt-people { grid-template-columns: 1fr; } }

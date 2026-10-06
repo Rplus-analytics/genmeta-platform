@@ -110,6 +110,7 @@ export function glossaryCrumbs(pathname) {
   if (!m || !m[1]) return [];
   const rest = m[1];
   if (rest.startsWith('g/')) return [{ label: decodeURIComponent(rest.slice(2)) }];
+  if (rest === 'new') return [{ label: 'New term' }];
   const t = T(rest);
   return t ? [{ label: t.g, to: `/app/glossary/g/${t.g}` }, { label: t.name }] : [];
 }
