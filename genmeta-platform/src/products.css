@@ -441,3 +441,19 @@
 .nt .gv-owners input { border: 0; outline: 0; flex: 1; min-width: 140px; font: inherit; font-size: 13px; background: transparent; }
 .nt .rg-f .select { width: 100%; }
 @media (max-width: 900px) { .nt .nt-people { grid-template-columns: 1fr; } }
+.gl-head-acts { display: flex; gap: 8px; align-items: center; }
+.nt .ng-clash { text-decoration: line-through; opacity: .6; }
+.nt .gv-chips .chip[disabled] { opacity: 1; cursor: default; }
+/* Create domain */
+.nt .cd-stake { display: grid; grid-template-columns: minmax(0, 1fr) 200px auto; gap: 8px; }
+.nt .cd-res { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+.nt .cd-pn { display: inline-flex; align-items: center; gap: 8px; } .nt .cd-pn svg { color: var(--muted); }
+.nt .ib { width: 28px; height: 28px; border: 0; background: none; border-radius: 6px; color: var(--muted); display: inline-grid; place-items: center; cursor: pointer; }
+.nt .ib:hover { background: var(--ice); color: var(--navy); }
+.nt .cd-tree, .nt .cd-tree ul { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.nt .cd-tree ul { padding-left: 18px; margin-top: 4px; }
+.nt .cd-tree li { padding: 4px 0; color: var(--navy); }
+.nt .cd-tree li svg { color: var(--muted); vertical-align: -2px; margin-right: 4px; }
+.nt .cd-tree li small { float: right; color: var(--faint); }
+.nt .cd-tree li.new { color: var(--royal); font-weight: 600; } .nt .cd-tree li.new svg { color: var(--royal); }
+.nt .cd-link { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }

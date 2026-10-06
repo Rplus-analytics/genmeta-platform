@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import { Section } from '../components/Rail.jsx';
 import GlossaryNewTerm from './GlossaryNewTerm.jsx';
+import GlossaryNewGlossary from './GlossaryNewGlossary.jsx';
 import {
-  TERMS, ACTIVITY, GLOSSARIES, ROLE, STATUS, SDOT, ME,
+  TERMS, ACTIVITY, GLOSSARIES, GLOSS_META, ROLE, STATUS, SDOT, ME,
   T, kids, ini, counts, uniqAssets, allLinks, matchQ, assetInfo, assetId, ASSET,
   useGlossaryData, setStatus, saveTerm, createTerm, deleteTerm, linkAssets, unlinkAsset, registerToast, toast,
 } from '../glossary-data.js';
@@ -55,6 +56,7 @@ function useNav(ui) {
     home: () => { ui.update({ edit: false, menu: false }); navigate('/app/glossary'); },
     glossary: (g) => { ui.update((prev) => ({ q: '', seg: 'all', edit: false, menu: false, open: new Set(prev.open).add(g) })); navigate(`/app/glossary/g/${g}`); },
     /* New term is its own page (like Create a data product), not a drawer */
+    newGlossary: () => { ui.update({ edit: false, menu: false }); navigate('/app/glossary/new-glossary'); },
     newTerm: (g, parent) => { ui.update({ edit: false, menu: false }); navigate('/app/glossary/new', { state: { g, parent } }); },
     term: (id) => { ui.update({ tab: 'overview', edit: false, menu: false, atype: 'all', aq: '' }); navigate(`/app/glossary/${id}`); },
   };
@@ -65,6 +67,7 @@ function useView() {
   const { pathname } = useLocation();
   const params = useParams();
   if (params.term === 'new') return { view: 'new' };
+  if (params.term === 'new-glossary') return { view: 'new-glossary' };
   if (params.term) return { view: 'term', term: params.term };
   if (params.glossary) return { view: 'glossary', glossary: params.glossary };
   return { view: 'home' };
@@ -330,7 +333,7 @@ function Home({ ui }) {
     <>
       <div className="gl-phead">
         <div><span className="eyebrow">Data assets</span><h1>Business glossary</h1><p>The shared vocabulary for the estate: terms, their owners and the assets they describe.</p></div>
-        <button className="btn primary" onClick={() => nav.newTerm(GLOSSARIES[0])}><Plus size={15} />New term</button>
+        <div className="gl-head-acts"><button className="btn secondary" onClick={() => nav.newGlossary()}><Book size={15} />Create glossary</button><button className="btn primary" onClick={() => nav.newTerm(GLOSSARIES[0])}><Plus size={15} />New term</button></div>
       </div>
       <div className="tiles-sm gl-tiles">
         {tiles.map(([v, k, s]) => <div key={k}><b>{v}</b><span>{k}</span><small>{s}</small></div>)}
@@ -359,7 +362,7 @@ function GlossaryPage({ ui, g }) {
     <>
       <div className="gl-thead">
         <div className="gl-ticon"><Book size={20} strokeWidth={1.7} /></div>
-        <div><h1>{g}</h1><div className="gl-kind">Glossary · {ts.length} terms</div></div>
+        <div><h1>{g}</h1><div className="gl-kind">{GLOSS_META[g]?.kind || 'Glossary'} · {ts.length} terms</div></div>
         <div className="gl-tools"><button className="btn primary md" onClick={() => nav.newTerm(g)}><Plus size={15} />New term</button></div>
       </div>
       <div className="gl-pgrid">
@@ -367,8 +370,10 @@ function GlossaryPage({ ui, g }) {
           <div className="card pad">
             <h3>Glossary summary</h3>
             <dl className="gl-kv" style={{ marginTop: 10 }}>
+              {GLOSS_META[g]?.desc && <><dt>Covers</dt><dd>{GLOSS_META[g].desc}</dd></>}
               <dt>Terms</dt><dd>{ts.length} ({c.approved} approved · {c.review} in review · {c.draft} draft)</dd>
-              <dt>Owners</dt><dd>{owners.length ? owners.map((o) => <Person key={o} name={o} />) : '—'}</dd>
+              <dt>Owners</dt><dd>{(GLOSS_META[g]?.owners || owners).length ? (GLOSS_META[g]?.owners || owners).map((o) => <Person key={o} name={o} />) : '—'}</dd>
+              {GLOSS_META[g]?.stewards?.length > 0 && <><dt>Stewards</dt><dd>{GLOSS_META[g].stewards.map((o) => <Person key={o} name={o} />)}</dd></>}
               <dt>Linked assets</dt><dd>{new Set(links).size} assets · {links.length} links</dd>
               <dt>Top-level terms</dt><dd>{ts.filter((t) => !t.parent).map((t, i) => <Fragment key={t.id}>{i ? ', ' : ''}<button className="gl-tlink" onClick={() => nav.term(t.id)}>{t.name}</button></Fragment>)}</dd>
             </dl>
@@ -387,8 +392,9 @@ function GlossaryPage({ ui, g }) {
         </div>
         <aside className="gl-side">
           <div className="gl-prop"><label>Name</label><div className="v">{g}</div></div>
-          <div className="gl-prop"><label>Description</label><div className="v gl-muted" style={{ fontWeight: 400 }}>Business terms for the {g.toLowerCase()} domain.</div></div>
-          <div className="gl-prop"><label>Owners</label><div className="v">{owners.length ? owners.map((o) => <Person key={o} name={o} />) : '—'}</div></div>
+          <div className="gl-prop"><label>Description</label><div className="v gl-muted" style={{ fontWeight: 400 }}>{GLOSS_META[g]?.desc || `Business terms for the ${g.toLowerCase()} domain.`}</div></div>
+          {GLOSS_META[g] && <div className="gl-prop"><label>Term rules</label><div className="v gl-muted" style={{ fontWeight: 400 }}>Every term needs {GLOSS_META[g].required.map((k) => ({ def: 'a definition', owner: 'an owner', steward: 'a steward', syn: 'synonyms', rules: 'business rules', linked: 'a linked asset' }[k])).join(', ')} · {GLOSS_META[g].approval ? 'new terms need approval' : 'the owner approves directly'} · {GLOSS_META[g].propose === 'Everyone' ? 'anyone can propose' : 'owners and stewards add terms'}</div></div>}
+          <div className="gl-prop"><label>Owners</label><div className="v">{(GLOSS_META[g]?.owners || owners).length ? (GLOSS_META[g]?.owners || owners).map((o) => <Person key={o} name={o} />) : '—'}</div></div>
           <div className="gl-prop"><label>Status</label><div className="v">{Object.entries(c).filter(([, n]) => n).map(([k, n]) => <Fragment key={k}><Badge status={k} /><span className="gl-muted">{n}</span></Fragment>)}</div></div>
         </aside>
       </div>
@@ -749,6 +755,7 @@ export default function Glossary({ ui }) {
 
   let body;
   if (view === 'new') body = <GlossaryNewTerm />;
+  else if (view === 'new-glossary') body = <GlossaryNewGlossary />;
   else if (view === 'term') body = t ? <TermPage ui={ui} t={t} /> : <Home ui={ui} />;
   else if (view === 'glossary') body = <GlossaryPage ui={ui} g={glossary} />;
   else body = <Home ui={ui} />;

@@ -72,6 +72,7 @@ function productCrumb(rest) {
   const [a, b] = rest.split('/');
   if (a === 'drafts') return 'My drafts';
   if (a === 'new') return 'Create product';
+  if (a === 'new-domain') return 'Create domain';
   if (a === 'domain') return productDomain(b)?.name || 'Domain';
   return PRODUCTS.find((p) => p.id === a)?.name || a.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }

@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <div className="page fade-in dp">
       <PageHead eyebrow="Discover" title="Data products" sub="Curated, owned and certified datasets — discover your most valued assets.">
-        <Button variant="secondary" icon={Layers} onClick={() => store.toast('New domain: cover, colour, name, icon, description, owners')}>Create domain</Button>
+        <Button variant="secondary" icon={Layers} onClick={() => nav(paths.newDomain)}>Create domain</Button>
         <Button variant="primary" icon={Plus} onClick={() => nav(paths.create, { state: { prefill: { domain: scope !== 'all' ? scope : 'customer' } } })}>Create product</Button>
       </PageHead>
 

@@ -18,6 +18,7 @@ export const paths = {
   home: '/app/products',
   drafts: '/app/products/drafts',
   create: '/app/products/new',
+  newDomain: '/app/products/new-domain',
   domain: (id) => `/app/products/domain/${id}`,
   product: (id) => `/app/products/${id}`,
 };

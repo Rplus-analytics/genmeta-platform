@@ -79,6 +79,9 @@ export let ACTIVITY = [
 ];
 
 export const GLOSSARIES = ['Customer', 'Orders', 'Product', 'Reference', 'Supplier'];
+/* what a glossary is set up with (Create glossary); seeded glossaries describe themselves from their terms */
+export const GLOSS_META = {};
+export const TERM_FIELDS = [['def', 'Definition'], ['owner', 'Owner'], ['steward', 'Steward'], ['syn', 'Synonyms'], ['rules', 'Business rules'], ['linked', 'A linked asset']];
 export const ROLE = 'governance-lead';
 export const ME = 'Admin';
 /* [label, badge modifier class] and the tree status dot colour, per status. */
@@ -111,6 +114,7 @@ export function glossaryCrumbs(pathname) {
   const rest = m[1];
   if (rest.startsWith('g/')) return [{ label: decodeURIComponent(rest.slice(2)) }];
   if (rest === 'new') return [{ label: 'New term' }];
+  if (rest === 'new-glossary') return [{ label: 'Create glossary' }];
   const t = T(rest);
   return t ? [{ label: t.g, to: `/app/glossary/g/${t.g}` }, { label: t.name }] : [];
 }
@@ -146,6 +150,13 @@ export function deleteTerm(id) {
   emit();
 }
 
+export function createGlossary({ name, desc, kind, owners, stewards, propose, required, approval }) {
+  const n = name.trim();
+  GLOSSARIES.push(n);
+  GLOSS_META[n] = { desc: desc.trim(), kind, owners, stewards, propose, required, approval, created: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), by: ME };
+  emit();
+  return n;
+}
 export function linkAssets(id, sel) { const t = T(id); if (!t || !sel.length) return; t.linked.push(...sel); log(id, `Linked ${sel.length} asset(s)`); emit(); }
 export function unlinkAsset(id, a) { const t = T(id); if (!t) return; t.linked = t.linked.filter((x) => x !== a); log(id, `Unlinked ${a}`); emit(); }
 
