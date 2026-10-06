@@ -68,7 +68,7 @@ function DomOverview({ d, list }) {
           <div className="tiles4">
             <div><span className="ti"><Svg html={I.compass} /></span><div><b>{new Set(list.flatMap((p) => p.assets)).size}</b><small>Assets owned</small></div></div>
             <div><span className="ti"><Svg html={I.boxS} /></span><div><b>{list.length}</b><small>Products</small></div></div>
-            <div><span className="ti"><Svg html={I.user} /></span><div><span className="avs">{d.owners.map((o, i) => <i key={i}>{ini(o)}</i>)}</span><small>Owners</small></div></div>
+            <div><span className="ti"><Svg html={I.user} /></span><div title={d.owners.join(', ')}><b>{d.owners.length}</b><small>Owners</small></div></div>
             <div><span className="ti"><Svg html={I.users} /></span><div><b>{st.length}</b><small>Stakeholders</small></div></div>
           </div>
           <div className="lbl">Description</div><p className="ovdesc">{d.readme || d.desc}</p>
@@ -183,7 +183,7 @@ function DomStats({ d, list, goProducts }) {
       <div className="ssec"><Svg html={I.layers} /> Summary</div>
       <div className="srow">
         <div className="acardbox" style={{ flex: 2 }}>
-          <b className="ct">Summary</b>
+          <b className="ct">Domain at a glance</b>
           <div className="sumgrid">
             <div className="sumleft">
               <div className="sumi"><Svg html={I.boxS} /><div><b>{list.length}</b><small>Total products</small></div></div>

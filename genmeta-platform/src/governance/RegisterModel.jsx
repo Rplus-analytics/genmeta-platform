@@ -331,11 +331,11 @@ export default function RegisterModel({ onRegistered, base }) {
   );
 }
 
-function Fl({ label, req, hint, children }) {
+export function Fl({ label, req, hint, children }) {
   return <div className="rg-f"><label>{label}{req && <em> *</em>}</label>{children}{hint && <small>{hint}</small>}</div>;
 }
 
-function Tiles({ opts, value, onChange, three }) {
+export function Tiles({ opts, value, onChange, three }) {
   return (
     <div className={`rg-tiles ${three ? 'three' : ''}`}>
       {opts.map(([v, l, s, tn]) => (
@@ -347,7 +347,7 @@ function Tiles({ opts, value, onChange, three }) {
   );
 }
 
-function OwnerPicker({ value, onChange }) {
+export function OwnerPicker({ value, onChange }) {
   const [q, setQ] = useState('');
   const ref = useRef();
   const add = (p) => { const v = p.trim(); if (v && !value.includes(v)) onChange([...value, v]); setQ(''); };

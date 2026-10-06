@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { NAV, pad3, navMatch, isDataAssets } from '../nav.js';
 import { glossaryCrumbs } from '../glossary-data.js';
+import { PRODUCTS, D as productDomain } from '../data/products.js';
 import { BRAND } from '../brand.js';
 import { useAuth } from '../auth.jsx';
 import { Burst } from '../components/Loader.jsx';
@@ -66,12 +67,20 @@ function Sidebar() {
   );
 }
 
+/* Data products: the page you are on, never the generic “Asset” */
+function productCrumb(rest) {
+  const [a, b] = rest.split('/');
+  if (a === 'drafts') return 'My drafts';
+  if (a === 'new') return 'Create product';
+  if (a === 'domain') return productDomain(b)?.name || 'Domain';
+  return PRODUCTS.find((p) => p.id === a)?.name || a.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 function Topbar({ loading }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const nav = useNavigate();
   const { group, parent, item, rest } = navMatch(pathname);
-  const sub = rest && (item.crumbs ? item.crumbs[rest] : 'Asset');
+  const sub = rest && (item.to === '/app/products' ? productCrumb(rest) : item.crumbs ? item.crumbs[rest] : 'Asset');
   /* The Business glossary has its own deep breadcrumb (glossary / term). */
   const glossCrumbs = pathname.startsWith('/app/glossary') ? glossaryCrumbs(pathname) : [];
   /* don't repeat the group when it already matches the page label (e.g. Admin) */

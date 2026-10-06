@@ -18,7 +18,7 @@ export default function DataProducts() {
   return (
     <ProductsProvider>
       <Routes>
-        <Route path="new" element={<Create />} />
+        <Route path="new" element={<Shell><Create /></Shell>} />
         <Route index element={<Shell><Home /></Shell>} />
         <Route path="drafts" element={<Shell><Drafts /></Shell>} />
         <Route path="domain/:id" element={<Shell><Domain /></Shell>} />

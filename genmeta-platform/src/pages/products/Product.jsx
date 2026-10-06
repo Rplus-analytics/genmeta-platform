@@ -71,8 +71,8 @@ function ProdOverview({ p, d, s }) {
           <div className="tiles4">
             <div><span className="ti"><Svg html={I.compass} /></span><div><b>{p.assets.length}</b><small>Assets</small></div></div>
             <div><span className="ti"><Svg html={I.port} /></span><div><b>{p.outputs.length}</b><small>Output ports</small></div></div>
-            <div><span className="ti"><Svg html={I.user} /></span><div><span className="avs">{[p.owner, ...p.experts].map((o, i) => <i key={i}>{ini(o)}</i>)}</span><small>Owners</small></div></div>
-            <div><span className="ti"><Svg html={I.globe} /></span><div><b style={{ fontSize: 16 }}>{p.vis === 'Public' ? 'Public' : 'Private'}</b><small>Visibility</small></div></div>
+            <div><span className="ti"><Svg html={I.user} /></span><div title={[p.owner, ...p.experts].join(', ')}><b>{1 + p.experts.length}</b><small>Owners</small></div></div>
+            <div><span className="ti"><Svg html={I.globe} /></span><div><b>{p.vis === 'Public' ? 'Public' : 'Private'}</b><small>Visibility</small></div></div>
           </div>
           <div className="srow4">
             <div><label>Domain</label><span className="tlink2" onClick={() => nav(paths.domain(d.id))}><DomainIcon id={d.id} size={14} /> {d.name}</span></div>
@@ -141,23 +141,29 @@ function ProdOverview({ p, d, s }) {
 
 function ProdAssets({ p }) {
   const nav = useNavigate();
+  const [q, setQ] = useState('');
+  const [type, setType] = useState('');
   const types = [...new Set(p.assets.map((a) => ainfo(a).type))];
+  const rows = p.assets.filter((a) => (!type || ainfo(a).type === type) && `${a} ${ainfo(a).src} ${ainfo(a).type}`.toLowerCase().includes(q.trim().toLowerCase()));
   return (
-    <div className="acardbox" style={{ padding: 0 }}>
-      <div style={{ padding: '12px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--line)' }}>
-        <div className="msearch" style={{ margin: 0, width: 260, height: 30 }}><Svg html={I.search} /><input placeholder="Search assets" /></div>
-        <span className="chip on">All <small>{p.assets.length}</small></span>
-        {types.map((t) => <span key={t} className="chip">{t} <small>{p.assets.filter((a) => ainfo(a).type === t).length}</small></span>)}
-        <button className="btn sm primary" style={{ marginLeft: 'auto' }} onClick={() => nav(paths.create, { state: { edit: p.id, step: 1 } })}><Svg html={I.pen} /> Edit</button>
+    <div className="dash-card">
+      <div className="block-head"><div><h2>Assets <span className="gv-faint" style={{ fontWeight: 400 }}>{p.assets.length}</span></h2><p className="block-sub">The catalogue assets this product is built from. Output ports are what consumers use; inputs come from other products.</p></div>
+        <Button variant="secondary" size="sm" onClick={() => nav(paths.create, { state: { edit: p.id, step: 1 } })}><Svg html={I.pen} /> Edit assets</Button></div>
+      <div className="dp-ahead">
+        <div className="msearch dp-asearch"><Svg html={I.search} /><input placeholder="Search assets" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search assets" /></div>
+        <button type="button" className={`chip ${!type ? 'on' : ''}`} onClick={() => setType('')}>All <small>{p.assets.length}</small></button>
+        {types.map((t) => <button type="button" key={t} className={`chip ${type === t ? 'on' : ''}`} onClick={() => setType(type === t ? '' : t)}>{t} <small>{p.assets.filter((a) => ainfo(a).type === t).length}</small></button>)}
       </div>
-      {p.assets.map((a) => (
-        <div key={a} className="arow"><div className="aico"><Svg html={I.db} /></div>
-          <div><div className="an">{a}</div><div className="am"><span>{ainfo(a).type}</span>·<span>{ainfo(a).src}</span></div>
-            {p.outputs.includes(a) && <span className="optag">Output port</span>}
-            {p.inputs.includes(a) && !p.outputs.includes(a) && <span className="optag in">Input</span>}
-          </div>
-        </div>
-      ))}
+      <div className="table-wrap"><table className="tbl ax-assets">
+        <thead><tr><th>Asset</th><th>Type</th><th>Source</th><th>Role in this product</th></tr></thead>
+        <tbody>
+          {rows.map((a) => (
+            <tr key={a}><td><span className="an">{a}</span></td><td className="muted">{ainfo(a).type}</td><td className="muted">{ainfo(a).src}</td>
+              <td>{p.outputs.includes(a) ? <span className="optag">Output port</span> : p.inputs.includes(a) ? <span className="optag in">Input</span> : <span className="faint">Asset</span>}</td></tr>
+          ))}
+          {!rows.length && <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 20 }}>No assets match.</td></tr>}
+        </tbody>
+      </table></div>
     </div>
   );
 }

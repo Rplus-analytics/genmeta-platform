@@ -1,149 +1,274 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Check, Search, Send, Flag, Lock, CircleSlash, Zap, UserCheck, Bell, ListChecks, Box, Layers, X } from 'lucide-react';
 import { ASSET, DOMAINS, CRIT, SENS, D, ainfo } from '../../data/products.js';
-import { useProducts, paths, Svg, DomainIcon } from './shared.jsx';
-import { I } from './icons.js';
+import { Button, Segmented } from '../../components/ui.jsx';
+import { Fl, Tiles, OwnerPicker } from '../../governance/RegisterModel.jsx';
+import { sensitivityOf } from '../../governance/data.js';
+import { pathFor, startRequest, stateOf, approverText, condText, useWorkflowStore } from '../../governance/workflows.js';
+import { getQuarantine } from '../../catalogue/quality/store.js';
+import { useProducts, paths } from './shared.jsx';
 
-const LABELS = ['Overview', 'Add assets', 'Select output ports (Optional)', 'Review'];
-const COVER = (c) => `linear-gradient(115deg, ${c} 0%, #4D8CFF 55%, #A9D3FF 100%)`;
+/* Create a data product — one page with a live panel, the same pattern as Governance › AI model governance ›
+   Register an external AI model (Oct 2026). Four sections (About · Classification · Assets · Output ports);
+   the panel keeps a preview of the product, its publication path from Governance › Workflows
+   (“Data product publication”) and what is still needed up to date as you answer.
+   Editing a product's assets opens the same page with only the Assets and Output ports sections. */
+
+const SECTIONS = [['cp-about', 'About this product'], ['cp-class', 'Classification'], ['cp-assets', 'Assets'], ['cp-ports', 'Output ports']];
+const CRIT_OPTS = [['high', 'High', 'Outages stop a business process', 'bad'], ['medium', 'Medium', 'Used in regular reporting', 'warn'], ['low', 'Low', 'Exploratory or nice to have', 'ok']];
+const SENS_OPTS = [['public', 'Public', 'Anyone in the organisation', 'ok'], ['internal', 'Internal', 'Staff with a business need', 'ok'], ['confidential', 'Confidential', 'Named consumers only', 'warn']];
+const VIS = [['Private to domain members', 'Domain members'], ['Private to selected members', 'Selected members'], ['Public', 'Everyone']];
+const EVENT = 'Data product published';
+const KIND_ICON = { approval: UserCheck, automated: Zap, task: ListChecks, notify: Bell };
 const ruleMatch = (r) => { if (!r.val) return []; const v = r.val.toLowerCase(); return Object.keys(ASSET).filter((a) => { const x = ASSET[a]; const f = r.attr === 'Connection' ? x[0] : r.attr === 'Asset type' ? x[1] : a; return r.op === 'is' ? f.toLowerCase() === v : f.toLowerCase().includes(v); }); };
 
 export default function Create() {
   const nav = useNavigate();
   const loc = useLocation();
   const store = useProducts();
+  const { workflows } = useWorkflowStore();
   const init = loc.state || {};
+  const editing = init.edit ? store.PR(init.edit) : null;
 
-  const [n, setN] = useState(() => {
-    if (init.edit) {
-      const p = store.PR(init.edit);
-      return { edit: p.id, step: init.step || 0, name: p.name, desc: p.desc, domain: p.domain, crit: p.crit, sens: p.sens, owners: [p.owner], vis: p.vis, assets: p.assets.slice(), outputs: p.outputs.slice(), mode: 'browse', rule: { attr: 'Connection', op: 'is', val: '' } };
-    }
-    return Object.assign({ step: 0, name: '', desc: '', domain: 'customer', crit: '', sens: '', owners: ['Admin'], vis: 'Private to domain members', assets: [], outputs: [], mode: 'browse', rule: { attr: 'Connection', op: 'is', val: '' } }, init.prefill || {});
-  });
-  const [ownDraft, setOwnDraft] = useState('');
+  const [n, setN] = useState(() => (editing
+    ? { name: editing.name, desc: editing.desc, domain: editing.domain, crit: editing.crit, sens: editing.sens, owners: [editing.owner, ...editing.experts], vis: editing.vis, assets: editing.assets.slice(), outputs: editing.outputs.slice() }
+    : { name: '', desc: '', domain: 'customer', crit: '', sens: '', owners: ['Admin'], vis: 'Private to domain members', assets: [], outputs: [], ...(init.prefill || {}) }));
+  const [mode, setMode] = useState('browse');
+  const [rule, setRule] = useState({ attr: 'Connection', op: 'is', val: '' });
+  const [q, setQ] = useState('');
+  const [src, setSrc] = useState('');
+  const [onlySel, setOnlySel] = useState(false);
+  const [active, setActive] = useState(editing ? 'cp-assets' : 'cp-about');
+  const [saved, setSaved] = useState(null);
   const up = (patch) => setN((o) => ({ ...o, ...patch }));
-  const st = n.step, d = D(n.domain);
+  const set = (k) => (e) => up({ [k]: e?.target ? e.target.value : e });
+  const sections = editing ? SECTIONS.slice(2) : SECTIONS;
 
-  const valid = () => {
-    if (st === 0 && !n.name) return 'Enter a name';
-    if (st === 0 && (!n.crit || !n.sens)) return 'Pick criticality and sensitivity';
-    if (st === 1 && !n.assets.length) return 'Add at least one asset';
-    return '';
-  };
-  const goStep = (g) => { const outputs = n.outputs.filter((a) => n.assets.includes(a)); setN((o) => ({ ...o, step: g, outputs })); window.scrollTo(0, 0); };
-  const next = () => { const e = valid(); if (e) return store.toast(e); goStep(st + 1); };
-  const back = () => goStep(st - 1);
-  const cancel = () => nav(n.edit ? paths.product(n.edit) : paths.home);
+  /* what the page knows from the answers */
+  const outputs = n.outputs.filter((a) => n.assets.includes(a));
+  const restricted = n.assets.filter((a) => sensitivityOf(a) === 'Restricted');
+  const quarantined = (() => { const qs = new Set(getQuarantine().map((x) => x.asset)); return n.assets.filter((a) => qs.has(a)); })();
+  const inputs = n.assets.filter((a) => store.products.some((p) => p.id !== editing?.id && p.outputs.includes(a)));
+  const taken = !editing && n.name.trim() && store.PR(n.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+  const done = [!!(n.name.trim() && !taken && n.owners.length && n.domain), !!(n.crit && n.sens), n.assets.length > 0, outputs.length > 0];
+  const fields = [n.name.trim() && !taken, n.desc.trim(), n.owners.length, n.crit, n.sens, n.assets.length, outputs.length];
+  const pct = editing ? (done[2] && done[3] ? 100 : done[2] ? 50 : 0) : Math.round((fields.filter(Boolean).length / fields.length) * 100);
+  const ready = editing ? done[2] : done[0] && done[1] && done[2];
 
-  const finish = (status) => {
-    if (n.edit) { store.updateAssets(n.edit, n.assets, n.outputs.filter((a) => n.assets.includes(a))); nav(paths.product(n.edit)); return; }
-    const id = store.createProduct(n, status);
-    if (id) nav(paths.product(id));
-  };
+  /* publication path, live from Governance › Workflows */
+  const wf = workflows.find((w) => w.module === 'data-products' && w.event === EVENT && w.status === 'active');
+  const ctx = { Sensitivity: restricted.length ? 'Restricted' : (n.sens ? SENS[n.sens][0] : undefined), Criticality: n.crit ? CRIT[n.crit][0] : undefined };
+  const path = wf ? pathFor(wf, ctx) : [];
+  const approvals = path.filter((p) => p.applies && (p.step.kind === 'approval' || p.step.kind === 'task'));
+  const days = approvals.reduce((x, p) => x + p.step.sla, 0);
 
-  const addOwner = () => { const o = ownDraft.trim(); if (o && !n.owners.includes(o)) up({ owners: [...n.owners, o] }); setOwnDraft(''); };
+  useEffect(() => {
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActive(e.target.id)), { rootMargin: '-35% 0px -60% 0px' });
+    sections.forEach(([id]) => { const el = document.getElementById(id); if (el) io.observe(el); });
+    if (editing && init.step === 2) setTimeout(() => jump('cp-ports'), 50);
+    return () => io.disconnect();
+  }, []);
+  const jump = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   const toggleAsset = (a) => up({ assets: n.assets.includes(a) ? n.assets.filter((x) => x !== a) : [...n.assets, a] });
-  const toggleOutput = (a) => up({ outputs: n.outputs.includes(a) ? n.outputs.filter((x) => x !== a) : [...n.outputs, a] });
-  const addRule = () => { const add = ruleMatch(n.rule).filter((a) => !n.assets.includes(a)); up({ assets: [...n.assets, ...add] }); store.toast('Assets added from rule'); };
+  const toggleOutput = (a) => up({ outputs: outputs.includes(a) ? outputs.filter((x) => x !== a) : [...outputs, a] });
+  const addRule = () => { const add = ruleMatch(rule).filter((a) => !n.assets.includes(a)); up({ assets: [...n.assets, ...add] }); store.toast(`${add.length} asset${add.length === 1 ? '' : 's'} added from the rule`); };
+
+  const cancel = () => nav(editing ? paths.product(editing.id) : paths.home);
+  const finish = (status) => {
+    if (editing) { store.updateAssets(editing.id, n.assets, outputs); nav(paths.product(editing.id)); return; }
+    const id = store.createProduct({ ...n, outputs }, status);
+    if (!id) return;
+    if (status === 'published' && wf) {
+      const req = startRequest(wf.id, { kind: 'product', id, label: n.name.trim(), owners: n.owners }, ctx, 'Admin');
+      const st = stateOf(req);
+      store.toast(`${n.name.trim()} published — publication check ${req.id} started; next: ${st.cur ? st.cur.step.name : 'done'}`);
+    }
+    nav(paths.product(id));
+  };
+
+  /* asset browser */
+  const all = Object.keys(ASSET);
+  const sources = [...new Set(all.map((a) => ASSET[a][0]))];
+  const list = all.filter((a) => (!src || ASSET[a][0] === src) && (!onlySel || n.assets.includes(a)) && `${a} ${ASSET[a][0]} ${ASSET[a][1]}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const d = D(n.domain);
+  const missing = [
+    !editing && !done[0] && ['cp-about', taken ? 'About — a product with this name already exists' : 'About — name, domain and an owner'],
+    !editing && !done[1] && ['cp-class', 'Classification — criticality and sensitivity'],
+    !done[2] && ['cp-assets', 'Assets — add at least one'],
+    !done[3] && ['cp-ports', 'Output ports — optional; the first asset is used if none'],
+  ].filter(Boolean);
+  const blocking = missing.filter(([id]) => id !== 'cp-ports');
 
   return (
-    <div className="dp dp-create">
-      <div className="cbar">
-        <div><b style={{ fontSize: 16 }}>{n.edit ? 'Edit product' : 'New product'}</b> <span className="faint">in</span> <DomainIcon id={n.domain} size={14} /> {d.name}</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span className="tlink" style={{ fontSize: 13 }}><Svg html={I.bookS} /> View docs</span>
-          <button className="btn" onClick={cancel}>Cancel</button>
-          {st > 0 && <button className="btn" onClick={back}>Back</button>}
-          {st < 3 ? <button className="btn primary" onClick={next}>Continue →</button>
-            : <><button className="btn" onClick={() => finish('draft')}>Save as draft</button><button className="btn primary" onClick={() => finish('published')}>Create and publish</button></>}
+    <div className="page gv rg cp">
+      <div className="rg-top">
+        <div>
+          <span className="gv-eyebrow">Data products</span>
+          <h1>{editing ? `Edit assets — ${editing.name}` : 'Create a data product'}</h1>
+        </div>
+        <div className="gv-inline" style={{ gap: 8, alignItems: 'center' }}>
+          {!editing && <span className="gv-faint" style={{ fontSize: 12 }}>{saved ? `Draft saved ${saved}` : 'Draft · not saved yet'}</span>}
+          <Button variant="secondary" onClick={cancel}>Cancel</Button>
+          {editing ? <Button variant="primary" icon={Check} disabled={!ready} onClick={() => finish()}>Save changes</Button> : (<>
+            <Button variant="secondary" disabled={!n.name.trim() || taken} onClick={() => { setSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })); finish('draft'); }}>Save as draft</Button>
+            <Button variant="primary" icon={Send} disabled={!ready || quarantined.length > 0} title={quarantined.length ? `${quarantined[0]} is quarantined by Data quality` : undefined} onClick={() => finish('published')}>Publish</Button>
+          </>)}
         </div>
       </div>
-      <div className="cwrap">
-        <div className="stepper">
-          {LABELS.map((l, i) => (
-            <div key={l} className={`sti ${i < st ? 'done' : i === st ? 'cur' : ''}`} onClick={() => { if (i < st) goStep(i); }}><span className="stn">{i < st ? '✓' : i + 1}</span><span>{l}</span></div>
-          ))}
-        </div>
-        <div className="cbody">
-          {st === 0 && (
-            <div className="fcard">
-              <div className="fld"><label>Cover</label><div className="ccover" style={{ background: COVER(d.color) }}><button className="btn sm">Change</button></div></div>
-              <div className="frow">
-                <div className="fld"><label>Name <span style={{ color: '#C2410C' }}>*</span> <span className="faint">({n.name.length}/80)</span></label><input className="input" maxLength={80} value={n.name} onChange={(e) => up({ name: e.target.value })} placeholder="e.g. Social Media Marketing" /></div>
-                <div className="fld"><label>Domain</label><select className="input" value={n.domain} onChange={(e) => up({ domain: e.target.value })}>{DOMAINS.map((x) => <option key={x.id} value={x.id}>{x.parent ? '    ' : ''}{x.name}</option>)}</select></div>
+      <div className="rg-toc">
+        {sections.map(([id, l], k) => {
+          const i = editing ? k + 2 : k;
+          return <button key={id} type="button" className={`${active === id ? 'on' : ''} ${done[i] ? 'done' : ''}`} onClick={() => jump(id)}><i>{done[i] ? <Check size={11} strokeWidth={3} /> : k + 1}</i>{l}</button>;
+        })}
+        <span className="rg-pct"><b>{pct}%</b> complete<span className="rg-bar"><i style={{ width: `${pct}%` }} /></span></span>
+      </div>
+
+      <div className="rg-grid">
+        <main>
+          {!editing && (
+            <section className="dash-card rg-sec" id="cp-about">
+              <h2><span>01</span>About this product</h2>
+              <p className="rg-lead">A data product is a curated set of assets with a named owner and a promise to its consumers.</p>
+              <Fl label="Name" req hint={taken ? 'A product with this name already exists — choose another.' : `${n.name.length}/80 characters`}><input className="input" maxLength={80} value={n.name} onChange={set('name')} placeholder="e.g. Customer Payments" /></Fl>
+              <Fl label="What is it for, and who uses it?"><textarea className="input" rows={2} value={n.desc} onChange={set('desc')} placeholder="e.g. One record per payment, for reconciliation and month-end reporting" /></Fl>
+              <div className="rg-two">
+                <Fl label="Domain" req>
+                  <select className="select" value={n.domain} onChange={set('domain')}>{DOMAINS.map((x) => <option key={x.id} value={x.id}>{x.parent ? `${D(x.parent).name} › ${x.name}` : x.name}</option>)}</select>
+                </Fl>
+                <Fl label="Owners" req hint="Owners can edit the product and approve access."><OwnerPicker value={n.owners} onChange={set('owners')} /></Fl>
               </div>
-              <div className="fld"><label>Description</label><textarea className="input" value={n.desc} onChange={(e) => up({ desc: e.target.value })} placeholder="Describe the product" /></div>
-              <div className="frow">
-                <div className="fld"><label>Criticality <span className="faint" title="Business impact">ⓘ</span></label><select className="input" value={n.crit} onChange={(e) => up({ crit: e.target.value })}><option value="">Select</option>{Object.keys(CRIT).map((k) => <option key={k} value={k}>{CRIT[k][0]}</option>)}</select></div>
-                <div className="fld"><label>Sensitivity <span className="faint" title="Data classification">ⓘ</span></label><select className="input" value={n.sens} onChange={(e) => up({ sens: e.target.value })}><option value="">Select</option>{Object.keys(SENS).map((k) => <option key={k} value={k}>{SENS[k][0]}</option>)}</select></div>
-              </div>
-              <div className="fld"><label>Owners</label><small className="faint" style={{ display: 'block', margin: '-2px 0 6px' }}>Members who can edit this product.</small>
-                <div className="ownbox">{n.owners.map((o) => <span key={o} className="tag"><Svg html={I.user} /> {o}</span>)}<input className="owin" placeholder="Add user or group" value={ownDraft} onChange={(e) => setOwnDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOwner(); } }} /></div>
-              </div>
-              <div className="fld"><label>Visibility</label><div className="radio">{['Private to domain members', 'Private to selected members', 'Public'].map((v) => <label key={v}><input type="radio" name="vi" value={v} checked={n.vis === v} onChange={() => up({ vis: v })} />{v}</label>)}</div></div>
-            </div>
+              <Fl label="Who can find it?">
+                <div className="gv-chips">{VIS.map(([v, l]) => <button key={v} type="button" className={`chip ${n.vis === v ? 'on' : ''}`} onClick={() => up({ vis: v })}>{l}</button>)}</div>
+              </Fl>
+            </section>
           )}
 
-          {st === 1 && (
-            <div className="fcard">
-              <b className="ct">Add assets <span style={{ color: '#C2410C' }}>*</span></b>
-              <div className="seg2" style={{ marginBottom: 14 }}><button className={n.mode === 'browse' ? 'on' : ''} onClick={() => up({ mode: 'browse' })}>Add via browse</button><button className={n.mode === 'rule' ? 'on' : ''} onClick={() => up({ mode: 'rule' })}>Add via rule</button></div>
-              {n.mode === 'browse' ? (
-                <div className="pick">{Object.keys(ASSET).map((a) => <label key={a}><input type="checkbox" checked={n.assets.includes(a)} onChange={() => toggleAsset(a)} />{a}<small>{ASSET[a][1]} · {ASSET[a][0]}</small></label>)}</div>
-              ) : (
-                <div className="rulebox">
-                  <div className="faint" style={{ fontSize: 12, marginBottom: 6 }}>Match all</div>
-                  <div className="rule">
-                    <select className="input" value={n.rule.attr} onChange={(e) => up({ rule: { ...n.rule, attr: e.target.value } })}>{['Connection', 'Asset type', 'Name'].map((x) => <option key={x}>{x}</option>)}</select>
-                    <select className="input" value={n.rule.op} onChange={(e) => up({ rule: { ...n.rule, op: e.target.value } })}>{['is', 'contains'].map((x) => <option key={x}>{x}</option>)}</select>
-                    <input className="input" value={n.rule.val} onChange={(e) => up({ rule: { ...n.rule, val: e.target.value } })} placeholder={n.rule.attr === 'Connection' ? 'e.g. Rplus Amazon S3' : n.rule.attr === 'Asset type' ? 'e.g. view' : 'e.g. CUSTOMER'} />
-                  </div>
-                  <span className="tlink" style={{ fontSize: 12.5 }}>+ Add filter</span>
-                  <div className="rulecount"><b>{ruleMatch(n.rule).length}</b> assets match above filter · <span className="tlink" onClick={addRule}>Add them</span></div>
-                </div>
-              )}
-              <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}><b>{n.assets.length}</b> assets selected</p>
-            </div>
+          {!editing && (
+            <section className="dash-card rg-sec" id="cp-class">
+              <h2><span>02</span>Classification</h2>
+              <p className="rg-lead">Two answers. Sensitivity, together with the assets you add, decides who must approve publication.</p>
+              <Fl label="Criticality" req><Tiles opts={CRIT_OPTS} value={n.crit} onChange={set('crit')} three /></Fl>
+              <Fl label="Sensitivity" req hint={restricted.length ? `${restricted.length} asset${restricted.length > 1 ? 's hold' : ' holds'} Restricted personal data (${restricted.slice(0, 2).join(', ')}${restricted.length > 2 ? '…' : ''}) — the data protection review is added.` : ''}><Tiles opts={SENS_OPTS} value={n.sens} onChange={set('sens')} three /></Fl>
+            </section>
           )}
 
-          {st === 2 && (() => {
-            const inp = n.assets.filter((a) => store.products.some((p) => p.id !== n.edit && p.outputs.includes(a)));
-            return (
-              <>
-                <div className="fcard">
-                  <b className="ct"><Svg html={I.port} /> Output ports</b>
-                  <p className="psub">Output ports are the assets in this product that produce data others can consume. You can add or remove them later from the product profile.</p>
-                  {n.assets.length ? <div className="pick">{n.assets.map((a) => <label key={a} className={n.outputs.includes(a) ? 'sel' : ''}><input type="checkbox" checked={n.outputs.includes(a)} onChange={() => toggleOutput(a)} />{a}<small>{ainfo(a).type} · {ainfo(a).src}</small></label>)}</div> : <div className="empty">Add assets first.</div>}
-                </div>
-                <div className="fcard">
-                  <b className="ct">Input ports</b>
-                  <p className="psub">Input ports are output ports from other products that you added here as assets. We found {inp.length} in the previous step.</p>
-                  {inp.map((a) => <span key={a} className="tag mono" style={{ margin: '0 6px 6px 0' }}>{a} · from {store.products.find((p) => p.outputs.includes(a)).name}</span>)}
-                </div>
-              </>
-            );
-          })()}
-
-          {st === 3 && (
-            <div className="fcard prev">
-              <div className="ccover" style={{ background: COVER(d.color), height: 110, borderRadius: '10px 10px 0 0' }} />
-              <div style={{ padding: '16px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}><h2 style={{ margin: 0, fontSize: 20 }}>{n.name || <span className="warn">Name missing</span>}</h2><span style={{ marginLeft: 'auto', color: 'var(--royal)', fontWeight: 600, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Svg html={I.vtickB} /> Active</span></div>
-                <div className="faint" style={{ fontSize: 12.5, margin: '4px 0 12px', display: 'flex', alignItems: 'center', gap: 6 }}><Svg html={I.boxS} /> Product · <Svg html={I.lock} /> {n.sens ? SENS[n.sens][0] : '—'}</div>
-                <div className="srow4">
-                  <div><label>Domain</label><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><DomainIcon id={n.domain} size={14} /> {d.name}</span></div>
-                  <div><label>Criticality</label>{n.crit ? <span className="lvl"><i style={{ background: CRIT[n.crit][1] }} />{CRIT[n.crit][0]}</span> : '—'}</div>
-                  <div><label>Sensitivity</label>{n.sens ? SENS[n.sens][0] : '—'}</div>
-                  <div><label>Visibility</label>{n.vis === 'Public' ? 'Public' : 'Private'}</div>
-                </div>
-                <div className="lbl">About</div><p className="ovdesc">{n.desc || '—'}</p>
-                <div className="lbl">Output ports ({n.outputs.length})</div>{n.outputs.length ? n.outputs.map((a) => <div key={a} className="mono" style={{ color: 'var(--royal)', fontSize: 12.5, padding: '3px 0' }}>{a}</div>) : <span className="faint">None</span>}
-                <div className="lbl" style={{ marginTop: 10 }}>Assets</div><p className="ovdesc">{n.assets.length}</p>
+          <section className="dash-card rg-sec" id="cp-assets">
+            <h2><span>{editing ? '01' : '03'}</span>Assets</h2>
+            <p className="rg-lead">Pick catalogue assets, or add every asset that matches a rule.</p>
+            <div className="rg-mfilter">
+              <Segmented options={[{ value: 'browse', label: 'Browse' }, { value: 'rule', label: 'Add by rule' }]} value={mode} onChange={setMode} ariaLabel="How to add assets" />
+              {mode === 'browse' && <label className="gv-search" style={{ flex: 1, margin: 0 }}><Search size={15} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${all.length} assets by name, type or source`} /></label>}
+            </div>
+            {mode === 'browse' ? (<>
+              <div className="gv-chips" style={{ marginBottom: 10 }}>
+                <button type="button" className={`chip ${!src && !onlySel ? 'on' : ''}`} onClick={() => { setSrc(''); setOnlySel(false); }}>All sources</button>
+                {sources.map((s) => <button key={s} type="button" className={`chip ${src === s ? 'on' : ''}`} onClick={() => setSrc(src === s ? '' : s)}>{s}</button>)}
+                <button type="button" className={`chip ${onlySel ? 'on' : ''}`} onClick={() => setOnlySel((v) => !v)}>Selected ({n.assets.length})</button>
               </div>
+              <div className="table-wrap cp-pick"><table className="tbl">
+                <thead><tr><th style={{ width: 36 }} /><th>Asset</th><th>Type</th><th>Source</th><th>Sensitivity</th></tr></thead>
+                <tbody>
+                  {list.map((a) => {
+                    const on = n.assets.includes(a); const s = sensitivityOf(a);
+                    const from = store.products.find((p) => p.id !== editing?.id && p.outputs.includes(a));
+                    return (
+                      <tr key={a} className={on ? 'on' : ''} onClick={() => toggleAsset(a)}>
+                        <td><input type="checkbox" checked={on} readOnly aria-label={`Add ${a}`} /></td>
+                        <td><span className="mono">{a}</span>{from && <span className="gv-sub">output port of {from.name} — becomes an input</span>}</td>
+                        <td className="gv-muted">{ASSET[a][1]}</td><td className="gv-muted">{ASSET[a][0]}</td>
+                        <td><span className={`rg-rg ${s === 'Restricted' ? 'bad' : s === 'Confidential' ? 'warn' : 'ok'}`}>{s}</span></td>
+                      </tr>
+                    );
+                  })}
+                  {!list.length && <tr><td colSpan={5} className="gv-muted" style={{ textAlign: 'center', padding: 18 }}>No assets match.</td></tr>}
+                </tbody>
+              </table></div>
+            </>) : (
+              <div className="cp-rule">
+                <div className="cp-rule-row">
+                  <select className="select" value={rule.attr} onChange={(e) => setRule((o) => ({ ...o, attr: e.target.value }))} aria-label="Attribute">{['Connection', 'Asset type', 'Name'].map((x) => <option key={x}>{x}</option>)}</select>
+                  <select className="select" value={rule.op} onChange={(e) => setRule((o) => ({ ...o, op: e.target.value }))} aria-label="Operator">{['is', 'contains'].map((x) => <option key={x}>{x}</option>)}</select>
+                  <input className="input" value={rule.val} onChange={(e) => setRule((o) => ({ ...o, val: e.target.value }))} placeholder={rule.attr === 'Connection' ? 'e.g. Rplus Amazon S3' : rule.attr === 'Asset type' ? 'e.g. view' : 'e.g. CUSTOMER'} />
+                  <Button variant="secondary" disabled={!ruleMatch(rule).length} onClick={addRule}>Add {ruleMatch(rule).length || ''} asset{ruleMatch(rule).length === 1 ? '' : 's'}</Button>
+                </div>
+                {rule.val && <p className="gv-muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>{ruleMatch(rule).length ? `Matches ${ruleMatch(rule).slice(0, 4).join(', ')}${ruleMatch(rule).length > 4 ? ` and ${ruleMatch(rule).length - 4} more` : ''}` : 'Nothing matches yet.'}</p>}
+              </div>
+            )}
+            <div className="cp-selected">
+              <b>{n.assets.length} selected</b>
+              {n.assets.slice(0, 8).map((a) => <span key={a} className="gv-ownchip mono">{a}<button type="button" aria-label={`Remove ${a}`} onClick={() => toggleAsset(a)}><X size={12} /></button></span>)}
+              {n.assets.length > 8 && <button type="button" className="chip" onClick={() => setOnlySel(true)}>+{n.assets.length - 8} more</button>}
+              {n.assets.length > 0 && <Button variant="link" size="sm" onClick={() => up({ assets: [], outputs: [] })}>Clear</Button>}
             </div>
-          )}
-        </div>
+          </section>
+
+          <section className="dash-card rg-sec" id="cp-ports">
+            <h2><span>{editing ? '02' : '04'}</span>Output ports</h2>
+            <p className="rg-lead">Output ports are the assets consumers use. Input ports are other products' output ports you added as assets.</p>
+            {n.assets.length ? (
+              <div className="gv-chips">{n.assets.map((a) => <button key={a} type="button" className={`chip mono ${outputs.includes(a) ? 'on' : ''}`} onClick={() => toggleOutput(a)}>{outputs.includes(a) && <Check size={12} />}{a} <small>{ainfo(a).type}</small></button>)}</div>
+            ) : <p className="gv-muted" style={{ margin: 0, fontSize: 13 }}>Add assets first.</p>}
+            <div className="rg-f" style={{ marginTop: 16, marginBottom: 0 }}>
+              <label>Input ports ({inputs.length})</label>
+              {inputs.length ? <div className="gv-chips">{inputs.map((a) => <span key={a} className="tag mono">{a} · from {store.products.find((p) => p.outputs.includes(a)).name}</span>)}</div> : <small style={{ marginTop: 0 }}>None — none of the assets is another product's output port.</small>}
+            </div>
+          </section>
+        </main>
+
+        <aside className="rg-live">
+          <div className="dash-card rg-panel">
+            <h3>Preview</h3>
+            <div className="cp-prev">
+              <span className="cp-prev-i"><Box size={18} strokeWidth={1.7} /></span>
+              <div><b>{n.name.trim() || 'Untitled product'}</b><small><Layers size={12} /> {d?.name}{n.sens ? ` · ${SENS[n.sens][0]}` : ''}{n.crit ? ` · ${CRIT[n.crit][0]} criticality` : ''}</small></div>
+            </div>
+            {n.desc.trim() && <p className="cp-prev-d">{n.desc.trim()}</p>}
+            <div className="cp-prev-n"><div><b>{n.assets.length}</b><small>Assets</small></div><div><b>{outputs.length || (n.assets.length ? 1 : 0)}</b><small>Output ports</small></div><div><b>{inputs.length}</b><small>Input ports</small></div></div>
+            <p className="rg-eta" style={{ marginTop: 12 }}>{VIS.find(([v]) => v === n.vis)?.[1]} can find it · owners {n.owners.join(', ') || '—'}</p>
+          </div>
+
+          {!editing && <div className="dash-card rg-panel">
+            <h3>Publication path</h3>
+            {wf ? (<>
+              <ol className="wf-tl" style={{ marginBottom: 6 }}>
+                {path.map(({ step: s, applies }) => {
+                  const I = KIND_ICON[s.kind];
+                  const open = s.runIf && ctx[s.runIf.field] == null;
+                  if (open) return <li key={s.id} className="skipped"><i><I size={11} /></i><div><b>{s.name}</b><small>Depends on your answers — only if {condText(s.runIf)}</small></div></li>;
+                  const isAuto = s.kind === 'automated';
+                  return (
+                    <li key={s.id} className={!applies ? 'skipped' : isAuto && ready && !quarantined.length ? 'done' : 'not-reached'}>
+                      <i>{!applies ? <CircleSlash size={11} /> : isAuto && ready && !quarantined.length ? <Check size={11} strokeWidth={3} /> : <I size={11} />}</i>
+                      <div>
+                        <b>{s.name}</b>
+                        <small>
+                          {!applies && `Not needed — only if ${condText(s.runIf)}`}
+                          {applies && isAuto && (quarantined.length ? `Blocked — ${quarantined[0]} is quarantined by Data quality` : ready ? 'Passes — contract and quality checks are met' : 'Runs when you publish')}
+                          {applies && !isAuto && s.kind !== 'notify' && <>{approverText(s, { subject: { owners: n.owners } })} · {s.sla} day{s.sla === 1 ? '' : 's'}{s.sod && <> · <Lock size={10} /> not the requester</>}{s.runIf && ` · because ${restricted.length ? 'it holds Restricted data' : condText(s.runIf)}`}</>}
+                          {applies && s.kind === 'notify' && 'Subscribers are told'}
+                        </small>
+                      </div>
+                    </li>
+                  );
+                })}
+                <li className="not-reached"><i><Flag size={11} /></i><div><b>Live in the marketplace</b><small>{wf.outcome.approved}</small></div></li>
+              </ol>
+              <p className="rg-eta">{approvals.length} approval{approvals.length === 1 ? '' : 's'} · up to {days} working days · workflow <b>{wf.name} v{wf.version}</b> from Governance › Workflows</p>
+            </>) : <p className="gv-muted" style={{ fontSize: 13, margin: 0 }}>No active workflow starts on “{EVENT}”. Publish one in Governance › Workflows.</p>}
+          </div>}
+
+          <div className="dash-card rg-panel">
+            <h3>Still needed</h3>
+            {quarantined.length > 0 && <p className="cp-block"><Lock size={13} /> Publishing is blocked: <span className="mono">{quarantined[0]}</span> is quarantined by Data quality. You can still save a draft.</p>}
+            {missing.length ? <ul className="rg-missing">{missing.map(([id, t]) => <li key={id}><button type="button" onClick={() => jump(id)}>{t}</button></li>)}</ul> : null}
+            {!blocking.length && (<>
+              <p className="rg-ready"><Check size={14} strokeWidth={3} /> {editing ? 'Ready to save.' : 'Everything needed is in — ready to publish.'}</p>
+              <Button variant="primary" icon={editing ? Check : Send} disabled={!editing && quarantined.length > 0} onClick={() => finish(editing ? undefined : 'published')} style={{ marginTop: 10, width: '100%', justifyContent: 'center' }}>{editing ? 'Save changes' : 'Publish'}</Button>
+            </>)}
+          </div>
+        </aside>
       </div>
     </div>
   );
