@@ -6,8 +6,10 @@ import {
   Trash2, Send, X, Unlink, Download, Table2, Columns3, File, Radio, BarChart3, Check, Sparkles,
 } from 'lucide-react';
 import { Section } from '../components/Rail.jsx';
+import GlossaryNewTerm from './GlossaryNewTerm.jsx';
+import GlossaryNewGlossary from './GlossaryNewGlossary.jsx';
 import {
-  TERMS, ACTIVITY, GLOSSARIES, ROLE, STATUS, SDOT, ME,
+  TERMS, ACTIVITY, GLOSSARIES, GLOSS_META, ROLE, STATUS, SDOT, ME,
   T, kids, ini, counts, uniqAssets, allLinks, matchQ, assetInfo, assetId, ASSET,
   useGlossaryData, setStatus, saveTerm, createTerm, deleteTerm, linkAssets, unlinkAsset, registerToast, toast,
 } from '../glossary-data.js';
@@ -53,6 +55,9 @@ function useNav(ui) {
   return {
     home: () => { ui.update({ edit: false, menu: false }); navigate('/app/glossary'); },
     glossary: (g) => { ui.update((prev) => ({ q: '', seg: 'all', edit: false, menu: false, open: new Set(prev.open).add(g) })); navigate(`/app/glossary/g/${g}`); },
+    /* New term is its own page (like Create a data product), not a drawer */
+    newGlossary: () => { ui.update({ edit: false, menu: false }); navigate('/app/glossary/new-glossary'); },
+    newTerm: (g, parent) => { ui.update({ edit: false, menu: false }); navigate('/app/glossary/new', { state: { g, parent } }); },
     term: (id) => { ui.update({ tab: 'overview', edit: false, menu: false, atype: 'all', aq: '' }); navigate(`/app/glossary/${id}`); },
   };
 }
@@ -61,6 +66,8 @@ function useNav(ui) {
 function useView() {
   const { pathname } = useLocation();
   const params = useParams();
+  if (params.term === 'new') return { view: 'new' };
+  if (params.term === 'new-glossary') return { view: 'new-glossary' };
   if (params.term) return { view: 'term', term: params.term };
   if (params.glossary) return { view: 'glossary', glossary: params.glossary };
   return { view: 'home' };
@@ -310,6 +317,7 @@ function Toolbar({ ui, placeholder, withSeg }) {
 
 /* ------------------------------------------------------------------ home: all glossaries */
 function Home({ ui }) {
+  const nav = useNav(ui);
   const c = counts();
   const unl = TERMS.filter((t) => !t.linked.length).length;
   const list = TERMS.filter((t) => matchQ(t, ui.q) && (ui.seg === 'all' || t.status === ui.seg) && (!ui.fstatus.size || ui.fstatus.has(t.status)) && (!ui.fgloss.size || ui.fgloss.has(t.g)));
@@ -325,7 +333,7 @@ function Home({ ui }) {
     <>
       <div className="gl-phead">
         <div><span className="eyebrow">Data assets</span><h1>Business glossary</h1><p>The shared vocabulary for the estate: terms, their owners and the assets they describe.</p></div>
-        <button className="btn primary" onClick={() => ui.update({ overlay: { type: 'new', g: GLOSSARIES[0] } })}><Plus size={15} />New term</button>
+        <div className="gl-head-acts"><button className="btn secondary" onClick={() => nav.newGlossary()}><Book size={15} />Create glossary</button><button className="btn primary" onClick={() => nav.newTerm(GLOSSARIES[0])}><Plus size={15} />New term</button></div>
       </div>
       <div className="tiles-sm gl-tiles">
         {tiles.map(([v, k, s]) => <div key={k}><b>{v}</b><span>{k}</span><small>{s}</small></div>)}
@@ -354,16 +362,18 @@ function GlossaryPage({ ui, g }) {
     <>
       <div className="gl-thead">
         <div className="gl-ticon"><Book size={20} strokeWidth={1.7} /></div>
-        <div><h1>{g}</h1><div className="gl-kind">Glossary · {ts.length} terms</div></div>
-        <div className="gl-tools"><button className="btn primary md" onClick={() => ui.update({ overlay: { type: 'new', g } })}><Plus size={15} />New term</button></div>
+        <div><h1>{g}</h1><div className="gl-kind">{GLOSS_META[g]?.kind || 'Glossary'} · {ts.length} terms</div></div>
+        <div className="gl-tools"><button className="btn primary md" onClick={() => nav.newTerm(g)}><Plus size={15} />New term</button></div>
       </div>
       <div className="gl-pgrid">
         <div className="gl-stack">
           <div className="card pad">
             <h3>Glossary summary</h3>
             <dl className="gl-kv" style={{ marginTop: 10 }}>
+              {GLOSS_META[g]?.desc && <><dt>Covers</dt><dd>{GLOSS_META[g].desc}</dd></>}
               <dt>Terms</dt><dd>{ts.length} ({c.approved} approved · {c.review} in review · {c.draft} draft)</dd>
-              <dt>Owners</dt><dd>{owners.length ? owners.map((o) => <Person key={o} name={o} />) : '—'}</dd>
+              <dt>Owners</dt><dd>{(GLOSS_META[g]?.owners || owners).length ? (GLOSS_META[g]?.owners || owners).map((o) => <Person key={o} name={o} />) : '—'}</dd>
+              {GLOSS_META[g]?.stewards?.length > 0 && <><dt>Stewards</dt><dd>{GLOSS_META[g].stewards.map((o) => <Person key={o} name={o} />)}</dd></>}
               <dt>Linked assets</dt><dd>{new Set(links).size} assets · {links.length} links</dd>
               <dt>Top-level terms</dt><dd>{ts.filter((t) => !t.parent).map((t, i) => <Fragment key={t.id}>{i ? ', ' : ''}<button className="gl-tlink" onClick={() => nav.term(t.id)}>{t.name}</button></Fragment>)}</dd>
             </dl>
@@ -382,8 +392,9 @@ function GlossaryPage({ ui, g }) {
         </div>
         <aside className="gl-side">
           <div className="gl-prop"><label>Name</label><div className="v">{g}</div></div>
-          <div className="gl-prop"><label>Description</label><div className="v gl-muted" style={{ fontWeight: 400 }}>Business terms for the {g.toLowerCase()} domain.</div></div>
-          <div className="gl-prop"><label>Owners</label><div className="v">{owners.length ? owners.map((o) => <Person key={o} name={o} />) : '—'}</div></div>
+          <div className="gl-prop"><label>Description</label><div className="v gl-muted" style={{ fontWeight: 400 }}>{GLOSS_META[g]?.desc || `Business terms for the ${g.toLowerCase()} domain.`}</div></div>
+          {GLOSS_META[g] && <div className="gl-prop"><label>Term rules</label><div className="v gl-muted" style={{ fontWeight: 400 }}>Every term needs {GLOSS_META[g].required.map((k) => ({ def: 'a definition', owner: 'an owner', steward: 'a steward', syn: 'synonyms', rules: 'business rules', linked: 'a linked asset' }[k])).join(', ')} · {GLOSS_META[g].approval ? 'new terms need approval' : 'the owner approves directly'} · {GLOSS_META[g].propose === 'Everyone' ? 'anyone can propose' : 'owners and stewards add terms'}</div></div>}
+          <div className="gl-prop"><label>Owners</label><div className="v">{(GLOSS_META[g]?.owners || owners).length ? (GLOSS_META[g]?.owners || owners).map((o) => <Person key={o} name={o} />) : '—'}</div></div>
           <div className="gl-prop"><label>Status</label><div className="v">{Object.entries(c).filter(([, n]) => n).map(([k, n]) => <Fragment key={k}><Badge status={k} /><span className="gl-muted">{n}</span></Fragment>)}</div></div>
         </aside>
       </div>
@@ -638,7 +649,7 @@ function TermPage({ ui, t }) {
             <div className="gl-menu">
               {t.status === 'approved' && <button onClick={() => { ui.update({ menu: false }); setStatus(t.id, 'deprecated'); }}><X size={15} />Deprecate term</button>}
               <button onClick={() => { ui.update({ menu: false }); exportLinked(t); }}><Download size={15} />Export linked assets</button>
-              <button onClick={() => ui.update({ menu: false, overlay: { type: 'new', g: t.g, parent: t.id } })}><Plus size={15} />Add child term</button>
+              <button onClick={() => { ui.update({ menu: false }); nav.newTerm(t.g, t.id); }}><Plus size={15} />Add child term</button>
               <button onClick={() => ui.update({ menu: false, overlay: { type: 'delete', id: t.id } })}><Trash2 size={15} />Delete term</button>
             </div>
           </>}
@@ -677,40 +688,6 @@ function exportLinked(t) {
 }
 
 /* ------------------------------------------------------------------ drawers & modals */
-function NewTermDrawer({ ui }) {
-  const nav = useNav(ui);
-  const o = ui.overlay;
-  const [f, setF] = useState({ name: '', g: o.g || GLOSSARIES[0], parent: o.parent || '', owner: '', steward: '', custodian: '', syn: '', def: '' });
-  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const close = () => ui.update({ overlay: null });
-  const create = () => {
-    const name = f.name.trim(); if (!name) return;
-    const id = createTerm({ name, g: f.g, parent: f.parent || null, def: f.def.trim() || WD(name), owner: f.owner.trim(), steward: f.steward.trim(), custodian: f.custodian.trim(), syn: f.syn.split(';').map((s) => s.trim()).filter(Boolean) });
-    ui.update({ overlay: null }); toast(`Created "${name}" as a draft`); nav.term(id);
-  };
-  return (
-    <>
-      <div className="gl-scrim" onClick={close} />
-      <div className="gl-drawer" role="dialog" aria-label="New term">
-        <header>New term<button className="ib" aria-label="Close" onClick={close}><X size={16} /></button></header>
-        <div className="gl-db">
-          <div className="gl-group-label">Basics</div>
-          <div className="gl-fld"><label htmlFor="n_name">Name</label><input className="input" id="n_name" value={f.name} onChange={set('name')} placeholder="e.g. Active Claim" autoFocus /></div>
-          <div className="gl-fld"><label htmlFor="n_g">Glossary (domain)</label><select className="input" id="n_g" value={f.g} onChange={set('g')}>{GLOSSARIES.map((x) => <option key={x}>{x}</option>)}</select></div>
-          <div className="gl-fld"><label htmlFor="n_p">Parent term (optional)</label><select className="input" id="n_p" value={f.parent} onChange={set('parent')}><option value="">None</option>{TERMS.filter((t) => !t.parent).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-          <div className="gl-group-label">People</div>
-          <div className="gl-formgrid"><div><label htmlFor="n_o">Owner</label><input className="input" id="n_o" value={f.owner} onChange={set('owner')} /></div><div><label htmlFor="n_s">Steward</label><input className="input" id="n_s" value={f.steward} onChange={set('steward')} /></div><div><label htmlFor="n_c">Custodian</label><input className="input" id="n_c" value={f.custodian} onChange={set('custodian')} /></div></div>
-          <div className="gl-group-label">Details</div>
-          <div className="gl-fld"><label htmlFor="n_syn">Synonyms (; separated)</label><input className="input" id="n_syn" value={f.syn} onChange={set('syn')} /></div>
-          <div className="gl-fld"><label htmlFor="n_d">Definition</label><textarea className="input" id="n_d" rows={4} value={f.def} onChange={set('def')} /></div>
-          <div className="gl-muted" style={{ fontSize: 12 }}>New terms start as Draft. Submit them for review when ready.</div>
-        </div>
-        <footer><button className="btn secondary md" onClick={close}>Cancel</button><button className="btn primary md" disabled={!f.name.trim()} onClick={create}>Create term</button></footer>
-      </div>
-    </>
-  );
-}
-
 function DeleteModal({ ui }) {
   const nav = useNav(ui);
   const t = T(ui.overlay.id);
@@ -777,7 +754,9 @@ export default function Glossary({ ui }) {
   const t = view === 'term' ? T(term) : null;
 
   let body;
-  if (view === 'term') body = t ? <TermPage ui={ui} t={t} /> : <Home ui={ui} />;
+  if (view === 'new') body = <GlossaryNewTerm />;
+  else if (view === 'new-glossary') body = <GlossaryNewGlossary />;
+  else if (view === 'term') body = t ? <TermPage ui={ui} t={t} /> : <Home ui={ui} />;
   else if (view === 'glossary') body = <GlossaryPage ui={ui} g={glossary} />;
   else body = <Home ui={ui} />;
 
@@ -790,7 +769,6 @@ export default function Glossary({ ui }) {
       {body}
       {createPortal(
         <div className="gl">
-          {ui.overlay?.type === 'new' && <NewTermDrawer ui={ui} />}
           {ui.overlay?.type === 'delete' && <DeleteModal ui={ui} />}
           {ui.overlay?.type === 'link' && <LinkDrawer ui={ui} />}
           <Toast />

@@ -9,8 +9,7 @@
 .dp .mono { font-family: var(--mono); }
 .dp .muted { color: var(--muted); } .dp .faint { color: var(--faint); }
 .dp .num { text-align: right; font-variant-numeric: tabular-nums; }
-/* covers go edge to edge: drop the InnerLayout body padding when it holds a .dp page */
-.inner-body:has(> .dp) { padding: 0; }
+/* Data products pages keep the InnerLayout body padding (24px 32px), like every other page */
 
 /* icon button (prototype .ib — the app uses .icon-btn elsewhere) */
 .dp .ib { width: 32px; height: 32px; border-radius: var(--r-ctl); border: 1px solid transparent; background: transparent; display: grid; place-items: center; color: var(--muted); cursor: pointer; }
@@ -366,3 +365,95 @@
 .dp .ib:hover { background: var(--ice); color: var(--navy); }
 .dp .banner { border-radius: var(--r-ctl); border: 1px solid var(--line); border-left: 3px solid var(--royal); background: var(--white); }
 .dp .ccover { background: var(--ice) !important; }
+
+/* ===== hygiene pass (Oct 2026): one 16px rhythm, no doubled gaps, aligned controls ===== */
+/* cards inside a grid or stack take their spacing from the gap, not their own margin */
+.dp .stack > *, .dp .ogrid > *, .dp-two > *, .dp .srow > *, .dp-dgrid > *, .dp .agrid > * { margin-bottom: 0; }
+.dp .stack { gap: 16px; }
+.dp .srow { margin-bottom: 16px; }
+.dp-dgrid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.dp .ssec { margin: 8px 0 12px; font-size: 15px; }
+.dp .ssec svg { color: var(--muted); }
+/* side-card heads: title left, icon buttons right on one line */
+.dp .sidehead { min-height: 28px; margin-bottom: 8px; }
+.dp .sidehead b { font-size: 15px; font-weight: 600; }
+.dp .sidehead > span { display: inline-flex; align-items: center; gap: 2px; }
+/* summary tiles: icon and number on one line, label under the number */
+.dp .tiles4 { gap: 12px; }
+.dp .tiles4 > div > div { display: flex; flex-direction: column; }
+.dp .sumi { align-items: center; }
+.dp .sumi > svg, .dp .sumi > span { flex: none; }
+.dp .sumleft { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: start; }
+.dp .enr4 > div { min-height: 0; }
+.dp .enr4 .rem { white-space: nowrap; }
+/* tables: icon + name keep a gap */
+.dp .tname { display: inline-flex; align-items: center; gap: 8px; }
+.dp .tname svg { color: var(--muted); flex: none; }
+/* search, sort and filters line up at 32px */
+.dp .asearch .msearch { height: 32px !important; border: 1px solid var(--line2); border-radius: var(--r-ctl); background: var(--white); }
+.dp .fsel { height: 32px; font-size: 13px; padding: 0 28px 0 10px; border-color: var(--line2); }
+.dp .afilters { gap: 8px; margin-bottom: 16px; }
+.dp .ptitle { margin-bottom: 2px; }
+/* product › Assets as a table (the catalogue's .arow card style must not leak in) */
+.dp .ax-assets td .an { font-family: var(--mono); font-size: 12.5px; color: var(--royal); }
+.dp .ax-assets .optag { margin-left: 0; }
+.dp .dp-ahead { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.dp .dp-ahead .gv-search, .dp .dp-ahead .dp-asearch { width: 260px; }
+
+/* ===== Create a data product — same pattern as Register an external AI model (.rg in governance.css) ===== */
+.cp .cp-pick { max-height: 380px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.cp .cp-pick thead th { position: sticky; top: 0; background: var(--white); z-index: 1; }
+.cp .cp-pick tbody tr { cursor: pointer; }
+.cp .cp-pick tbody tr:hover { background: var(--mist); }
+.cp .cp-pick tbody tr.on { background: var(--ice); }
+.cp .cp-pick input[type=checkbox] { accent-color: var(--royal); pointer-events: none; }
+.cp .cp-pick .mono { font-size: 12.5px; }
+.cp .cp-rule { border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.cp .cp-rule-row { display: grid; grid-template-columns: 160px 120px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.cp .cp-selected { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; }
+.cp .cp-selected > b { margin-right: 4px; color: var(--navy); }
+.cp .cp-selected .gv-ownchip { font-size: 12px; }
+.cp .chip.mono { font-family: var(--mono); font-size: 12px; gap: 6px; }
+.cp .chip small { color: var(--faint); font-family: var(--body, inherit); }
+.cp .cp-prev { display: flex; gap: 10px; align-items: flex-start; }
+.cp .cp-prev-i { width: 34px; height: 34px; border-radius: 9px; background: var(--ice); color: var(--royal); display: grid; place-items: center; flex: none; }
+.cp .cp-prev b { display: block; font-size: 15px; color: var(--navy); }
+.cp .cp-prev small { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12.5px; }
+.cp .cp-prev-d { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.cp .cp-prev-n { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.cp .cp-prev-n > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.cp .cp-prev-n b { display: block; font-size: 18px; color: var(--navy); }
+.cp .cp-prev-n small { font-size: 11.5px; color: var(--muted); }
+.cp .cp-block { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 10px; font-size: 12.5px; color: var(--gv-bad, #C0342B); }
+.cp .cp-block svg { flex: none; margin-top: 2px; }
+@media (max-width: 900px) { .cp .cp-rule-row { grid-template-columns: 1fr 1fr; } }
+.cp .rg-f .select { width: 100%; }
+.dp .fsel { width: auto; max-width: 150px; }
+.dp .sumgrid { grid-template-columns: minmax(280px, 320px) 1fr; }
+.dp .sumi small { white-space: nowrap; }
+
+/* Business glossary › New term (shares the .rg / .cp pattern) */
+.nt .nt-ai { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; background: var(--gv-violet-bg, #F3EFFE); border: 1px solid var(--gv-violet-line, #DCD3FA); font-size: 13px; color: var(--navy); margin: -4px 0 16px; }
+.nt .nt-ai svg { color: var(--gv-violet, #6B46D9); flex: none; }
+.nt .nt-ai span { flex: 1; min-width: 200px; }
+.nt .nt-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.nt .nt-people .rg-f { margin-bottom: 0; }
+.nt .gv-owners input { border: 0; outline: 0; flex: 1; min-width: 140px; font: inherit; font-size: 13px; background: transparent; }
+.nt .rg-f .select { width: 100%; }
+@media (max-width: 900px) { .nt .nt-people { grid-template-columns: 1fr; } }
+.gl-head-acts { display: flex; gap: 8px; align-items: center; }
+.nt .ng-clash { text-decoration: line-through; opacity: .6; }
+.nt .gv-chips .chip[disabled] { opacity: 1; cursor: default; }
+/* Create domain */
+.nt .cd-stake { display: grid; grid-template-columns: minmax(0, 1fr) 200px auto; gap: 8px; }
+.nt .cd-res { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+.nt .cd-pn { display: inline-flex; align-items: center; gap: 8px; } .nt .cd-pn svg { color: var(--muted); }
+.nt .ib { width: 28px; height: 28px; border: 0; background: none; border-radius: 6px; color: var(--muted); display: inline-grid; place-items: center; cursor: pointer; }
+.nt .ib:hover { background: var(--ice); color: var(--navy); }
+.nt .cd-tree, .nt .cd-tree ul { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.nt .cd-tree ul { padding-left: 18px; margin-top: 4px; }
+.nt .cd-tree li { padding: 4px 0; color: var(--navy); }
+.nt .cd-tree li svg { color: var(--muted); vertical-align: -2px; margin-right: 4px; }
+.nt .cd-tree li small { float: right; color: var(--faint); }
+.nt .cd-tree li.new { color: var(--royal); font-weight: 600; } .nt .cd-tree li.new svg { color: var(--royal); }
+.nt .cd-link { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }

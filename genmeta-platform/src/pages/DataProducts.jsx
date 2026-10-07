@@ -10,6 +10,7 @@ import Drafts from './products/Drafts.jsx';
 import Domain from './products/Domain.jsx';
 import Product from './products/Product.jsx';
 import Create from './products/Create.jsx';
+import CreateDomain from './products/CreateDomain.jsx';
 
 /* Data products: an inner panel (glossary-style search, Overview, My drafts, domain tree and a
    domain filter) reusing InnerLayout, full-width pages for home/domain/product, and a
@@ -18,7 +19,8 @@ export default function DataProducts() {
   return (
     <ProductsProvider>
       <Routes>
-        <Route path="new" element={<Create />} />
+        <Route path="new" element={<Shell><Create /></Shell>} />
+        <Route path="new-domain" element={<Shell><CreateDomain /></Shell>} />
         <Route index element={<Shell><Home /></Shell>} />
         <Route path="drafts" element={<Shell><Drafts /></Shell>} />
         <Route path="domain/:id" element={<Shell><Domain /></Shell>} />

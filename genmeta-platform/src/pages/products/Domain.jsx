@@ -28,7 +28,7 @@ export default function Domain() {
   return (
     <div className="page fade-in dp">
       <EntityHead icon={Layers} title={d.name} kind={par ? `Sub-domain in ${par.name}` : 'Domain'} id={d.id}
-        isProduct={false} onAddProduct={() => nav(paths.create, { state: { prefill: { domain: d.id } } })} onCreateSub={() => store.toast('New sub-domain in ' + d.name)} />
+        isProduct={false} onAddProduct={() => nav(paths.create, { state: { prefill: { domain: d.id } } })} onCreateSub={() => nav(paths.newDomain, { state: { parent: d.parent || d.id } })} />
       <Tabs items={TABS} value={tab} onChange={setTab} />
       <div className="dp-tabbody">
         {tab === 'overview' && <DomOverview d={d} list={list} />}
@@ -68,7 +68,7 @@ function DomOverview({ d, list }) {
           <div className="tiles4">
             <div><span className="ti"><Svg html={I.compass} /></span><div><b>{new Set(list.flatMap((p) => p.assets)).size}</b><small>Assets owned</small></div></div>
             <div><span className="ti"><Svg html={I.boxS} /></span><div><b>{list.length}</b><small>Products</small></div></div>
-            <div><span className="ti"><Svg html={I.user} /></span><div><span className="avs">{d.owners.map((o, i) => <i key={i}>{ini(o)}</i>)}</span><small>Owners</small></div></div>
+            <div><span className="ti"><Svg html={I.user} /></span><div title={d.owners.join(', ')}><b>{d.owners.length}</b><small>Owners</small></div></div>
             <div><span className="ti"><Svg html={I.users} /></span><div><b>{st.length}</b><small>Stakeholders</small></div></div>
           </div>
           <div className="lbl">Description</div><p className="ovdesc">{d.readme || d.desc}</p>
@@ -92,7 +92,7 @@ function DomOverview({ d, list }) {
 
       <div className="stack">
         <div className="acardbox">
-          <div className="sidehead"><b>{d.parent ? 'Sub-domains' : 'Subdomains'} <span className="faint">{subs(d.id).length}</span></b><span><button className="ib sm"><Svg html={I.search} /></button><button className="ib sm" onClick={() => store.toast('New sub-domain in ' + d.name)}><Svg html={I.plus} /></button></span></div>
+          <div className="sidehead"><b>{d.parent ? 'Sub-domains' : 'Subdomains'} <span className="faint">{subs(d.id).length}</span></b><span><button className="ib sm"><Svg html={I.search} /></button><button className="ib sm" aria-label="New sub-domain" onClick={() => nav(paths.newDomain, { state: { parent: d.parent || d.id } })}><Svg html={I.plus} /></button></span></div>
           {subs(d.id).length ? subs(d.id).map((s) => (
             <div key={s.id} className="lrow" onClick={() => nav(paths.domain(s.id))}><DomainIcon id={s.id} size={16} /><span>{s.name}</span><span className="faint" style={{ marginLeft: 'auto' }}>{store.inDomain(s.id).length}</span></div>
           )) : <div className="empty" style={{ padding: 18 }}>No sub-domains.<br /><small>Organise your domain by adding sub-domains.</small></div>}
@@ -103,8 +103,7 @@ function DomOverview({ d, list }) {
         </div>
         <div className="acardbox">
           <b className="ct">Resources</b>
-          <div className="lrow"><Svg html={I.link} /><span>Domain charter</span></div>
-          <div className="lrow"><Svg html={I.link} /><span>#data-{d.id} on Slack</span></div>
+          {(d.resources || [['Domain charter', ''], [`#data-${d.id} on Slack`, '']]).map(([l, u]) => <div key={l} className="lrow" title={u || undefined}><Svg html={I.link} /><span>{l}</span></div>)}
           <button className="btn sm ghost"><Svg html={I.plus} /> Add resource</button>
         </div>
       </div>
@@ -183,7 +182,7 @@ function DomStats({ d, list, goProducts }) {
       <div className="ssec"><Svg html={I.layers} /> Summary</div>
       <div className="srow">
         <div className="acardbox" style={{ flex: 2 }}>
-          <b className="ct">Summary</b>
+          <b className="ct">Domain at a glance</b>
           <div className="sumgrid">
             <div className="sumleft">
               <div className="sumi"><Svg html={I.boxS} /><div><b>{list.length}</b><small>Total products</small></div></div>

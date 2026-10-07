@@ -18,6 +18,7 @@ export const paths = {
   home: '/app/products',
   drafts: '/app/products/drafts',
   create: '/app/products/new',
+  newDomain: '/app/products/new-domain',
   domain: (id) => `/app/products/domain/${id}`,
   product: (id) => `/app/products/${id}`,
 };
@@ -166,8 +167,7 @@ export function LineageGraph({ ids }) {
     return (
       <g key={id} className="lnode" transform={`translate(${x},${y})`} onClick={() => nav(paths.product(id))}>
         <rect width={W} height={H} rx="10" fill={hl ? '#0E2A57' : '#fff'} stroke={hl ? '#0E2A57' : '#C9D6E6'} />
-        <rect x="12" y="14" width="16" height="16" rx="4" fill={D(p.domain).color} />
-        <text x="38" y="27" fontSize="13" fontWeight="600" fill={hl ? '#fff' : '#0E2A57'}>{p.name.length > 24 ? p.name.slice(0, 23) + '…' : p.name}</text>
+        <text x="12" y="27" fontSize="13" fontWeight="600" fill={hl ? '#fff' : '#0E2A57'}>{p.name.length > 24 ? p.name.slice(0, 23) + '…' : p.name}</text>
         <text x="12" y="50" fontSize="11.5" fill={hl ? '#C9D7F0' : '#566A89'}>{D(p.domain).name} · {CRIT[p.crit][0]} · {score(p).toFixed(1)}</text>
       </g>
     );
